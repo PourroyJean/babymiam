@@ -20,12 +20,16 @@ MVP Next.js pour suivre la diversification alimentaire de bébé.
    ```bash
    npm install
    ```
-4. Démarrer:
+4. Initialiser la base (migrations + seed):
+   ```bash
+   npm run db:setup
+   ```
+5. Démarrer:
    ```bash
    npm run dev
    ```
 
-L'application crée les tables automatiquement et seed les catégories/aliments depuis `aliments_categories.json`.
+Le seed charge les catégories/aliments depuis `aliments_categories.json`.
 Si `POSTGRES_URL` n'est pas défini, l'app utilise par défaut `postgres://postgres:postgres@localhost:5432/babymiam`.
 
 ## Auth par défaut
@@ -39,6 +43,6 @@ Tu peux changer via:
 
 ## Déploiement Vercel
 1. Importer le repo sur Vercel.
-2. Ajouter une base Vercel Postgres.
-3. Vérifier les variables d'environnement (`POSTGRES_URL`, `AUTH_*`).
-4. Déployer.
+2. Ajouter/lier une base Neon (Vercel SQL) au projet.
+3. Vérifier les variables d'environnement DB (`DATABASE_URL`, `POSTGRES_URL`) et `AUTH_*`.
+4. Déployer (le build exécute `db:migrate` puis `db:seed` avant `next build`).

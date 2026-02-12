@@ -1,32 +1,23 @@
-import { readFile } from "fs/promises";
-import path from "path";
 import { Pool } from "pg";
 import type { DashboardCategory } from "@/lib/types";
 
 const LOCAL_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam";
 
-type SourceCategory = {
-  categorie: string;
-  aliments: string[];
-};
-
 declare global {
-  var __babymiamDbInit: Promise<void> | undefined;
   var __babymiamPool: Pool | undefined;
 }
 
-function ensureConnectionString() {
-  if (!process.env.POSTGRES_URL) {
-    process.env.POSTGRES_URL = LOCAL_POSTGRES_URL;
-  }
+function getConnectionString() {
+  return process.env.POSTGRES_URL || process.env.DATABASE_URL || LOCAL_POSTGRES_URL;
 }
 
 function getPool() {
-  ensureConnectionString();
-
   if (!global.__babymiamPool) {
     global.__babymiamPool = new Pool({
-      connectionString: process.env.POSTGRES_URL
+      connectionString: getConnectionString(),
+      max: Number(process.env.PG_POOL_MAX || 5),
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 5_000
     });
   }
 
@@ -41,92 +32,7 @@ async function query<T extends Record<string, unknown> = Record<string, unknown>
   return pool.query<T>(text, values);
 }
 
-async function readSourceCategories(): Promise<SourceCategory[]> {
-  const filePath = path.join(process.cwd(), "aliments_categories.json");
-  const raw = await readFile(filePath, "utf8");
-  const parsed = JSON.parse(raw) as { categories?: SourceCategory[] };
-
-  return Array.isArray(parsed.categories) ? parsed.categories : [];
-}
-
-export async function ensureDatabaseReady() {
-  if (!global.__babymiamDbInit) {
-    const initPromise = (async () => {
-      await query(`
-        CREATE TABLE IF NOT EXISTS categories (
-          id SERIAL PRIMARY KEY,
-          name TEXT UNIQUE NOT NULL,
-          sort_order INTEGER NOT NULL
-        );
-      `);
-
-      await query(`
-        CREATE TABLE IF NOT EXISTS foods (
-          id SERIAL PRIMARY KEY,
-          category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-          name TEXT NOT NULL,
-          sort_order INTEGER NOT NULL,
-          UNIQUE(category_id, name)
-        );
-      `);
-
-      await query(`
-        CREATE TABLE IF NOT EXISTS food_progress (
-          food_id INTEGER PRIMARY KEY REFERENCES foods(id) ON DELETE CASCADE,
-          exposure_count INTEGER NOT NULL DEFAULT 0 CHECK (exposure_count BETWEEN 0 AND 3),
-          preference SMALLINT NOT NULL DEFAULT 0 CHECK (preference BETWEEN -1 AND 1),
-          first_tasted_on DATE,
-          note TEXT NOT NULL DEFAULT '',
-          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-      `);
-
-      const categories = await readSourceCategories();
-      for (let c = 0; c < categories.length; c += 1) {
-        const category = categories[c];
-        const categoryRes = await query<{ id: number }>(
-          `
-          INSERT INTO categories (name, sort_order)
-          VALUES ($1, $2)
-          ON CONFLICT (name)
-          DO UPDATE SET sort_order = EXCLUDED.sort_order
-          RETURNING id;
-          `,
-          [category.categorie, c]
-        );
-
-        if (!categoryRes.rows[0]) continue;
-        const categoryId = categoryRes.rows[0].id;
-
-        for (let i = 0; i < category.aliments.length; i += 1) {
-          await query(
-            `
-            INSERT INTO foods (category_id, name, sort_order)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (category_id, name)
-            DO UPDATE SET sort_order = EXCLUDED.sort_order;
-            `,
-            [categoryId, category.aliments[i], i]
-          );
-        }
-      }
-    })();
-
-    const guardedInitPromise = initPromise.catch((error) => {
-      if (global.__babymiamDbInit === guardedInitPromise) {
-        global.__babymiamDbInit = undefined;
-      }
-      throw error;
-    });
-    global.__babymiamDbInit = guardedInitPromise;
-  }
-
-  await global.__babymiamDbInit;
-}
-
 export async function getDashboardData(): Promise<DashboardCategory[]> {
-  await ensureDatabaseReady();
-
   const result = await query<{
     category_id: number;
     category_name: string;
@@ -190,7 +96,6 @@ export async function getDashboardData(): Promise<DashboardCategory[]> {
 }
 
 export async function upsertExposure(foodId: number, exposureCount: number) {
-  await ensureDatabaseReady();
   await query(
     `
     INSERT INTO food_progress (food_id, exposure_count)
@@ -205,7 +110,6 @@ export async function upsertExposure(foodId: number, exposureCount: number) {
 }
 
 export async function upsertPreference(foodId: number, preference: -1 | 0 | 1) {
-  await ensureDatabaseReady();
   await query(
     `
     INSERT INTO food_progress (food_id, preference)
@@ -220,7 +124,6 @@ export async function upsertPreference(foodId: number, preference: -1 | 0 | 1) {
 }
 
 export async function upsertFirstTastedOn(foodId: number, firstTastedOn: string | null) {
-  await ensureDatabaseReady();
   await query(
     `
     INSERT INTO food_progress (food_id, first_tasted_on)
@@ -235,7 +138,6 @@ export async function upsertFirstTastedOn(foodId: number, firstTastedOn: string 
 }
 
 export async function upsertNote(foodId: number, note: string) {
-  await ensureDatabaseReady();
   await query(
     `
     INSERT INTO food_progress (food_id, note)

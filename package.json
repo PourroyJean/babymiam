@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "db:migrate": "node scripts/db/migrate.js",
+    "db:seed": "node scripts/db/seed.js",
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "build": "npm run db:setup && next build",
     "start": "next start",
     "lint": "next lint"
   },
