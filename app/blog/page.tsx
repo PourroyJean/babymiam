@@ -38,31 +38,8 @@ export default async function BlogPage() {
         <nav className="blog-toc-links">
           <a href="#allergenes-europe">Allergènes en Europe</a>
           <a href="#conseils">Conseils</a>
-          <a href="#article">Article</a>
+          <a href="#guide-allergenes">Guide allergènes</a>
         </nav>
-      </section>
-
-      <section id="allergenes-europe" className="blog-section">
-        <h2>Allergènes en Europe</h2>
-        <p>
-          Les allergènes doivent être introduits progressivement et observés avec attention.
-          L&apos;objectif n&apos;est pas d&apos;éviter à long terme, mais de proposer tôt et de façon adaptée
-          selon les recommandations médicales.
-        </p>
-        <ul className="blog-list">
-          <li>Gluten (blé, seigle, orge, avoine)</li>
-          <li>Œuf</li>
-          <li>Arachide</li>
-          <li>Lait et produits laitiers</li>
-          <li>Fruits à coque (amande, noisette, noix, etc.)</li>
-          <li>Poisson, crustacés, mollusques</li>
-          <li>Soja</li>
-          <li>Sésame, moutarde, céleri</li>
-        </ul>
-        <p className="blog-note">
-          En cas de doute, d&apos;antécédents familiaux ou de réaction suspecte, demande rapidement l&apos;avis
-          d&apos;un professionnel de santé.
-        </p>
       </section>
 
       <section id="conseils" className="blog-section">
@@ -116,24 +93,175 @@ export default async function BlogPage() {
         </section>
       </section>
 
-      <section id="article" className="blog-section">
-        <h2>Article</h2>
-        <article className="blog-article">
-          <h3>Introduire un nouvel aliment en 3 étapes</h3>
-          <p>
-            Une approche simple et régulière aide bébé à accepter de nouvelles saveurs sans stress.
-            L&apos;idée est d&apos;observer, noter et réessayer.
-          </p>
-          <ol>
-            <li>Proposer une petite quantité, dans un moment calme.</li>
-            <li>Observer 2-3 jours et noter la tolérance dans le suivi.</li>
-            <li>Représenter l&apos;aliment plusieurs fois, même en cas de refus initial.</li>
-          </ol>
-          <p>
-            Les refus ponctuels sont normaux. La régularité et la variété progressives sont plus utiles
-            qu&apos;une seule prise importante.
-          </p>
-        </article>
+      <section id="guide-allergenes" className="blog-section">
+        <h2>Guide pratique allergènes</h2>
+        <div className="allergenes-split">
+          <article className="blog-article">
+            <h3>Comment introduire les allergènes de façon sûre et efficace</h3>
+            <p>
+              Les recommandations ont évolué: aujourd&apos;hui, l&apos;objectif est une introduction précoce
+              et régulière des allergènes, avec des textures adaptées, pour favoriser la tolérance.
+            </p>
+
+            <h3>1. Fenêtre d&apos;introduction: 4 à 6 mois</h3>
+            <ul className="blog-list">
+              <li>La diversification commence en général autour de 6 mois, jamais avant 4 mois révolus.</li>
+              <li>
+                Une fois la diversification commencée, il n&apos;est plus recommandé de retarder les allergènes
+                majeurs.
+              </li>
+              <li>
+                Pour l&apos;arachide chez les bébés à haut risque (eczéma sévère et/ou allergie à l&apos;œuf),
+                une introduction entre 4 et 6 mois peut être discutée avec un professionnel de santé.
+              </li>
+            </ul>
+
+            <h3>2. Introduire un allergène à la fois, en petites quantités</h3>
+            <ul className="blog-list">
+              <li>Proposer un nouvel allergène seul au départ pour identifier plus facilement une réaction.</li>
+              <li>Commencer par une très petite quantité, puis augmenter progressivement si tout va bien.</li>
+              <li>
+                Choisir un moment de la journée où l&apos;on peut observer l&apos;enfant tranquillement après le repas.
+              </li>
+            </ul>
+
+            <h3>3. Maintenir une exposition régulière après tolérance</h3>
+            <ul className="blog-list">
+              <li>Une introduction unique ne suffit pas: la régularité est importante pour maintenir la tolérance.</li>
+              <li>
+                Il n&apos;y a pas de dose universelle validée pour tous les allergènes, mais les experts conseillent
+                de proposer régulièrement (au moins chaque semaine quand c&apos;est possible).
+              </li>
+              <li>Éviter le schéma &quot;test une fois puis arrêt prolongé&quot;.</li>
+            </ul>
+
+            <h3>4. Adapter les textures pour éviter l&apos;étouffement</h3>
+            <ul className="blog-list">
+              <li>Pas de cacahuètes ou fruits à coque entiers chez le jeune enfant (risque d&apos;étouffement).</li>
+              <li>Arachide/noix: préférer beurre dilué, poudre fine mélangée, ou purées lisses adaptées à l&apos;âge.</li>
+              <li>Au début: textures lisses ou écrasées; progression graduelle selon les capacités de mastication.</li>
+            </ul>
+
+            <h3>5. Points pratiques par allergène fréquent</h3>
+            <ul className="blog-list">
+              <li>Œuf: privilégier l&apos;œuf bien cuit (pas cru au début).</li>
+              <li>
+                Lait de vache: possible comme ingrédient (yaourt, fromage, préparation), mais pas comme boisson
+                principale avant 12 mois.
+              </li>
+              <li>
+                Gluten: peut être introduit entre 4 et 12 mois; le retarder n&apos;a pas montré de bénéfice en
+                prévention de la maladie cœliaque.
+              </li>
+            </ul>
+
+            <h3>6. Surveiller les réactions: légère vs urgence</h3>
+            <ul className="blog-list">
+              <li>
+                Réaction légère possible: quelques plaques/urticaire localisé, inconfort digestif modéré, sans
+                gêne respiratoire.
+              </li>
+              <li>
+                Signes d&apos;urgence: gêne respiratoire, voix rauque, gonflement langue/lèvres, malaise, vomissements
+                répétés. Appeler immédiatement les urgences (15 ou 112).
+              </li>
+              <li>
+                En cas d&apos;eczéma sévère, d&apos;allergie déjà connue ou de doute, demander un avis médical avant
+                d&apos;introduire un nouvel allergène.
+              </li>
+            </ul>
+
+            <p>
+              Ce guide informe et ne remplace pas un avis médical personnalisé.
+            </p>
+          </article>
+
+          <aside id="allergenes-europe" className="blog-aside">
+            <h3>Les 14 allergènes à déclaration obligatoire en Europe</h3>
+            <p>
+              Cette liste correspond aux allergènes qui doivent être signalés dans l&apos;information au
+              consommateur dans l&apos;Union européenne.
+            </p>
+            <ul className="blog-list">
+              <li>Céréales contenant du gluten (blé, seigle, orge, avoine, épeautre, kamut)</li>
+              <li>Crustacés</li>
+              <li>Œufs</li>
+              <li>Poissons</li>
+              <li>Arachides</li>
+              <li>Soja</li>
+              <li>Lait (y compris lactose)</li>
+              <li>Fruits à coque (amande, noisette, noix, cajou, pécan, Brésil, pistache, macadamia)</li>
+              <li>Céleri</li>
+              <li>Moutarde</li>
+              <li>Graines de sésame</li>
+              <li>Anhydride sulfureux et sulfites (&gt; 10 mg/kg ou 10 mg/L)</li>
+              <li>Lupin</li>
+              <li>Mollusques</li>
+            </ul>
+
+            <div className="blog-aside-sources">
+              <h4>Sources allergènes (février 2026)</h4>
+              <ul className="blog-list">
+                <li>
+                  <a
+                    href="https://www.mangerbouger.fr/site/ressources-pros/ressources-documents-mooc-liens-utiles/professionnels-de-sante/introduire-les-allergenes-alimentaires-des-4-6-mois"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    MangerBouger (Santé publique France): introduire les allergènes dès 4/6 mois
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.cdc.gov/infant-toddler-nutrition/foods-and-drinks/when-what-and-how-to-introduce-solid-foods.html"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    CDC (20 mars 2025): introduction des solides et allergènes
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.niaid.nih.gov/sites/default/files/peanut-allergy-prevention-guidelines-clinician-summary.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    NIAID: recommandations arachide (nourrissons à haut risque)
+                  </a>
+                </li>
+                <li>
+                  <a href="https://pubmed.ncbi.nlm.nih.gov/33710678/" target="_blank" rel="noreferrer">
+                    EAACI 2020: prévention de l&apos;allergie alimentaire
+                  </a>
+                </li>
+                <li>
+                  <a href="https://pubmed.ncbi.nlm.nih.gov/28027215/" target="_blank" rel="noreferrer">
+                    ESPGHAN 2017: diversification et introduction du gluten (4-12 mois)
+                  </a>
+                </li>
+                <li>
+                  <a href="https://pubmed.ncbi.nlm.nih.gov/38847232/" target="_blank" rel="noreferrer">
+                    ESPGHAN 2024: mise à jour sur gluten et risque cœliaque
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.nhs.uk/best-start-in-life/baby/weaning/safe-weaning/food-allergies/" target="_blank" rel="noreferrer">
+                    NHS: allergènes, signes de réaction et conduite pratique
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://aacijournal.biomedcentral.com/articles/10.1186/s13223-023-00814-2"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    CSACI 2023: importance de l&apos;ingestion régulière après introduction
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </aside>
+        </div>
       </section>
     </main>
   );

@@ -311,6 +311,46 @@ a {
   gap: 6px;
 }
 
+.allergenes-split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.blog-aside {
+  border: 1px solid #e6d6c0;
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff9ef;
+  position: sticky;
+  top: 92px;
+}
+
+.blog-aside h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.blog-aside p {
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.blog-aside-sources {
+  margin-top: 12px;
+  border-top: 1px dashed #dccab0;
+  padding-top: 10px;
+}
+
+.blog-aside-sources h4 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #6f6557;
+}
+
 .profile-btn,
 .logout-btn {
   border: 1px solid #d7c4aa;
@@ -1238,6 +1278,15 @@ a {
 
   .blog-toc-links {
     grid-template-columns: 1fr;
+  }
+
+  .allergenes-split {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-aside {
+    position: static;
+    top: auto;
   }
 
   .info-layout {
