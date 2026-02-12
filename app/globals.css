@@ -390,7 +390,7 @@ a {
   display: grid;
   place-items: center;
   padding: 18px;
-  z-index: 1000;
+  z-index: 2100;
 }
 
 .profile-modal {
@@ -842,7 +842,7 @@ a {
   --tone-border: #e8dfd2;
   --tone-dot: #c2a768;
   --tone-dot-border: #af9455;
-  --collapsed-row-count: 10;
+  --collapsed-row-count: 5;
   --collapsed-row-height: 44px;
   --collapsed-row-gap: 4px;
 
@@ -891,7 +891,8 @@ a {
 }
 
 .category-toggle-icon {
-  font-size: 0.7rem;
+  font-size: 1.05rem;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -1317,71 +1318,100 @@ a {
 }
 
 @media (max-width: 768px) {
+  html,
+  body {
+    overflow-x: clip;
+  }
+
   .dashboard-page,
   .blog-page {
     padding: 10px;
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   .site-nav {
     position: static;
-    top: 8px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    padding: 10px 10px;
+    top: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 8px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .site-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .site-nav-main {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
     gap: 8px;
+    min-width: max-content;
+    flex: 0 0 auto;
+    flex-shrink: 0;
   }
 
   .site-brand {
-    justify-content: center;
+    justify-content: flex-start;
+    flex: 0 0 auto;
   }
 
   .site-logo {
-    width: 40px;
-    height: 40px;
-    font-size: 1.25rem;
+    width: 34px;
+    height: 34px;
+    font-size: 1.05rem;
   }
 
   .site-brand-text {
-    font-size: 1rem;
-  }
-
-  .site-nav-links {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-    gap: 8px;
-  }
-
-  .site-nav-link {
-    min-width: 0;
-    width: 100%;
-    padding: 10px 10px;
     font-size: 0.95rem;
   }
 
+  .site-nav-links {
+    display: flex;
+    width: auto;
+    gap: 6px;
+    flex: 0 0 auto;
+  }
+
+  .site-nav-link {
+    min-width: 94px;
+    width: auto;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
   .site-account-actions {
-    width: 100%;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 6px;
+    width: auto;
+    min-width: max-content;
+    flex: 0 0 auto;
+    flex-shrink: 0;
   }
 
   .profile-btn {
     width: auto;
-    padding: 9px 12px;
-    font-size: 0.95rem;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    white-space: nowrap;
   }
 
   .logout-icon-btn {
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     flex: 0 0 auto;
   }
 
@@ -1417,6 +1447,20 @@ a {
   .categories-grid {
     grid-template-columns: 1fr;
     gap: 10px;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .category-card {
+    --collapsed-row-count: 3;
+  }
+
+  .categories-section,
+  .category-card,
+  .category-list,
+  .food-row {
+    max-width: 100%;
+    min-width: 0;
   }
 
   .categories-toolbar {
@@ -1444,40 +1488,56 @@ a {
   }
 
   .food-row {
-    grid-template-columns: auto auto minmax(0, 1fr);
-    grid-template-areas:
-      "name name name"
-      "dots pref meta";
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
     align-items: center;
-    gap: 6px 8px;
-    padding: 7px 6px;
+    gap: 4px;
+    padding: 6px 5px;
   }
 
   .food-name {
-    grid-area: name;
+    grid-area: auto;
     font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .dot-form {
-    grid-area: dots;
+    grid-area: auto;
+    gap: 4px;
+    flex: 0 0 auto;
   }
 
   .preference-group {
-    grid-area: pref;
+    grid-area: auto;
+    gap: 4px;
+    flex: 0 0 auto;
   }
 
   .meta-controls {
-    grid-area: meta;
+    grid-area: auto;
     min-width: 0;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 6px;
+    gap: 4px;
+    flex: 0 0 auto;
+  }
+
+  .dot {
+    width: 14px;
+    height: 14px;
+  }
+
+  .pref-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 0.88rem;
   }
 
   .date-trigger {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
   }
 
   .date-tooltip {
@@ -1486,9 +1546,9 @@ a {
   }
 
   .note-btn {
-    width: 28px;
-    height: 28px;
-    font-size: 0.9rem;
+    width: 27px;
+    height: 27px;
+    font-size: 0.86rem;
   }
 
   .note-editor {

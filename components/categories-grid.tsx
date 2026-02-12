@@ -37,24 +37,53 @@ function getUpdatedTimestamp(updatedAt: string | null) {
 }
 
 export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridProps) {
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+  const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({});
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const wasSearchOpenRef = useRef(false);
 
-  function toggleRow(rowIndex: number) {
+  function toggleCategory(rowIndex: number, categoryId: number) {
+    if (isMobileViewport) {
+      setExpandedCategories((current) => ({
+        ...current,
+        [categoryId]: !current[categoryId]
+      }));
+      return;
+    }
+
     setExpandedRows((current) => ({
       ...current,
       [rowIndex]: !current[rowIndex]
     }));
   }
 
+  function isCategoryExpanded(rowIndex: number, categoryId: number) {
+    if (isMobileViewport) return Boolean(expandedCategories[categoryId]);
+    return Boolean(expandedRows[rowIndex]);
+  }
+
   function closeSearch() {
     setIsSearchOpen(false);
     setQuery("");
   }
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const updateViewportMode = () => setIsMobileViewport(mediaQuery.matches);
+
+    updateViewportMode();
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateViewportMode);
+      return () => mediaQuery.removeEventListener("change", updateViewportMode);
+    }
+
+    mediaQuery.addListener(updateViewportMode);
+    return () => mediaQuery.removeListener(updateViewportMode);
+  }, []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -160,7 +189,7 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
       <section className="categories-grid">
         {categories.map((category, categoryIndex) => {
           const rowIndex = Math.floor(categoryIndex / 3);
-          const isRowExpanded = Boolean(expandedRows[rowIndex]);
+          const isRowExpanded = isCategoryExpanded(rowIndex, category.id);
 
           return (
             <article
@@ -172,12 +201,12 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
                   type="button"
                   className="category-pill category-toggle"
                   aria-expanded={isRowExpanded}
-                  title={isRowExpanded ? "Replier la ligne" : "Dérouler la ligne"}
-                  onClick={() => toggleRow(rowIndex)}
+                  title={isRowExpanded ? "Replier le tableau" : "Dérouler le tableau"}
+                  onClick={() => toggleCategory(rowIndex, category.id)}
                 >
                   <span>{category.name}</span>
                   <span className="category-toggle-icon" aria-hidden="true">
-                    {isRowExpanded ? "▴" : "▾"}
+                    {isRowExpanded ? "▾" : "▴"}
                   </span>
                 </button>
               </h3>

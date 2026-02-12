@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { saveChildProfileAction } from "@/app/actions";
 import type { ChildProfile } from "@/lib/types";
@@ -25,6 +26,7 @@ function getTodayIsoDate() {
 export function ProfileMenu({ initialProfile }: ProfileMenuProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -41,6 +43,10 @@ export function ProfileMenu({ initialProfile }: ProfileMenuProps) {
       setErrorMessage("");
     }
   }, [initialFirstName, initialBirthDate, isOpen]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const isDirty = firstName.trim() !== initialFirstName || birthDate !== initialBirthDate;
 
@@ -75,56 +81,57 @@ export function ProfileMenu({ initialProfile }: ProfileMenuProps) {
     });
   }
 
+  const modal = isOpen ? (
+    <div className="profile-modal-overlay" onClick={onClose} role="presentation">
+      <section
+        className="profile-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="profile-modal-title">Profil enfant</h2>
+
+        <div className="profile-form">
+          <label htmlFor="child-first-name">Prénom</label>
+          <input
+            id="child-first-name"
+            type="text"
+            value={firstName}
+            onChange={(event) => setFirstName(event.currentTarget.value)}
+            placeholder="Ex: Louise"
+            autoComplete="off"
+          />
+
+          <label htmlFor="child-birth-date">Date de naissance</label>
+          <input
+            id="child-birth-date"
+            type="date"
+            value={birthDate}
+            onChange={(event) => setBirthDate(event.currentTarget.value)}
+          />
+        </div>
+
+        {errorMessage ? <p className="profile-error">{errorMessage}</p> : null}
+
+        <div className="profile-actions">
+          <button type="button" onClick={onClose} disabled={isPending}>
+            Annuler
+          </button>
+          <button type="button" onClick={onSave} disabled={!isDirty || !isValid || isPending}>
+            Enregistrer
+          </button>
+        </div>
+      </section>
+    </div>
+  ) : null;
+
   return (
     <div className="profile-menu">
       <button type="button" className="profile-btn" onClick={() => setIsOpen(true)}>
         Profil
       </button>
-
-      {isOpen ? (
-        <div className="profile-modal-overlay" onClick={onClose} role="presentation">
-          <section
-            className="profile-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="profile-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 id="profile-modal-title">Profil enfant</h2>
-
-            <div className="profile-form">
-              <label htmlFor="child-first-name">Prénom</label>
-              <input
-                id="child-first-name"
-                type="text"
-                value={firstName}
-                onChange={(event) => setFirstName(event.currentTarget.value)}
-                placeholder="Ex: Louise"
-                autoComplete="off"
-              />
-
-              <label htmlFor="child-birth-date">Date de naissance</label>
-              <input
-                id="child-birth-date"
-                type="date"
-                value={birthDate}
-                onChange={(event) => setBirthDate(event.currentTarget.value)}
-              />
-            </div>
-
-            {errorMessage ? <p className="profile-error">{errorMessage}</p> : null}
-
-            <div className="profile-actions">
-              <button type="button" onClick={onClose} disabled={isPending}>
-                Annuler
-              </button>
-              <button type="button" onClick={onSave} disabled={!isDirty || !isValid || isPending}>
-                Enregistrer
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+      {isMounted && modal ? createPortal(modal, document.body) : null}
     </div>
   );
 }
