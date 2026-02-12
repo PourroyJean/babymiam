@@ -2,14 +2,15 @@ import { redirect } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
 import { loginAction } from "@/app/login/actions";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams
 }: {
-  searchParams: { error?: string };
+  searchParams: Promise<{ error?: string }>;
 }) {
-  if (isAuthenticated()) {
+  if (await isAuthenticated()) {
     redirect("/");
   }
+  const params = await searchParams;
 
   return (
     <main className="login-page">
@@ -31,7 +32,7 @@ export default function LoginPage({
           <button type="submit">Se connecter</button>
         </form>
 
-        {searchParams.error ? (
+        {params.error ? (
           <p className="error-text">Identifiant ou mot de passe incorrect.</p>
         ) : null}
       </section>

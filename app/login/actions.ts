@@ -12,6 +12,6 @@ export async function loginAction(formData: FormData) {
     redirect("/login?error=1");
   }
 
-  createSession(username);
+  await createSession(username);
   redirect("/");
 }

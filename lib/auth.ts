@@ -43,20 +43,20 @@ export function getConfiguredCredentials() {
   };
 }
 
-export function isAuthenticated() {
-  const token = cookies().get(COOKIE_NAME)?.value;
+export async function isAuthenticated() {
+  const token = (await cookies()).get(COOKIE_NAME)?.value;
   return isValidToken(token);
 }
 
-export function requireAuth() {
-  if (!isAuthenticated()) {
+export async function requireAuth() {
+  if (!(await isAuthenticated())) {
     redirect("/login");
   }
 }
 
-export function createSession(username: string) {
+export async function createSession(username: string) {
   const token = buildToken(username);
-  cookies().set(COOKIE_NAME, token, {
+  (await cookies()).set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -64,6 +64,6 @@ export function createSession(username: string) {
   });
 }
 
-export function clearSession() {
-  cookies().delete(COOKIE_NAME);
+export async function clearSession() {
+  (await cookies()).delete(COOKIE_NAME);
 }

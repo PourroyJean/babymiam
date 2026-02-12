@@ -14,7 +14,7 @@ function isValidIsoDate(value: string) {
 }
 
 export async function setExposureAction(formData: FormData) {
-  requireAuth();
+  await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const selected = Number(formData.get("value"));
@@ -28,7 +28,7 @@ export async function setExposureAction(formData: FormData) {
 }
 
 export async function setPreferenceAction(formData: FormData) {
-  requireAuth();
+  await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const selected = Number(formData.get("value"));
@@ -42,7 +42,7 @@ export async function setPreferenceAction(formData: FormData) {
 }
 
 export async function setFirstTastedOnAction(formData: FormData) {
-  requireAuth();
+  await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const firstTastedOnRaw = String(formData.get("firstTastedOn") || "").trim();
@@ -56,7 +56,7 @@ export async function setFirstTastedOnAction(formData: FormData) {
 }
 
 export async function setNoteAction(formData: FormData) {
-  requireAuth();
+  await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const note = String(formData.get("note") || "").trim();

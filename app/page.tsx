@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { clearSession, isAuthenticated, requireAuth } from "@/lib/auth";
+import { clearSession, requireAuth } from "@/lib/auth";
 import { getDashboardData } from "@/lib/data";
 import { FoodRow } from "@/components/food-row";
 
@@ -21,15 +21,12 @@ const toneByCategory: Record<string, string> = {
 
 async function logoutAction() {
   "use server";
-  clearSession();
+  await clearSession();
   redirect("/login");
 }
 
 export default async function DashboardPage() {
-  requireAuth();
-  if (!isAuthenticated()) {
-    redirect("/login");
-  }
+  await requireAuth();
 
   let categories: Awaited<ReturnType<typeof getDashboardData>> = [];
   let dbError: string | null = null;
