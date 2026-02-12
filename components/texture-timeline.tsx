@@ -1,7 +1,7 @@
 const TEXTURE_STEPS = [
   {
-    age: "4-6 mois (repère France)",
-    text: "Début de diversification, purée/compote lisse."
+    age: "4-6 mois",
+    text: "Début de diversification (repère France), purée/compote lisse."
   },
   {
     age: "6-8 mois",
@@ -16,7 +16,7 @@ const TEXTURE_STEPS = [
     text: "Morceaux à croquer, transition vers presque comme les parents."
   },
   {
-    age: "Vers 12 mois",
+    age: "12-12 mois",
     text: "La plupart des enfants peuvent manger comme la famille (adapté pour la sécurité)."
   }
 ];
@@ -26,14 +26,16 @@ export function TextureTimeline(): JSX.Element {
     <section className="texture-timeline" aria-label="Progression des textures alimentaires">
       <h2 className="texture-timeline-title">🧩 Progression des textures (anti purée trop longue)</h2>
 
-      <ol className="texture-timeline-track">
-        {TEXTURE_STEPS.map((step) => (
-          <li key={step.age} className="texture-step">
-            <p className="texture-step-age">{step.age}</p>
-            <p className="texture-step-text">{step.text}</p>
-          </li>
-        ))}
-      </ol>
+      <div className="texture-timeline-rail">
+        <ol className="texture-timeline-track">
+          {TEXTURE_STEPS.map((step) => (
+            <li key={step.age} className="texture-step">
+              <p className="texture-step-age">{step.age}</p>
+              <p className="texture-step-text">{step.text}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
 
       <p className="texture-key-message">
         Ne pas rester bloqué trop longtemps en purée lisse : la progression des textures est

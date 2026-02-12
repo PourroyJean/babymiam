@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
+import { Fredoka } from "next/font/google";
 import "./globals.css";
+
+const fredoka = Fredoka({
+  subsets: ["latin"],
+  variable: "--font-fredoka"
+});
 
 export const metadata: Metadata = {
   title: "Babymiam",
@@ -13,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body className={fredoka.variable}>{children}</body>
     </html>
   );
 }

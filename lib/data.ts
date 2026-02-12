@@ -65,6 +65,7 @@ export async function getDashboardData(): Promise<DashboardCategory[]> {
     preference: number;
     first_tasted_on: string | null;
     note: string | null;
+    updated_at: string | null;
   }>(`
     SELECT
       c.id AS category_id,
@@ -76,7 +77,8 @@ export async function getDashboardData(): Promise<DashboardCategory[]> {
       COALESCE(p.exposure_count, 0) AS exposure_count,
       COALESCE(p.preference, 0) AS preference,
       CASE WHEN p.first_tasted_on IS NULL THEN NULL ELSE p.first_tasted_on::text END AS first_tasted_on,
-      COALESCE(p.note, '') AS note
+      COALESCE(p.note, '') AS note,
+      CASE WHEN p.updated_at IS NULL THEN NULL ELSE p.updated_at::text END AS updated_at
     FROM categories c
     INNER JOIN foods f ON f.category_id = c.id
     LEFT JOIN food_progress p ON p.food_id = f.id
@@ -109,7 +111,8 @@ export async function getDashboardData(): Promise<DashboardCategory[]> {
       exposureCount,
       preference,
       firstTastedOn: row.first_tasted_on,
-      note: row.note ?? ""
+      note: row.note ?? "",
+      updatedAt: row.updated_at
     });
   }
 
@@ -123,7 +126,10 @@ export async function upsertExposure(foodId: number, exposureCount: number) {
     VALUES ($1, $2)
     ON CONFLICT (food_id)
     DO UPDATE SET
-      exposure_count = EXCLUDED.exposure_count,
+      exposure_count = CASE
+        WHEN food_progress.exposure_count = EXCLUDED.exposure_count THEN 0
+        ELSE EXCLUDED.exposure_count
+      END,
       updated_at = NOW();
     `,
     [foodId, exposureCount]
@@ -137,7 +143,10 @@ export async function upsertPreference(foodId: number, preference: -1 | 0 | 1) {
     VALUES ($1, $2)
     ON CONFLICT (food_id)
     DO UPDATE SET
-      preference = EXCLUDED.preference,
+      preference = CASE
+        WHEN food_progress.preference = EXCLUDED.preference THEN 0
+        ELSE EXCLUDED.preference
+      END,
       updated_at = NOW();
     `,
     [foodId, preference]

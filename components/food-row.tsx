@@ -24,7 +24,6 @@ export function FoodRow({
 
       <form action={setExposureAction} className="dot-form">
         <input type="hidden" name="foodId" value={foodId} />
-        <input type="hidden" name="current" value={exposureCount} />
         {[1, 2, 3].map((value) => (
           <button
             key={value}
@@ -40,7 +39,6 @@ export function FoodRow({
       <div className="preference-group">
         <form action={setPreferenceAction} className="preference-form">
           <input type="hidden" name="foodId" value={foodId} />
-          <input type="hidden" name="current" value={preference} />
           <input type="hidden" name="value" value="1" />
           <button
             type="submit"
@@ -55,7 +53,6 @@ export function FoodRow({
 
         <form action={setPreferenceAction} className="preference-form">
           <input type="hidden" name="foodId" value={foodId} />
-          <input type="hidden" name="current" value={preference} />
           <input type="hidden" name="value" value="-1" />
           <button
             type="submit"

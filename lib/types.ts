@@ -6,6 +6,7 @@ export type DashboardFood = {
   preference: -1 | 0 | 1;
   firstTastedOn: string | null;
   note: string;
+  updatedAt: string | null;
 };
 
 export type DashboardCategory = {

@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getAuthenticatedUsername, requireAuth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { clearSession, getAuthenticatedUsername, requireAuth } from "@/lib/auth";
 import {
   upsertChildProfile,
   upsertExposure,
@@ -23,17 +24,19 @@ function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+export async function logoutAction() {
+  await clearSession();
+  redirect("/login");
+}
+
 export async function setExposureAction(formData: FormData) {
   await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const selected = Number(formData.get("value"));
-  const current = Number(formData.get("current"));
 
   if (!Number.isFinite(foodId) || ![1, 2, 3].includes(selected)) return;
-  const nextValue = selected === current ? 0 : selected;
-
-  await upsertExposure(foodId, nextValue);
+  await upsertExposure(foodId, selected);
   revalidatePath("/");
 }
 
@@ -42,12 +45,9 @@ export async function setPreferenceAction(formData: FormData) {
 
   const foodId = Number(formData.get("foodId"));
   const selected = Number(formData.get("value"));
-  const current = Number(formData.get("current"));
 
   if (!Number.isFinite(foodId) || ![-1, 1].includes(selected)) return;
-  const nextValue = selected === current ? 0 : selected;
-
-  await upsertPreference(foodId, nextValue as -1 | 0 | 1);
+  await upsertPreference(foodId, selected as -1 | 1);
   revalidatePath("/");
 }
 
