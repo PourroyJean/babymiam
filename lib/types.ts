@@ -14,3 +14,8 @@ export type DashboardCategory = {
   sortOrder: number;
   foods: DashboardFood[];
 };
+
+export type ChildProfile = {
+  firstName: string;
+  birthDate: string;
+};

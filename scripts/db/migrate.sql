@@ -26,3 +26,10 @@ CREATE TABLE IF NOT EXISTS food_progress (
 
 CREATE INDEX IF NOT EXISTS idx_food_progress_updated_at
   ON food_progress(updated_at);
+
+CREATE TABLE IF NOT EXISTS child_profiles (
+  owner_key TEXT PRIMARY KEY,
+  first_name TEXT NOT NULL CHECK (char_length(btrim(first_name)) > 0),
+  birth_date DATE NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

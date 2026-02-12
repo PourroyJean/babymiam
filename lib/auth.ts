@@ -28,12 +28,29 @@ function buildToken(username: string) {
   return `${payload}.${signature}`;
 }
 
-function isValidToken(token: string | undefined) {
-  if (!token) return false;
+function getPayloadFromToken(token: string | undefined) {
+  if (!token) return null;
   const parts = token.split(".");
-  if (parts.length !== 2) return false;
+  if (parts.length !== 2) return null;
   const [payload, signature] = parts;
-  return sign(payload) === signature;
+  if (sign(payload) !== signature) return null;
+  return payload;
+}
+
+function getUsernameFromPayload(payload: string) {
+  const separatorIndex = payload.lastIndexOf(":");
+  if (separatorIndex <= 0) return null;
+
+  const username = payload.slice(0, separatorIndex).trim();
+  const issuedAtRaw = payload.slice(separatorIndex + 1);
+  const issuedAt = Number(issuedAtRaw);
+
+  if (!username || !Number.isFinite(issuedAt)) return null;
+  return username;
+}
+
+function isValidToken(token: string | undefined) {
+  return getPayloadFromToken(token) !== null;
 }
 
 export function getConfiguredCredentials() {
@@ -52,6 +69,21 @@ export async function requireAuth() {
   if (!(await isAuthenticated())) {
     redirect("/login");
   }
+}
+
+export async function getAuthenticatedUsername() {
+  const token = (await cookies()).get(COOKIE_NAME)?.value;
+  const payload = getPayloadFromToken(token);
+  if (!payload) {
+    redirect("/login");
+  }
+
+  const username = getUsernameFromPayload(payload);
+  if (!username) {
+    redirect("/login");
+  }
+
+  return username;
 }
 
 export async function createSession(username: string) {

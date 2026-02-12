@@ -128,6 +128,14 @@ a {
   font-size: 1.05rem;
 }
 
+.topbar-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.profile-btn,
 .logout-btn {
   border: 1px solid #d7c4aa;
   background: #fff7eb;
@@ -135,6 +143,93 @@ a {
   padding: 10px 16px;
   cursor: pointer;
   font-weight: 600;
+}
+
+.profile-btn:focus-visible,
+.logout-btn:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.profile-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 24, 16, 0.4);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  z-index: 100;
+}
+
+.profile-modal {
+  width: min(100%, 420px);
+  border-radius: 20px;
+  border: 1px solid #e1d2bc;
+  background: #fffdf8;
+  box-shadow: 0 18px 34px rgba(44, 34, 23, 0.22);
+  padding: 18px;
+}
+
+.profile-modal h2 {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+}
+
+.profile-form {
+  display: grid;
+  gap: 7px;
+}
+
+.profile-form label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.profile-form input {
+  width: 100%;
+  border: 1px solid #ddceb8;
+  border-radius: 10px;
+  background: #fff;
+  padding: 9px 10px;
+  font: inherit;
+}
+
+.profile-form input:focus-visible,
+.profile-actions button:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.profile-error {
+  margin: 10px 0 0;
+  color: #973626;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.profile-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.profile-actions button {
+  border: 1px solid #dcccb7;
+  border-radius: 10px;
+  background: #fff;
+  padding: 7px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-actions button:last-child {
+  background: #f3e8d5;
+}
+
+.profile-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .speech-grid {
@@ -209,47 +304,70 @@ a {
   line-height: 1.2;
 }
 
+.texture-timeline-rail {
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
 .texture-timeline-track {
   list-style: none;
   margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 8px;
+  padding: 0 8px;
+  display: flex;
+  align-items: flex-start;
+  min-width: max-content;
+  position: relative;
+}
+
+.texture-timeline-track::before {
+  content: "";
+  position: absolute;
+  left: 80px;
+  right: 80px;
+  top: 58px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #77ca7f 0%, #5fbe68 100%);
+  z-index: 0;
 }
 
 .texture-step {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid #e9ddcb;
-  background: rgba(255, 255, 255, 0.84);
   position: relative;
-  padding-left: 42px;
-}
-
-.texture-step::before {
-  content: "";
-  position: absolute;
-  left: 14px;
-  top: 13px;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  background: #e3bc70;
-  border: 1px solid #c79e4d;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4);
+  z-index: 1;
+  width: 160px;
+  flex: 0 0 160px;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
 }
 
 .texture-step-age {
   margin: 0;
+  width: 116px;
+  height: 116px;
+  border-radius: 999px;
+  border: 4px solid #f7fff5;
+  background: radial-gradient(circle at 30% 20%, #7dd381 0%, #56b95f 75%);
+  box-shadow:
+    0 0 0 2px rgba(81, 154, 82, 0.35),
+    0 10px 18px rgba(61, 125, 62, 0.18);
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(18, 49, 20, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  line-height: 1.08;
   font-weight: 700;
-  font-size: 0.94rem;
+  font-size: 1.03rem;
 }
 
 .texture-step-text {
   margin: 0;
-  font-size: 0.92rem;
+  max-width: 18ch;
+  font-size: 0.94rem;
+  line-height: 1.3;
   color: #4d463d;
 }
 
@@ -644,6 +762,16 @@ a {
     flex-direction: column;
   }
 
+  .topbar-actions {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .profile-btn,
+  .logout-btn {
+    width: 100%;
+  }
+
   .info-layout {
     grid-template-columns: 1fr;
   }
@@ -678,12 +806,29 @@ a {
     padding: 14px;
   }
 
-  .texture-step {
-    padding-left: 38px;
+  .texture-timeline-track {
+    padding: 0 2px;
   }
 
-  .texture-step::before {
-    left: 12px;
-    top: 12px;
+  .texture-step {
+    width: 148px;
+    flex-basis: 148px;
+  }
+
+  .texture-step-age {
+    width: 104px;
+    height: 104px;
+    font-size: 0.96rem;
+  }
+
+  .texture-timeline-track::before {
+    left: 54px;
+    right: 54px;
+    top: 52px;
+  }
+
+  .profile-modal {
+    width: min(100%, 96vw);
+    padding: 16px;
   }
 }

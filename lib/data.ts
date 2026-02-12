@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import type { DashboardCategory } from "@/lib/types";
+import type { ChildProfile, DashboardCategory } from "@/lib/types";
 
 const LOCAL_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam";
 
@@ -169,5 +169,41 @@ export async function upsertNote(foodId: number, note: string) {
       updated_at = NOW();
     `,
     [foodId, note]
+  );
+}
+
+export async function getChildProfile(ownerKey: string): Promise<ChildProfile | null> {
+  const result = await query<{ first_name: string; birth_date: string }>(
+    `
+    SELECT
+      first_name,
+      birth_date::text AS birth_date
+    FROM child_profiles
+    WHERE owner_key = $1;
+    `,
+    [ownerKey]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return {
+    firstName: row.first_name,
+    birthDate: row.birth_date
+  };
+}
+
+export async function upsertChildProfile(ownerKey: string, firstName: string, birthDate: string) {
+  await query(
+    `
+    INSERT INTO child_profiles (owner_key, first_name, birth_date)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (owner_key)
+    DO UPDATE SET
+      first_name = EXCLUDED.first_name,
+      birth_date = EXCLUDED.birth_date,
+      updated_at = NOW();
+    `,
+    [ownerKey, firstName, birthDate]
   );
 }

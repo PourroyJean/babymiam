@@ -1,8 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAuth } from "@/lib/auth";
-import { upsertExposure, upsertFirstTastedOn, upsertNote, upsertPreference } from "@/lib/data";
+import { getAuthenticatedUsername, requireAuth } from "@/lib/auth";
+import {
+  upsertChildProfile,
+  upsertExposure,
+  upsertFirstTastedOn,
+  upsertNote,
+  upsertPreference
+} from "@/lib/data";
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -11,6 +17,10 @@ function isValidIsoDate(value: string) {
   const parsed = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(parsed.getTime())) return false;
   return parsed.toISOString().slice(0, 10) === value;
+}
+
+function getTodayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export async function setExposureAction(formData: FormData) {
@@ -65,4 +75,28 @@ export async function setNoteAction(formData: FormData) {
 
   await upsertNote(foodId, note);
   revalidatePath("/");
+}
+
+export async function saveChildProfileAction(formData: FormData) {
+  await requireAuth();
+  const ownerKey = await getAuthenticatedUsername();
+
+  const firstName = String(formData.get("firstName") || "").trim();
+  const birthDate = String(formData.get("birthDate") || "").trim();
+
+  if (!firstName) {
+    return { ok: false, error: "Le prénom est obligatoire." };
+  }
+
+  if (!isValidIsoDate(birthDate)) {
+    return { ok: false, error: "La date de naissance est invalide." };
+  }
+
+  if (birthDate > getTodayIsoDate()) {
+    return { ok: false, error: "La date de naissance ne peut pas être dans le futur." };
+  }
+
+  await upsertChildProfile(ownerKey, firstName, birthDate);
+  revalidatePath("/");
+  return { ok: true };
 }

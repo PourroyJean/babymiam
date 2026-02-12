@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { clearSession, requireAuth } from "@/lib/auth";
-import { getDashboardData } from "@/lib/data";
+import { clearSession, getAuthenticatedUsername, requireAuth } from "@/lib/auth";
+import { getChildProfile, getDashboardData } from "@/lib/data";
 import { CategoriesGrid } from "@/components/categories-grid";
+import { ProfileMenu } from "@/components/profile-menu";
 import { TextureTimeline } from "@/components/texture-timeline";
 
 const toneByCategory: Record<string, string> = {
@@ -28,10 +29,13 @@ async function logoutAction() {
 
 export default async function DashboardPage() {
   await requireAuth();
+  const ownerKey = await getAuthenticatedUsername();
+  let childProfile: Awaited<ReturnType<typeof getChildProfile>> = null;
 
   let categories: Awaited<ReturnType<typeof getDashboardData>> = [];
   let dbError: string | null = null;
   try {
+    childProfile = await getChildProfile(ownerKey);
     categories = await getDashboardData();
   } catch (error) {
     dbError = error instanceof Error ? error.message : "Erreur inconnue de connexion à la base.";
@@ -42,15 +46,18 @@ export default async function DashboardPage() {
     <main className="dashboard-page">
       <header className="topbar">
         <div>
-          <h1>Les premiers aliments de Louise</h1>
+          <h1>Les premiers aliments de {childProfile?.firstName ?? "bébé"}</h1>
           <p>Suivi de la diversification alimentaire</p>
         </div>
 
-        <form action={logoutAction}>
-          <button type="submit" className="logout-btn">
-            Déconnexion
-          </button>
-        </form>
+        <div className="topbar-actions">
+          <ProfileMenu initialProfile={childProfile} />
+          <form action={logoutAction}>
+            <button type="submit" className="logout-btn">
+              Déconnexion
+            </button>
+          </form>
+        </div>
       </header>
 
       <section className="info-layout">
