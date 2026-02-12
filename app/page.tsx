@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { clearSession, requireAuth } from "@/lib/auth";
 import { getDashboardData } from "@/lib/data";
-import { FoodRow } from "@/components/food-row";
+import { CategoriesGrid } from "@/components/categories-grid";
+import { TextureTimeline } from "@/components/texture-timeline";
 
 const toneByCategory: Record<string, string> = {
   "Légumes": "tone-vegetables",
@@ -52,43 +53,47 @@ export default async function DashboardPage() {
         </form>
       </header>
 
-      <section className="speech-grid">
-        <article>
-          <h2>🍎 À quoi sert cette liste</h2>
-          <p>
-            Elle permet de suivre la diversification alimentaire de bébé à la maison et lorsqu&apos;il est
-            gardé à l&apos;extérieur.
-          </p>
-        </article>
+      <section className="info-layout">
+        <section className="speech-grid">
+          <article>
+            <h2>🍎 À quoi sert cette liste</h2>
+            <p>
+              Elle permet de suivre la diversification alimentaire de bébé à la maison et lorsqu&apos;il est
+              gardé à l&apos;extérieur.
+            </p>
+          </article>
 
-        <article>
-          <h2>🍋 De quoi est-elle composée</h2>
-          <p>
-            Il y a 12 catégories d&apos;aliments dont une vierge à remplir, soit environ 250 aliments.
-            La catégorie des allergènes majeurs est à introduire progressivement.
-          </p>
-          <p>
-            Un enfant peut commencer à découvrir toutes les familles d&apos;aliments entre 4 et 6 mois,
-            y compris œuf, arachide et gluten, selon l&apos;avis médical.
-          </p>
-          <p>
-            Source : <a href="https://www.mangerbouger.fr" target="_blank" rel="noreferrer">mangerbouger.fr</a>
-          </p>
-          <p>
-            Pour toute question, rapprochez-vous d&apos;un pédiatre, médecin traitant ou spécialiste de la nutrition.
-          </p>
-        </article>
+          <article>
+            <h2>🍋 De quoi est-elle composée</h2>
+            <p>
+              Il y a 12 catégories d&apos;aliments dont une vierge à remplir, soit environ 250 aliments.
+              La catégorie des allergènes majeurs est à introduire progressivement.
+            </p>
+            <p>
+              Un enfant peut commencer à découvrir toutes les familles d&apos;aliments entre 4 et 6 mois,
+              y compris œuf, arachide et gluten, selon l&apos;avis médical.
+            </p>
+            <p>
+              Source : <a href="https://www.mangerbouger.fr" target="_blank" rel="noreferrer">mangerbouger.fr</a>
+            </p>
+            <p>
+              Pour toute question, rapprochez-vous d&apos;un pédiatre, médecin traitant ou spécialiste de la nutrition.
+            </p>
+          </article>
 
-        <article>
-          <h2>🥦 Pourquoi 3 ronds</h2>
-          <p>
-            Coche un rond dès que bébé est en contact avec l&apos;aliment. Tu peux aussi utiliser + ou -
-            pour suivre si bébé a aimé.
-          </p>
-          <p>
-            Introduis chaque aliment en petite quantité au début pour observer la réaction de bébé.
-          </p>
-        </article>
+          <article>
+            <h2>🥦 Pourquoi 3 ronds</h2>
+            <p>
+              Coche un rond dès que bébé est en contact avec l&apos;aliment. Tu peux aussi utiliser + ou -
+              pour suivre si bébé a aimé.
+            </p>
+            <p>
+              Introduis chaque aliment en petite quantité au début pour observer la réaction de bébé.
+            </p>
+          </article>
+        </section>
+
+        <TextureTimeline />
       </section>
 
       {dbError ? (
@@ -104,29 +109,7 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      <section className="categories-grid">
-        {categories.map((category) => (
-          <article
-            key={category.id}
-            className={`category-card ${toneByCategory[category.name] || "tone-other"}`}
-          >
-            <h3 className="category-pill">{category.name}</h3>
-            <ul>
-              {category.foods.map((food) => (
-                <FoodRow
-                  key={food.id}
-                  foodId={food.id}
-                  name={food.name}
-                  exposureCount={food.exposureCount}
-                  preference={food.preference}
-                  firstTastedOn={food.firstTastedOn}
-                  note={food.note}
-                />
-              ))}
-            </ul>
-          </article>
-        ))}
-      </section>
+      <CategoriesGrid categories={categories} toneByCategory={toneByCategory} />
     </main>
   );
 }

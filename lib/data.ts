@@ -3,12 +3,33 @@ import type { DashboardCategory } from "@/lib/types";
 
 const LOCAL_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam";
 
+function normalizeConnectionString(value: string) {
+  try {
+    const parsed = new URL(value);
+    const sslMode = parsed.searchParams.get("sslmode")?.toLowerCase();
+    const useLibpqCompat = parsed.searchParams.get("uselibpqcompat")?.toLowerCase() === "true";
+
+    if (!sslMode || useLibpqCompat) return value;
+
+    // pg currently treats these sslmodes like verify-full and warns that behavior will change in v9.
+    if (sslMode === "prefer" || sslMode === "require" || sslMode === "verify-ca") {
+      parsed.searchParams.set("sslmode", "verify-full");
+      return parsed.toString();
+    }
+
+    return value;
+  } catch {
+    return value;
+  }
+}
+
 declare global {
   var __babymiamPool: Pool | undefined;
 }
 
 function getConnectionString() {
-  return process.env.POSTGRES_URL || process.env.DATABASE_URL || LOCAL_POSTGRES_URL;
+  const raw = process.env.POSTGRES_URL || process.env.DATABASE_URL || LOCAL_POSTGRES_URL;
+  return normalizeConnectionString(raw);
 }
 
 function getPool() {
