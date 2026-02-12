@@ -32,6 +32,8 @@ export function FoodMeta({ foodId, firstTastedOn, note }: FoodMetaProps) {
   }, [note, isEditing]);
 
   const hasNote = savedNote.trim().length > 0;
+  const hasDate = dateValue.length > 0;
+  const formattedDate = hasDate ? dateValue.split("-").reverse().join("/") : null;
 
   function saveDate(nextDate: string) {
     const formData = new FormData();
@@ -62,16 +64,27 @@ export function FoodMeta({ foodId, firstTastedOn, note }: FoodMetaProps) {
 
   return (
     <div className="meta-controls">
-      <input
-        type="date"
-        value={dateValue}
-        aria-label="Date de première fois"
-        onChange={(event) => {
-          const nextDate = event.currentTarget.value;
-          setDateValue(nextDate);
-          saveDate(nextDate);
-        }}
-      />
+      <div
+        className={`date-trigger ${hasDate ? "has-date" : "empty-date"}`}
+        title={formattedDate ? `Date enregistrée: ${formattedDate}` : "Aucune date enregistrée"}
+      >
+        <span className="date-trigger-icon" aria-hidden="true">
+          📅
+        </span>
+        <input
+          type="date"
+          className="date-native-input"
+          value={dateValue}
+          aria-label={formattedDate ? `Date de première fois: ${formattedDate}` : "Ajouter une date de première fois"}
+          onChange={(event) => {
+            const nextDate = event.currentTarget.value;
+            setDateValue(nextDate);
+            saveDate(nextDate);
+          }}
+        />
+
+        <div className="date-tooltip">{formattedDate ?? "Aucune date"}</div>
+      </div>
 
       <div className="note-cell">
         <button

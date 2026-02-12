@@ -367,6 +367,22 @@ a {
   outline-offset: 2px;
 }
 
+.logout-icon-btn {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+
+.logout-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .profile-modal-overlay {
   position: fixed;
   inset: 0;
@@ -943,9 +959,21 @@ a {
 }
 
 .dot.active {
-  background: var(--tone-dot);
-  border-color: var(--tone-dot-border);
+  background: var(--tone-dot, #93c694);
+  border-color: var(--tone-dot-border, #7ab17b);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+@media (min-width: 769px) {
+  .dot-form,
+  .preference-group {
+    gap: 8px;
+  }
+
+  .dot {
+    width: 19px;
+    height: 19px;
+  }
 }
 
 .preference-form {
@@ -999,13 +1027,72 @@ a {
   gap: 6px;
 }
 
-.meta-controls input {
-  border: 1px solid #ded3c7;
+.date-trigger {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid #d6cfc5;
+  display: grid;
+  place-items: center;
+  background: #f3f1ed;
+  color: #8d867d;
+  flex: 0 0 auto;
+}
+
+.date-trigger.has-date {
+  border-color: #d5b07f;
+  background: #fff1dc;
+  color: #80572e;
+}
+
+.date-trigger.empty-date {
+  border-color: #d3ccc2;
+  background: #efeeeb;
+  color: #9a958d;
+}
+
+.date-trigger:focus-within {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.date-trigger-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.date-native-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.date-tooltip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  background: #fff8ef;
+  border: 1px solid #e8cba6;
   border-radius: 10px;
-  padding: 5px 7px;
+  padding: 6px 8px;
   font-size: 0.76rem;
-  background: #fff;
-  width: 120px;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(53, 42, 25, 0.14);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.date-trigger:hover .date-tooltip,
+.date-trigger:focus-within .date-tooltip {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .note-cell {
@@ -1232,48 +1319,82 @@ a {
 @media (max-width: 768px) {
   .dashboard-page,
   .blog-page {
-    padding: 14px;
+    padding: 10px;
   }
 
   .site-nav {
+    position: static;
     top: 8px;
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 8px;
+    padding: 10px 10px;
   }
 
   .site-nav-main {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 8px;
   }
 
   .site-brand {
     justify-content: center;
   }
 
+  .site-logo {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+
+  .site-brand-text {
+    font-size: 1rem;
+  }
+
   .site-nav-links {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
+    gap: 8px;
   }
 
   .site-nav-link {
     min-width: 0;
     width: 100%;
-    padding: 11px 12px;
+    padding: 10px 10px;
+    font-size: 0.95rem;
   }
 
   .site-account-actions {
     width: 100%;
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     gap: 8px;
   }
 
-  .profile-btn,
-  .logout-btn {
-    width: 100%;
+  .profile-btn {
+    width: auto;
+    padding: 9px 12px;
+    font-size: 0.95rem;
+  }
+
+  .logout-icon-btn {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+  }
+
+  .page-hero h1,
+  .blog-hero h1 {
+    font-size: clamp(1.45rem, 7.4vw, 2.1rem);
+    line-height: 1.08;
+  }
+
+  .page-hero p,
+  .blog-hero p {
+    font-size: 0.92rem;
+    margin-top: 4px;
   }
 
   .blog-toc-links {
@@ -1295,6 +1416,7 @@ a {
 
   .categories-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .categories-toolbar {
@@ -1322,19 +1444,57 @@ a {
   }
 
   .food-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas:
+      "name name name"
+      "dots pref meta";
+    align-items: center;
+    gap: 6px 8px;
+    padding: 7px 6px;
+  }
+
+  .food-name {
+    grid-area: name;
+    font-size: 0.9rem;
+  }
+
+  .dot-form {
+    grid-area: dots;
+  }
+
+  .preference-group {
+    grid-area: pref;
+  }
+
+  .meta-controls {
+    grid-area: meta;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     gap: 6px;
   }
 
-  .meta-controls input {
-    width: 100%;
-    min-width: 0;
+  .date-trigger {
+    width: 32px;
+    height: 32px;
+  }
+
+  .date-tooltip {
+    right: 0;
+    left: auto;
+  }
+
+  .note-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.9rem;
   }
 
   .note-editor {
     right: auto;
     left: 0;
-    width: min(90vw, 260px);
+    width: min(92vw, 260px);
   }
 
   .note-tooltip {

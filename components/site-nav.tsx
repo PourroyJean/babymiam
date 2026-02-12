@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { logoutAction } from "@/app/actions";
 import { ProfileMenu } from "@/components/profile-menu";
@@ -44,8 +45,21 @@ export function SiteNav({ activePage, childProfile }: SiteNavProps) {
       <div className="site-account-actions">
         <ProfileMenu initialProfile={childProfile} />
         <form action={logoutAction}>
-          <button type="submit" className="logout-btn">
-            Déconnexion
+          <button
+            type="submit"
+            className="logout-btn logout-icon-btn"
+            aria-label="Déconnexion"
+            title="Déconnexion"
+          >
+            <Image
+              src="/logout-babymiam.png?v=2"
+              alt=""
+              aria-hidden="true"
+              width={40}
+              height={40}
+              unoptimized
+              className="logout-icon"
+            />
           </button>
         </form>
       </div>
