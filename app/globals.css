@@ -16,20 +16,16 @@ body {
   background:
     radial-gradient(circle at 0% 0%, #f8eecf 0%, transparent 36%),
     radial-gradient(circle at 100% 100%, #e2f0e2 0%, transparent 40%),
-    repeating-linear-gradient(
-      0deg,
+    repeating-linear-gradient(0deg,
       rgba(255, 255, 255, 0.35) 0,
       rgba(255, 255, 255, 0.35) 1px,
       transparent 1px,
-      transparent 24px
-    ),
-    repeating-linear-gradient(
-      90deg,
+      transparent 24px),
+    repeating-linear-gradient(90deg,
       rgba(255, 255, 255, 0.35) 0,
       rgba(255, 255, 255, 0.35) 1px,
       transparent 1px,
-      transparent 24px
-    ),
+      transparent 24px),
     var(--bg);
   font-family: "Avenir Next", "Trebuchet MS", sans-serif;
 }
@@ -104,6 +100,8 @@ a {
 }
 
 .topbar {
+  position: relative;
+  z-index: 40;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -158,7 +156,7 @@ a {
   display: grid;
   place-items: center;
   padding: 18px;
-  z-index: 100;
+  z-index: 1000;
 }
 
 .profile-modal {
@@ -289,32 +287,52 @@ a {
 
 .texture-timeline {
   margin-bottom: 18px;
-  border: 1px solid #e6d8c3;
+  border: 1px solid #e4d2b8;
   border-radius: 24px;
   padding: 16px;
   background:
-    radial-gradient(circle at 92% 8%, rgba(255, 219, 171, 0.4), transparent 40%),
-    linear-gradient(140deg, #fff9ee 0%, #fffdf8 48%, #f8fbf2 100%);
-  box-shadow: 0 10px 20px rgba(70, 54, 26, 0.06);
+    radial-gradient(circle at 96% 0%, rgba(255, 223, 177, 0.35), transparent 38%),
+    radial-gradient(circle at 0% 100%, rgba(198, 230, 193, 0.26), transparent 42%),
+    linear-gradient(140deg, #fff9ef 0%, #fffdf9 52%, #f6faf2 100%);
+  box-shadow: 0 12px 24px rgba(70, 54, 26, 0.07);
 }
 
 .texture-timeline-title {
   margin: 0 0 12px;
   font-size: clamp(1.15rem, 2.2vw, 1.5rem);
   line-height: 1.2;
+  color: #3c332a;
 }
 
 .texture-timeline-rail {
   overflow-x: auto;
-  padding-bottom: 6px;
+  padding: 2px 0 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #b5b7b8 #e8e9e8;
+}
+
+.texture-timeline-rail::-webkit-scrollbar {
+  height: 10px;
+}
+
+.texture-timeline-rail::-webkit-scrollbar-track {
+  background: #e8e9e8;
+  border-radius: 999px;
+}
+
+.texture-timeline-rail::-webkit-scrollbar-thumb {
+  background: #b5b7b8;
+  border-radius: 999px;
 }
 
 .texture-timeline-track {
   list-style: none;
   margin: 0;
-  padding: 0 8px;
+  padding: 0 12px 2px;
   display: flex;
   align-items: flex-start;
+  gap: 8px;
   min-width: max-content;
   position: relative;
 }
@@ -324,51 +342,55 @@ a {
   position: absolute;
   left: 80px;
   right: 80px;
-  top: 58px;
+  top: 60px;
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #77ca7f 0%, #5fbe68 100%);
+  background: linear-gradient(90deg, #79cd7f 0%, #61bf69 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
   z-index: 0;
 }
 
 .texture-step {
   position: relative;
   z-index: 1;
-  width: 160px;
-  flex: 0 0 160px;
+  width: 182px;
+  flex: 0 0 182px;
   text-align: center;
   display: grid;
   justify-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .texture-step-age {
   margin: 0;
-  width: 116px;
-  height: 116px;
+  width: 120px;
+  height: 120px;
   border-radius: 999px;
-  border: 4px solid #f7fff5;
-  background: radial-gradient(circle at 30% 20%, #7dd381 0%, #56b95f 75%);
+  border: 4px solid #f4fbee;
+  background:
+    radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.25), transparent 36%),
+    linear-gradient(160deg, #7acd80 0%, #56b95f 100%);
   box-shadow:
-    0 0 0 2px rgba(81, 154, 82, 0.35),
-    0 10px 18px rgba(61, 125, 62, 0.18);
+    0 0 0 2px rgba(86, 155, 86, 0.3),
+    0 10px 16px rgba(71, 126, 66, 0.2);
   color: #fff;
   text-shadow: 0 1px 2px rgba(18, 49, 20, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 14px;
+  padding: 12px;
   line-height: 1.08;
   font-weight: 700;
-  font-size: 1.03rem;
+  font-size: 1.05rem;
 }
 
 .texture-step-text {
   margin: 0;
-  max-width: 18ch;
-  font-size: 0.94rem;
+  max-width: 16ch;
+  font-size: 0.95rem;
   line-height: 1.3;
-  color: #4d463d;
+  color: #4b4339;
+  font-weight: 500;
 }
 
 .texture-key-message {
@@ -509,10 +531,7 @@ a {
 }
 
 .category-list.collapsed {
-  max-height: calc(
-    (var(--collapsed-row-count) * var(--collapsed-row-height))
-    + ((var(--collapsed-row-count) - 1) * var(--collapsed-row-gap))
-  );
+  max-height: calc((var(--collapsed-row-count) * var(--collapsed-row-height)) + ((var(--collapsed-row-count) - 1) * var(--collapsed-row-gap)));
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 2px;
@@ -733,24 +752,125 @@ a {
 }
 
 @keyframes pulse {
-  0% { opacity: 0.3; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.1); }
-  100% { opacity: 0.3; transform: scale(0.9); }
+  0% {
+    opacity: 0.3;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
+  100% {
+    opacity: 0.3;
+    transform: scale(0.9);
+  }
 }
 
-.tone-vegetables { --tone-surface: #f2faf0; --tone-pill: #dcebd8; --tone-border: #d4e7ce; --tone-dot: #93c694; --tone-dot-border: #7ab17b; }
-.tone-fruits { --tone-surface: #fff2eb; --tone-pill: #f5ded2; --tone-border: #f0d4c6; --tone-dot: #efb1a0; --tone-dot-border: #d89988; }
-.tone-starch { --tone-surface: #fff9e7; --tone-pill: #f2e1a5; --tone-border: #eadba9; --tone-dot: #e6cb67; --tone-dot-border: #c7ad4d; }
-.tone-proteins { --tone-surface: #fcf4f2; --tone-pill: #e8d7d1; --tone-border: #e8d8d2; --tone-dot: #d6ac9e; --tone-dot-border: #b88f82; }
-.tone-legumes { --tone-surface: #f6f8ea; --tone-pill: #dbe3bd; --tone-border: #d8dfb3; --tone-dot: #c5d27a; --tone-dot-border: #acbb67; }
-.tone-dairy { --tone-surface: #eef9fb; --tone-pill: #d4eaef; --tone-border: #cfe3e8; --tone-dot: #9ed7de; --tone-dot-border: #84bcc2; }
-.tone-allergens { --tone-surface: #fff4ea; --tone-pill: #f3c693; --tone-border: #efcca5; --tone-dot: #ecab79; --tone-dot-border: #d59462; }
-.tone-spices { --tone-surface: #fff8e9; --tone-pill: #f1d991; --tone-border: #ebd89f; --tone-dot: #e4bf59; --tone-dot-border: #c9a645; }
-.tone-oils { --tone-surface: #fbfaed; --tone-pill: #e5df9d; --tone-border: #e3dda4; --tone-dot: #cbc66c; --tone-dot-border: #b0aa57; }
-.tone-herbs { --tone-surface: #f3faee; --tone-pill: #d8e6b4; --tone-border: #d4e2b0; --tone-dot: #a9c672; --tone-dot-border: #90ac60; }
-.tone-sweets { --tone-surface: #fdf1f8; --tone-pill: #f4d8e5; --tone-border: #efd3e0; --tone-dot: #e8abc9; --tone-dot-border: #d08eaf; }
-.tone-condiments { --tone-surface: #f4f8ec; --tone-pill: #dae4bb; --tone-border: #d4e0b3; --tone-dot: #bad17d; --tone-dot-border: #a1b868; }
-.tone-other { --tone-surface: #faf6ee; --tone-pill: #ece3d2; --tone-border: #e8decf; --tone-dot: #d2bf9c; --tone-dot-border: #b8a884; }
+.tone-vegetables {
+  --tone-surface: #f2faf0;
+  --tone-pill: #dcebd8;
+  --tone-border: #d4e7ce;
+  --tone-dot: #93c694;
+  --tone-dot-border: #7ab17b;
+}
+
+.tone-fruits {
+  --tone-surface: #fff2eb;
+  --tone-pill: #f5ded2;
+  --tone-border: #f0d4c6;
+  --tone-dot: #efb1a0;
+  --tone-dot-border: #d89988;
+}
+
+.tone-starch {
+  --tone-surface: #fff9e7;
+  --tone-pill: #f2e1a5;
+  --tone-border: #eadba9;
+  --tone-dot: #e6cb67;
+  --tone-dot-border: #c7ad4d;
+}
+
+.tone-proteins {
+  --tone-surface: #fcf4f2;
+  --tone-pill: #e8d7d1;
+  --tone-border: #e8d8d2;
+  --tone-dot: #d6ac9e;
+  --tone-dot-border: #b88f82;
+}
+
+.tone-legumes {
+  --tone-surface: #f6f8ea;
+  --tone-pill: #dbe3bd;
+  --tone-border: #d8dfb3;
+  --tone-dot: #c5d27a;
+  --tone-dot-border: #acbb67;
+}
+
+.tone-dairy {
+  --tone-surface: #eef9fb;
+  --tone-pill: #d4eaef;
+  --tone-border: #cfe3e8;
+  --tone-dot: #9ed7de;
+  --tone-dot-border: #84bcc2;
+}
+
+.tone-allergens {
+  --tone-surface: #fff4ea;
+  --tone-pill: #f3c693;
+  --tone-border: #efcca5;
+  --tone-dot: #ecab79;
+  --tone-dot-border: #d59462;
+}
+
+.tone-spices {
+  --tone-surface: #fff8e9;
+  --tone-pill: #f1d991;
+  --tone-border: #ebd89f;
+  --tone-dot: #e4bf59;
+  --tone-dot-border: #c9a645;
+}
+
+.tone-oils {
+  --tone-surface: #fbfaed;
+  --tone-pill: #e5df9d;
+  --tone-border: #e3dda4;
+  --tone-dot: #cbc66c;
+  --tone-dot-border: #b0aa57;
+}
+
+.tone-herbs {
+  --tone-surface: #f3faee;
+  --tone-pill: #d8e6b4;
+  --tone-border: #d4e2b0;
+  --tone-dot: #a9c672;
+  --tone-dot-border: #90ac60;
+}
+
+.tone-sweets {
+  --tone-surface: #fdf1f8;
+  --tone-pill: #f4d8e5;
+  --tone-border: #efd3e0;
+  --tone-dot: #e8abc9;
+  --tone-dot-border: #d08eaf;
+}
+
+.tone-condiments {
+  --tone-surface: #f4f8ec;
+  --tone-pill: #dae4bb;
+  --tone-border: #d4e0b3;
+  --tone-dot: #bad17d;
+  --tone-dot-border: #a1b868;
+}
+
+.tone-other {
+  --tone-surface: #faf6ee;
+  --tone-pill: #ece3d2;
+  --tone-border: #e8decf;
+  --tone-dot: #d2bf9c;
+  --tone-dot-border: #b8a884;
+}
 
 @media (max-width: 768px) {
   .dashboard-page {
@@ -807,28 +927,24 @@ a {
   }
 
   .texture-timeline-track {
-    padding: 0 2px;
+    padding: 0 2px 2px;
   }
 
   .texture-step {
-    width: 148px;
-    flex-basis: 148px;
+    width: 152px;
+    flex-basis: 152px;
+    gap: 10px;
   }
 
   .texture-step-age {
-    width: 104px;
-    height: 104px;
+    width: 106px;
+    height: 106px;
     font-size: 0.96rem;
   }
 
   .texture-timeline-track::before {
     left: 54px;
     right: 54px;
-    top: 52px;
-  }
-
-  .profile-modal {
-    width: min(100%, 96vw);
-    padding: 16px;
+    top: 53px;
   }
 }
