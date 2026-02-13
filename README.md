@@ -1,4 +1,4 @@
-# Babymiam
+# Grrrignote
 
 MVP Next.js pour suivre la diversification alimentaire de bébé.
 

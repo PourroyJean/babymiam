@@ -62,8 +62,8 @@ export async function setPreferenceAction(formData: FormData) {
   const foodId = Number(formData.get("foodId"));
   const selected = Number(formData.get("value"));
 
-  if (!Number.isFinite(foodId) || ![-1, 1].includes(selected)) return;
-  await upsertPreference(foodId, selected as -1 | 1);
+  if (!Number.isFinite(foodId) || ![-1, 0, 1].includes(selected)) return;
+  await upsertPreference(foodId, selected as -1 | 0 | 1);
   revalidatePath("/");
 }
 

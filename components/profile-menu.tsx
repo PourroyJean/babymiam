@@ -115,8 +115,8 @@ function buildShareRecap(params: {
 
   const normalizedFirstName = childFirstName?.trim();
   const leadLine = normalizedFirstName
-    ? `${normalizedFirstName} progresse sur Babymiam 🐯`
-    : "Progression diversification sur Babymiam 🐯";
+    ? `${normalizedFirstName} progresse sur Grrrignote 🐯`
+    : "Progression diversification sur Grrrignote 🐯";
 
   const progressLine = `${introducedCount}/${totalFoods} aliments déjà testés.`;
   const likesLine =
@@ -141,8 +141,8 @@ function buildMilestoneRecap(params: {
   const { childFirstName, milestone, introducedCount, likedCount, shareUrl } = params;
   const normalizedFirstName = childFirstName?.trim();
   const leadLine = normalizedFirstName
-    ? `🎉 ${normalizedFirstName} a atteint le palier ${milestone} aliments sur Babymiam`
-    : `🎉 Palier ${milestone} aliments atteint sur Babymiam`;
+    ? `🎉 ${normalizedFirstName} a atteint le palier ${milestone} aliments sur Grrrignote`
+    : `🎉 Palier ${milestone} aliments atteint sur Grrrignote`;
 
   return [
     leadLine,

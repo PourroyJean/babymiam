@@ -15,7 +15,7 @@ export default async function LoginPage({
   return (
     <main className="login-page">
       <section className="login-card">
-        <h1>Babymiam</h1>
+        <h1>Grrrignote</h1>
         <p>Connecte-toi pour suivre la diversification de bébé.</p>
 
         <form action={loginAction} className="login-form">

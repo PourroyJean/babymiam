@@ -24,7 +24,7 @@ function normalizeConnectionString(value: string) {
 }
 
 declare global {
-  var __babymiamPool: Pool | undefined;
+  var __grrrignotePool: Pool | undefined;
 }
 
 function getConnectionString() {
@@ -33,8 +33,8 @@ function getConnectionString() {
 }
 
 function getPool() {
-  if (!global.__babymiamPool) {
-    global.__babymiamPool = new Pool({
+  if (!global.__grrrignotePool) {
+    global.__grrrignotePool = new Pool({
       connectionString: getConnectionString(),
       max: Number(process.env.PG_POOL_MAX || 5),
       idleTimeoutMillis: 10_000,
@@ -42,7 +42,7 @@ function getPool() {
     });
   }
 
-  return global.__babymiamPool;
+  return global.__grrrignotePool;
 }
 
 async function query<T extends Record<string, unknown> = Record<string, unknown>>(
@@ -143,10 +143,7 @@ export async function upsertPreference(foodId: number, preference: -1 | 0 | 1) {
     VALUES ($1, $2)
     ON CONFLICT (food_id)
     DO UPDATE SET
-      preference = CASE
-        WHEN food_progress.preference = EXCLUDED.preference THEN 0
-        ELSE EXCLUDED.preference
-      END,
+      preference = EXCLUDED.preference,
       updated_at = NOW();
     `,
     [foodId, preference]

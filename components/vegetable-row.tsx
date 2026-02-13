@@ -1,0 +1,140 @@
+import Image from "next/image";
+import { setExposureAction } from "@/app/actions";
+import { FoodMeta } from "@/components/food-meta";
+
+type PreferenceValue = -1 | 0 | 1;
+
+type VegetableRowProps = {
+  foodId: number;
+  name: string;
+  exposureCount: number;
+  preference: PreferenceValue;
+  firstTastedOn: string | null;
+  note: string;
+  onCyclePreference: (foodId: number) => void;
+  isPreferenceSaving?: boolean;
+};
+
+const ACTION_BUTTON_BASE_CLASS =
+  "touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-0 bg-transparent p-0 text-[#4c4136] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]";
+
+const ACTION_VISUAL_BASE_CLASS =
+  "pointer-events-none inline-flex h-9 w-9 items-center justify-center rounded-full border-2 bg-[#fcfbf9] text-[#4c4136]";
+
+const SMILEY_VISUAL_BASE_CLASS =
+  "pointer-events-none inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 bg-[#fcfbf9] p-0";
+
+function getNextPreference(current: PreferenceValue): PreferenceValue {
+  if (current === 0) return 1;
+  if (current === 1) return -1;
+  return 0;
+}
+
+function getPreferenceLabel(preference: PreferenceValue) {
+  if (preference === 1) return "aimé";
+  if (preference === -1) return "pas aimé";
+  return "neutre";
+}
+
+function getPreferenceImageSrc(preference: PreferenceValue) {
+  if (preference === 1) return "/smiley_ok.png";
+  if (preference === -1) return "/smiley_ko.png";
+  return "/smiley_neutre.png";
+}
+
+function getPreferenceVisualClass(preference: PreferenceValue) {
+  if (preference === 1) return "border-emerald-500 bg-emerald-100";
+  if (preference === -1) return "border-rose-500 bg-rose-100";
+  return "border-[#b9ac9b]";
+}
+
+export function VegetableRow({
+  foodId,
+  name,
+  exposureCount,
+  preference,
+  firstTastedOn,
+  note,
+  onCyclePreference,
+  isPreferenceSaving = false
+}: VegetableRowProps) {
+  const currentPreferenceLabel = getPreferenceLabel(preference);
+  const nextPreference = getNextPreference(preference);
+  const nextPreferenceLabel = getPreferenceLabel(nextPreference);
+
+  return (
+    <li className="w-full rounded-2xl bg-white/75 px-2.5 py-2 sm:px-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
+        <span className="min-w-0 text-[0.98rem] font-semibold leading-tight text-[#3b3128]">
+          {name}
+        </span>
+
+        <div
+          role="group"
+          aria-label={`Actions pour ${name}`}
+          className="flex flex-wrap items-center justify-start gap-1 sm:justify-end sm:gap-1.5"
+        >
+          <div role="group" aria-label={`Niveau d'exposition pour ${name}`} className="flex items-center gap-1 sm:gap-1.5">
+            {[1, 2, 3].map((value) => {
+              const isActive = exposureCount >= value;
+              const isSelected = exposureCount === value;
+
+              return (
+                <form key={value} action={setExposureAction} className="inline-flex">
+                  <input type="hidden" name="foodId" value={foodId} />
+                  <button
+                    type="submit"
+                    name="value"
+                    value={value}
+                    className={ACTION_BUTTON_BASE_CLASS}
+                    aria-label={`${name} - régler la jauge à ${value} sur 3`}
+                    aria-pressed={isSelected}
+                    title={`Jauge ${value}/3`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`${ACTION_VISUAL_BASE_CLASS} text-xs font-extrabold leading-none ${
+                        isActive ? "text-white" : "border-[#b9ac9b] text-[#7a6f62]"
+                      }`}
+                      style={isActive ? { borderColor: "var(--tone-dot-border)", backgroundColor: "var(--tone-dot)" } : undefined}
+                    >
+                      {value}
+                    </span>
+                  </button>
+                </form>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            className={ACTION_BUTTON_BASE_CLASS}
+            onClick={() => onCyclePreference(foodId)}
+            aria-pressed={preference !== 0}
+            aria-label={`Préférence actuelle pour ${name}: ${currentPreferenceLabel}. Appuyer pour passer à ${nextPreferenceLabel}.`}
+            title={`Préférence: ${currentPreferenceLabel} (prochain état: ${nextPreferenceLabel})`}
+          >
+            <span
+              aria-hidden="true"
+              className={`${SMILEY_VISUAL_BASE_CLASS} ${getPreferenceVisualClass(preference)} ${
+                isPreferenceSaving ? "opacity-80" : ""
+              }`}
+            >
+              <Image
+                src={getPreferenceImageSrc(preference)}
+                alt=""
+                aria-hidden="true"
+                width={36}
+                height={36}
+                unoptimized
+                className="h-full w-full object-cover"
+              />
+            </span>
+          </button>
+
+          <FoodMeta foodId={foodId} foodName={name} firstTastedOn={firstTastedOn} note={note} />
+        </div>
+      </div>
+    </li>
+  );
+}

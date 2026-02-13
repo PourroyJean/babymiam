@@ -8,7 +8,7 @@ const fredoka = Fredoka({
 });
 
 export const metadata: Metadata = {
-  title: "Babymiam",
+  title: "Grrrignote",
   description: "Suivi de la diversification alimentaire de bébé"
 };
 

@@ -18,12 +18,21 @@ export function SiteNav({ activePage, childProfile, progressSummary = null }: Si
   return (
     <header className="site-nav">
       <div className="site-nav-main">
-        <Link href="/" className="site-brand" aria-label="Aller à l'accueil Babymiam">
-          <span className="site-logo" aria-hidden="true">
-            🐯
-          </span>
-          <span className="site-brand-text">Babymiam</span>
-        </Link>
+        <div className="site-brand">
+          <Link href="/" className="site-logo-link" aria-label="Aller à l'accueil Grrrignote">
+            <span className="site-logo" aria-hidden="true">
+              <Image
+                src="/grrrignote_logo.png"
+                alt=""
+                width={46}
+                height={46}
+                unoptimized
+                className="site-logo-image"
+              />
+            </span>
+          </Link>
+          <span className="site-brand-text">Grrrignote</span>
+        </div>
 
         <nav className="site-nav-links" aria-label="Navigation principale">
           <Link
@@ -53,7 +62,7 @@ export function SiteNav({ activePage, childProfile, progressSummary = null }: Si
             title="Déconnexion"
           >
             <Image
-              src="/logout-babymiam.png?v=2"
+              src="/logout-grrrignote.png?v=1"
               alt=""
               aria-hidden="true"
               width={40}

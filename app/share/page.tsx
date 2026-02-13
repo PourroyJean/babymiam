@@ -85,7 +85,7 @@ export default async function SharedSnapshotPage({
   return (
     <main className="share-public-page">
       <section className="share-public-card">
-        <p className="share-public-kicker">Recap partage depuis Babymiam</p>
+        <p className="share-public-kicker">Recap partage depuis Grrrignote</p>
         <h1>
           {firstName ? `Les progres de ${firstName}` : "Progression diversification"}
         </h1>
@@ -125,7 +125,7 @@ export default async function SharedSnapshotPage({
 
         <div className="share-public-actions">
           <Link href="/login" className="share-public-primary-link">
-            Ouvrir Babymiam
+            Ouvrir Grrrignote
           </Link>
           <p>Deja un acces ? Connecte-toi pour reprendre ton suivi.</p>
         </div>

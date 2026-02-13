@@ -1,10 +1,10 @@
-# Plan de déploiement Babymiam sur Vercel + Vercel SQL
+# Plan de déploiement Grrrignote sur Vercel + Vercel SQL
 
 ## 1. Objectif
 Déployer et exploiter l'application Next.js sur Vercel avec Vercel SQL (Neon/Postgres), avec une base reproductible, des secrets robustes et un runbook opérationnel simple.
 
 ## 2. État actuel
-- App déployée en production sur Vercel (`babymiam.vercel.app`).
+- App déployée en production sur Vercel (domaine Grrrignote).
 - Base Neon liée au projet Vercel.
 - Variables DB (`POSTGRES_URL`, `DATABASE_URL`, etc.) configurées.
 - Variables auth (`AUTH_USER`, `AUTH_PASSWORD`, `AUTH_SECRET`) configurées.
