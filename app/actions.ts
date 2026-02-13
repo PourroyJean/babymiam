@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { clearSession, getAuthenticatedUsername, requireAuth } from "@/lib/auth";
 import {
+  createGrowthEvent,
   upsertChildProfile,
   upsertExposure,
   upsertFirstTastedOn,
@@ -12,6 +13,15 @@ import {
 } from "@/lib/data";
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const SHARE_EVENT_NAMES = new Set([
+  "share_clicked",
+  "share_success",
+  "snapshot_link_created",
+  "milestone_share_clicked",
+  "milestone_share_success"
+]);
+const SHARE_CHANNELS = new Set(["button", "native", "clipboard", "fallback", "snapshot", "milestone"]);
+const SHARE_ID_PATTERN = /^[a-zA-Z0-9_-]{8,80}$/;
 
 function isValidIsoDate(value: string) {
   if (!ISO_DATE_PATTERN.test(value)) return false;
@@ -22,6 +32,12 @@ function isValidIsoDate(value: string) {
 
 function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function getNonNegativeInteger(formData: FormData, key: string) {
+  const parsed = Number(formData.get(key));
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.trunc(parsed);
 }
 
 export async function logoutAction() {
@@ -99,4 +115,44 @@ export async function saveChildProfileAction(formData: FormData) {
   await upsertChildProfile(ownerKey, firstName, birthDate);
   revalidatePath("/");
   return { ok: true };
+}
+
+export async function trackShareEventAction(formData: FormData) {
+  await requireAuth();
+  const ownerKey = await getAuthenticatedUsername();
+
+  const eventName = String(formData.get("eventName") || "").trim();
+  if (!SHARE_EVENT_NAMES.has(eventName)) return;
+
+  const channelRaw = String(formData.get("channel") || "").trim();
+  const channel = SHARE_CHANNELS.has(channelRaw) ? channelRaw : null;
+
+  const metadata: Record<string, unknown> = {};
+  const introducedCount = getNonNegativeInteger(formData, "introducedCount");
+  const totalFoods = getNonNegativeInteger(formData, "totalFoods");
+  const likedCount = getNonNegativeInteger(formData, "likedCount");
+  const milestone = getNonNegativeInteger(formData, "milestone");
+  const recentFoodsRaw = String(formData.get("recentFoods") || "").trim();
+  const shareIdRaw = String(formData.get("shareId") || "").trim();
+
+  if (introducedCount !== null) metadata.introducedCount = introducedCount;
+  if (totalFoods !== null) metadata.totalFoods = totalFoods;
+  if (likedCount !== null) metadata.likedCount = likedCount;
+  if (milestone !== null) metadata.milestone = milestone;
+  if (recentFoodsRaw) {
+    metadata.recentFoods = recentFoodsRaw
+      .split(",")
+      .map((food) => food.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+  }
+  if (SHARE_ID_PATTERN.test(shareIdRaw)) {
+    metadata.shareId = shareIdRaw;
+  }
+
+  try {
+    await createGrowthEvent(ownerKey, eventName, channel, metadata);
+  } catch {
+    // Tracking should never block core user actions.
+  }
 }

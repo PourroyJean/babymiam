@@ -173,17 +173,19 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
   return (
     <section className="categories-section">
       <div className="categories-toolbar">
-        <button
-          ref={searchTriggerRef}
-          type="button"
-          className="search-trigger-btn"
-          onClick={() => setIsSearchOpen(true)}
-        >
-          <span>Rechercher un aliment</span>
-          <span className="search-trigger-shortcut" aria-hidden="true">
-            ⌘/Ctrl + K
-          </span>
-        </button>
+        <div className="categories-toolbar-actions">
+          <button
+            ref={searchTriggerRef}
+            type="button"
+            className="search-trigger-btn"
+            onClick={() => setIsSearchOpen(true)}
+          >
+            <span>Rechercher un aliment</span>
+            <span className="search-trigger-shortcut" aria-hidden="true">
+              ⌘/Ctrl + K
+            </span>
+          </button>
+        </div>
       </div>
 
       <section className="categories-grid">

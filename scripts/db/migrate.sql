@@ -33,3 +33,18 @@ CREATE TABLE IF NOT EXISTS child_profiles (
   birth_date DATE NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS growth_events (
+  id BIGSERIAL PRIMARY KEY,
+  owner_key TEXT NOT NULL,
+  event_name TEXT NOT NULL,
+  channel TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_growth_events_event_created_at
+  ON growth_events(event_name, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_growth_events_owner_created_at
+  ON growth_events(owner_key, created_at DESC);

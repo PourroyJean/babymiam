@@ -2,6 +2,7 @@ import { getAuthenticatedUsername, requireAuth } from "@/lib/auth";
 import { getChildProfile, getDashboardData } from "@/lib/data";
 import { CategoriesGrid } from "@/components/categories-grid";
 import { SiteNav } from "@/components/site-nav";
+import type { DashboardCategory, ProgressSummary } from "@/lib/types";
 
 const toneByCategory: Record<string, string> = {
   "Légumes": "tone-vegetables",
@@ -19,6 +20,30 @@ const toneByCategory: Record<string, string> = {
   "Autres": "tone-other"
 };
 
+function getUpdatedTimestamp(updatedAt: string | null) {
+  if (!updatedAt) return 0;
+  const parsed = Date.parse(updatedAt);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function buildProgressSummary(categories: DashboardCategory[]): ProgressSummary {
+  const foods = categories.flatMap((category) => category.foods);
+  const introducedCount = foods.filter((food) => food.exposureCount > 0 || Boolean(food.firstTastedOn)).length;
+  const likedCount = foods.filter((food) => food.preference === 1).length;
+  const recentFoodNames = foods
+    .filter((food) => food.updatedAt)
+    .sort((a, b) => getUpdatedTimestamp(b.updatedAt) - getUpdatedTimestamp(a.updatedAt))
+    .slice(0, 3)
+    .map((food) => food.name);
+
+  return {
+    introducedCount,
+    totalFoods: foods.length,
+    likedCount,
+    recentFoodNames
+  };
+}
+
 export default async function DashboardPage() {
   await requireAuth();
   const ownerKey = await getAuthenticatedUsername();
@@ -34,9 +59,11 @@ export default async function DashboardPage() {
     categories = [];
   }
 
+  const progressSummary = buildProgressSummary(categories);
+
   return (
     <main className="dashboard-page">
-      <SiteNav activePage="suivi" childProfile={childProfile} />
+      <SiteNav activePage="suivi" childProfile={childProfile} progressSummary={progressSummary} />
 
       <section className="page-hero">
         <h1>Les premiers aliments de {childProfile?.firstName ?? "bébé"}</h1>

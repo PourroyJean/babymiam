@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/share"];
+
+function isPublicPath(pathname: string) {
+  return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -9,7 +13,7 @@ export function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
-    PUBLIC_PATHS.includes(pathname)
+    isPublicPath(pathname)
   ) {
     return NextResponse.next();
   }

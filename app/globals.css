@@ -93,6 +93,143 @@ a {
   font-weight: 600;
 }
 
+.share-public-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.share-public-card {
+  width: min(100%, 720px);
+  border: 1px solid #e2d4be;
+  border-radius: 28px;
+  padding: 26px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 225, 176, 0.4), transparent 44%),
+    radial-gradient(circle at 0% 100%, rgba(201, 229, 191, 0.36), transparent 42%),
+    #fffdf7;
+  box-shadow: 0 18px 34px rgba(67, 52, 28, 0.13);
+}
+
+.share-public-kicker {
+  margin: 0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7d6f5d;
+  font-weight: 700;
+}
+
+.share-public-card h1 {
+  margin: 6px 0 0;
+  font-size: clamp(1.6rem, 4.4vw, 2.45rem);
+  line-height: 1.08;
+}
+
+.share-public-subtitle {
+  margin: 10px 0 0;
+  color: #5f5449;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.share-public-milestone {
+  margin: 12px 0 0;
+  width: fit-content;
+  border: 1px solid #e2c896;
+  border-radius: 999px;
+  background: #fff2dc;
+  color: #6d4e25;
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.share-public-stats {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.share-public-stats article {
+  border: 1px solid #e8dcc9;
+  border-radius: 16px;
+  padding: 12px 10px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.share-public-stats h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  color: #3f3327;
+}
+
+.share-public-stats p {
+  margin: 2px 0 0;
+  font-size: 0.86rem;
+  color: #6b5f51;
+  font-weight: 700;
+}
+
+.share-public-recent {
+  margin-top: 14px;
+  border: 1px solid #eadcc7;
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.share-public-recent h2 {
+  margin: 0;
+  font-size: 1.03rem;
+}
+
+.share-public-recent ul {
+  margin: 10px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.share-public-actions {
+  margin-top: 16px;
+  border-top: 1px solid #e5d9c7;
+  padding-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.share-public-primary-link {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #a98745;
+  border-radius: 999px;
+  background: #b99a52;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 800;
+  padding: 11px 18px;
+}
+
+.share-public-primary-link:hover {
+  background: #aa8a43;
+}
+
+.share-public-primary-link:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.share-public-actions p {
+  margin: 0;
+  color: #6a604f;
+  font-size: 0.9rem;
+}
+
 .dashboard-page,
 .blog-page {
   max-width: 1680px;
@@ -432,6 +569,105 @@ a {
   outline-offset: 2px;
 }
 
+.profile-progress-section {
+  margin-top: 6px;
+  border: 1px solid #e2d2bb;
+  border-radius: 14px;
+  background: #fff8ec;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.profile-progress-section h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.profile-progress-stats {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #5c5144;
+  font-weight: 700;
+}
+
+.profile-progress-recent,
+.profile-progress-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6f6458;
+}
+
+.profile-share-btn {
+  border: 1px solid #ccb487;
+  border-radius: 999px;
+  background: #f4e6ca;
+  color: #4b3926;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-share-btn:hover {
+  background: #ecd9b2;
+}
+
+.profile-share-btn:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.profile-share-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.profile-milestone-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.profile-milestone-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid #d6c9b5;
+  background: #ece8e1;
+  color: #9a9288;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.profile-milestone-badge.is-unlocked {
+  border-color: #cda767;
+  background: #f8e8c6;
+  color: #5e4323;
+}
+
+.profile-milestone-badge.is-locked {
+  background: #ebe9e5;
+  color: #9b948b;
+  cursor: not-allowed;
+}
+
+.profile-milestone-badge:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.profile-share-feedback {
+  font-size: 0.8rem;
+}
+
 .profile-error {
   margin: 10px 0 0;
   color: #973626;
@@ -700,8 +936,15 @@ a {
 }
 
 .categories-toolbar {
+  display: grid;
+  gap: 8px;
+}
+
+.categories-toolbar-actions {
   display: flex;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .search-trigger-btn {
@@ -725,6 +968,24 @@ a {
 .search-trigger-btn:focus-visible {
   outline: 2px solid #9b7a3d;
   outline-offset: 2px;
+}
+
+.share-feedback {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.share-feedback-success {
+  color: #276b2f;
+}
+
+.share-feedback-error {
+  color: #9b2f21;
+}
+
+.share-feedback-info {
+  color: #6d5d47;
 }
 
 .search-trigger-shortcut {
@@ -1330,6 +1591,20 @@ a {
     overflow-x: clip;
   }
 
+  .share-public-page {
+    padding: 12px;
+  }
+
+  .share-public-card {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .share-public-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
   .site-nav {
     position: static;
     top: auto;
@@ -1463,8 +1738,9 @@ a {
     min-width: 0;
   }
 
-  .categories-toolbar {
-    justify-content: stretch;
+  .categories-toolbar-actions {
+    width: 100%;
+    flex-direction: column;
   }
 
   .search-trigger-btn {

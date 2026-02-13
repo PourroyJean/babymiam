@@ -216,3 +216,18 @@ export async function upsertChildProfile(ownerKey: string, firstName: string, bi
     [ownerKey, firstName, birthDate]
   );
 }
+
+export async function createGrowthEvent(
+  ownerKey: string,
+  eventName: string,
+  channel: string | null,
+  metadata: Record<string, unknown>
+) {
+  await query(
+    `
+    INSERT INTO growth_events (owner_key, event_name, channel, metadata)
+    VALUES ($1, $2, $3, $4::jsonb);
+    `,
+    [ownerKey, eventName, channel, JSON.stringify(metadata)]
+  );
+}

@@ -20,3 +20,10 @@ export type ChildProfile = {
   firstName: string;
   birthDate: string;
 };
+
+export type ProgressSummary = {
+  introducedCount: number;
+  totalFoods: number;
+  likedCount: number;
+  recentFoodNames: string[];
+};

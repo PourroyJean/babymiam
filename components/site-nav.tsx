@@ -2,18 +2,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { logoutAction } from "@/app/actions";
 import { ProfileMenu } from "@/components/profile-menu";
-import type { ChildProfile } from "@/lib/types";
+import type { ChildProfile, ProgressSummary } from "@/lib/types";
 
 type SiteNavProps = {
   activePage: "suivi" | "blog";
   childProfile: ChildProfile | null;
+  progressSummary?: ProgressSummary | null;
 };
 
 function getLinkClassName(isActive: boolean) {
   return isActive ? "site-nav-link is-active" : "site-nav-link";
 }
 
-export function SiteNav({ activePage, childProfile }: SiteNavProps) {
+export function SiteNav({ activePage, childProfile, progressSummary = null }: SiteNavProps) {
   return (
     <header className="site-nav">
       <div className="site-nav-main">
@@ -43,7 +44,7 @@ export function SiteNav({ activePage, childProfile }: SiteNavProps) {
       </div>
 
       <div className="site-account-actions">
-        <ProfileMenu initialProfile={childProfile} />
+        <ProfileMenu initialProfile={childProfile} progressSummary={progressSummary} />
         <form action={logoutAction}>
           <button
             type="submit"
