@@ -1,19 +1,32 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createPasswordResetToken, getUserByEmail, normalizeEmail } from "@/lib/auth";
 import { sendPasswordResetEmail } from "@/lib/email";
 
-function resolveAppBaseUrl(requestHeaders: Headers) {
+function resolveAppBaseUrl() {
   const configured = process.env.APP_BASE_URL?.trim();
-  if (configured) return configured.replace(/\/$/, "");
+  if (configured) {
+    try {
+      const parsed = new URL(configured);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        throw new Error("APP_BASE_URL must use http or https.");
+      }
 
-  const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "";
-  const protocol = requestHeaders.get("x-forwarded-proto") || "https";
-  if (!host) return "http://127.0.0.1:3000";
+      parsed.pathname = "";
+      parsed.search = "";
+      parsed.hash = "";
+      return parsed.toString().replace(/\/$/, "");
+    } catch {
+      throw new Error("APP_BASE_URL is invalid.");
+    }
+  }
 
-  return `${protocol}://${host}`;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("APP_BASE_URL must be set in production.");
+  }
+
+  return "http://127.0.0.1:3000";
 }
 
 export async function forgotPasswordAction(formData: FormData) {
@@ -29,8 +42,7 @@ export async function forgotPasswordAction(formData: FormData) {
     if (user && user.status === "active") {
       try {
         const token = await createPasswordResetToken(user.id);
-        const requestHeaders = await headers();
-        const baseUrl = resolveAppBaseUrl(requestHeaders);
+        const baseUrl = resolveAppBaseUrl();
         const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
         await sendPasswordResetEmail({ to: user.email, resetUrl });
