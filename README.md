@@ -41,6 +41,27 @@ Tu peux changer via:
 - `AUTH_PASSWORD`
 - `AUTH_SECRET`
 
+## Tests E2E (Playwright)
+Variables de test supportées:
+- `E2E_POSTGRES_URL` (défaut: `postgres://postgres:postgres@localhost:5432/babymiam_e2e`)
+- `E2E_BASE_URL` (défaut: `http://127.0.0.1:3005`)
+- `E2E_AUTH_USER` (défaut: `LJCLS`)
+- `E2E_AUTH_PASSWORD` (défaut: `LOULOU38`)
+- `E2E_AUTH_SECRET` (défaut: `e2e-secret-change-me`)
+
+Exécuter la suite:
+```bash
+npm run test:e2e
+```
+
+Modes utiles:
+```bash
+npm run test:e2e:headed
+npm run test:e2e:ui
+npm run test:e2e:debug
+npm run test:e2e:report
+```
+
 ## Déploiement Vercel
 1. Importer le repo sur Vercel.
 2. Ajouter/lier une base Neon (Vercel SQL) au projet.

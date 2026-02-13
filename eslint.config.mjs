@@ -3,7 +3,13 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 const config = [
   ...nextVitals,
   {
-    ignores: [".next/**", "node_modules/**", ".vercel/**"]
+    ignores: [
+      ".next/**",
+      ".next-e2e/**",
+      ".next-e2e-degraded/**",
+      "node_modules/**",
+      ".vercel/**"
+    ]
   },
   {
     rules: {
