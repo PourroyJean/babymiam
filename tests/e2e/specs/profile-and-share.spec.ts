@@ -1,8 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/test-fixtures";
 
-const OWNER_KEY = process.env.E2E_AUTH_USER || "LJCLS";
-
 function getTomorrowIsoDate() {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() + 1);
@@ -68,13 +66,14 @@ test.describe("profile and share", () => {
 
     await expect
       .poll(async () => {
+        const ownerId = await db.getDefaultOwnerId();
         const row = await db.queryOne<{ first_name: string; birth_date: string }>(
           `
             SELECT first_name, birth_date::text AS birth_date
             FROM child_profiles
-            WHERE owner_key = $1;
+            WHERE owner_id = $1;
           `,
-          [OWNER_KEY]
+          [ownerId]
         );
 
         if (!row) return null;

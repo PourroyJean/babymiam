@@ -27,3 +27,16 @@ export type ProgressSummary = {
   likedCount: number;
   recentFoodNames: string[];
 };
+
+export type PublicShareSnapshot = {
+  shareId: string;
+  ownerId: number;
+  firstName: string | null;
+  introducedCount: number;
+  totalFoods: number;
+  likedCount: number;
+  milestone: number | null;
+  recentFoods: string[];
+  createdAt: string;
+  expiresAt: string | null;
+};

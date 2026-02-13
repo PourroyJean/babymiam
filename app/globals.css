@@ -97,6 +97,15 @@ a {
   font-weight: 600;
 }
 
+.info-text {
+  color: #3e6f41;
+  font-weight: 600;
+}
+
+.login-help-link {
+  margin-top: 12px;
+}
+
 .share-public-page {
   min-height: 100vh;
   display: grid;

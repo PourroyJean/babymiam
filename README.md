@@ -1,11 +1,12 @@
 # Grrrignote
 
-MVP Next.js pour suivre la diversification alimentaire de bébé.
+MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-user).
 
 ## Stack
 - Next.js (App Router)
 - PostgreSQL (`pg` / node-postgres)
-- Auth simple (identifiant + mot de passe uniques via variables d'environnement)
+- Auth email + mot de passe hashé (Argon2id)
+- Email transactionnel via Resend (reset password)
 
 ## Setup local
 1. Copier les variables:
@@ -20,32 +21,40 @@ MVP Next.js pour suivre la diversification alimentaire de bébé.
    ```bash
    npm install
    ```
-4. Initialiser la base (migrations + seed):
+4. Appliquer le schéma et charger les aliments:
    ```bash
    npm run db:setup
    ```
-5. Démarrer:
+5. Créer le premier compte admin:
+   ```bash
+   npm run users:create -- --email parent@example.com --password "ChangeMe123!"
+   ```
+6. Démarrer l'app:
    ```bash
    npm run dev
    ```
 
 Le seed charge les catégories/aliments depuis `aliments_categories.json`.
-Si `POSTGRES_URL` n'est pas défini, l'app utilise par défaut `postgres://postgres:postgres@localhost:5432/babymiam`.
+Si `POSTGRES_URL` n'est pas défini, l'app utilise `postgres://postgres:postgres@localhost:5432/babymiam`.
 
-## Auth par défaut
-- ID: `LJCLS`
-- Mot de passe: `LOULOU38`
+## Variables d'environnement
+- `AUTH_SECRET` (ou `AUTH_SECRETS` pour rotation)
+- `POSTGRES_URL`
+- `APP_BASE_URL`
+- `RESEND_API_KEY`
+- `MAIL_FROM`
+- `PASSWORD_RESET_TTL_MINUTES` (défaut `60`)
+- `MAINTENANCE_MODE` (`true|false`)
 
-Tu peux changer via:
-- `AUTH_USER`
-- `AUTH_PASSWORD`
-- `AUTH_SECRET`
+## Scripts users
+- `npm run users:create -- --email <email> --password <password>`
+- `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` (migration des données legacy `owner_key` -> `owner_id`)
 
 ## Tests E2E (Playwright)
 Variables de test supportées:
 - `E2E_POSTGRES_URL` (défaut: `postgres://postgres:postgres@localhost:5432/babymiam_e2e`)
 - `E2E_BASE_URL` (défaut: `http://127.0.0.1:3005`)
-- `E2E_AUTH_USER` (défaut: `LJCLS`)
+- `E2E_AUTH_EMAIL` (défaut: `parent@example.com`)
 - `E2E_AUTH_PASSWORD` (défaut: `LOULOU38`)
 - `E2E_AUTH_SECRET` (défaut: `e2e-secret-change-me`)
 
@@ -54,22 +63,11 @@ Exécuter la suite:
 npm run test:e2e
 ```
 
-Modes utiles:
-```bash
-npm run test:e2e:headed
-npm run test:e2e:ui
-npm run test:e2e:debug
-npm run test:e2e:report
-```
+## Runbook déploiement prod (downtime accepté)
+1. Activer `MAINTENANCE_MODE=true` sur Vercel.
+2. Exécuter `npm run db:migrate` sur la base Neon cible.
+3. Exécuter `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` sur la base Neon cible.
+4. Déployer le code applicatif.
+5. Désactiver `MAINTENANCE_MODE`.
 
-## Trace du chantier tests E2E
-- Authentification et guards (login, logout, session invalide, redirections).
-- Dashboard progression (jauges, préférences, recherche globale et raccourci clavier).
-- Profil enfant et partage (persistance, clipboard/web share, événements analytics).
-- Page publique `/share` (sanitization des params) + mode dégradé DB validé.
-
-## Déploiement Vercel
-1. Importer le repo sur Vercel.
-2. Ajouter/lier une base Neon (Vercel SQL) au projet.
-3. Vérifier les variables d'environnement DB (`DATABASE_URL`, `POSTGRES_URL`) et `AUTH_*`.
-4. Déployer (le build exécute `db:migrate` puis `db:seed` avant `next build`).
+Le build n'exécute plus les migrations automatiquement.

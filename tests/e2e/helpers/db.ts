@@ -1,8 +1,11 @@
+import argon2 from "argon2";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Pool, type QueryResultRow } from "pg";
 
 const DEFAULT_E2E_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam_e2e";
+const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "parent@example.com").toLowerCase();
+const DEFAULT_E2E_AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 
 type FixtureCategory = {
   name: string;
@@ -33,6 +36,7 @@ const FIXTURE_CATEGORIES: FixtureCategory[] = [
 ];
 
 let pool: Pool | null = null;
+let cachedDefaultOwnerId: number | null = null;
 
 function getConnectionString() {
   return process.env.E2E_POSTGRES_URL || DEFAULT_E2E_POSTGRES_URL;
@@ -54,6 +58,7 @@ export async function closePool() {
   if (!pool) return;
   await pool.end();
   pool = null;
+  cachedDefaultOwnerId = null;
 }
 
 export async function ensureTestDatabaseReady() {
@@ -113,8 +118,58 @@ export async function applyMigrations() {
   }
 }
 
+export async function ensureAuthUser() {
+  const passwordHash = await argon2.hash(DEFAULT_E2E_AUTH_PASSWORD, {
+    type: argon2.argon2id,
+    memoryCost: 19_456,
+    timeCost: 2,
+    parallelism: 1
+  });
+
+  const result = await queryMany<{ id: number }>(
+    `
+      INSERT INTO users (email, password_hash, status)
+      VALUES ($1, $2, 'active')
+      ON CONFLICT (email)
+      DO UPDATE SET
+        password_hash = EXCLUDED.password_hash,
+        status = 'active',
+        updated_at = NOW()
+      RETURNING id;
+    `,
+    [DEFAULT_E2E_AUTH_EMAIL, passwordHash]
+  );
+
+  cachedDefaultOwnerId = Number(result[0]?.id || 0);
+}
+
+export async function getDefaultOwnerId() {
+  if (cachedDefaultOwnerId && cachedDefaultOwnerId > 0) {
+    return cachedDefaultOwnerId;
+  }
+
+  const result = await queryOne<{ id: number }>(
+    `
+      SELECT id
+      FROM users
+      WHERE email = $1
+      LIMIT 1;
+    `,
+    [DEFAULT_E2E_AUTH_EMAIL]
+  );
+
+  if (!result) {
+    throw new Error(`Utilisateur E2E introuvable: ${DEFAULT_E2E_AUTH_EMAIL}`);
+  }
+
+  cachedDefaultOwnerId = Number(result.id);
+  return cachedDefaultOwnerId;
+}
+
 export async function resetMutableTables() {
-  await queryMany("TRUNCATE TABLE food_progress, child_profiles, growth_events RESTART IDENTITY;");
+  await queryMany(
+    "TRUNCATE TABLE food_progress, child_profiles, growth_events, share_snapshots, password_reset_tokens, auth_login_attempts RESTART IDENTITY;"
+  );
 }
 
 export async function seedFixtureData() {
@@ -174,6 +229,7 @@ export async function queryOne<T extends QueryResultRow = QueryResultRow>(
 }
 
 export type FoodProgressState = {
+  ownerId: number;
   foodId: number;
   foodName: string;
   exposureCount: number;
@@ -183,8 +239,11 @@ export type FoodProgressState = {
   updatedAt: string | null;
 };
 
-export async function getFoodProgressByName(foodName: string): Promise<FoodProgressState | null> {
+export async function getFoodProgressByName(foodName: string, ownerId?: number): Promise<FoodProgressState | null> {
+  const resolvedOwnerId = ownerId ?? (await getDefaultOwnerId());
+
   const row = await queryOne<{
+    owner_id: number;
     food_id: number;
     food_name: string;
     exposure_count: number | null;
@@ -195,6 +254,7 @@ export async function getFoodProgressByName(foodName: string): Promise<FoodProgr
   }>(
     `
       SELECT
+        p.owner_id,
         f.id AS food_id,
         f.name AS food_name,
         p.exposure_count,
@@ -203,15 +263,18 @@ export async function getFoodProgressByName(foodName: string): Promise<FoodProgr
         p.note,
         CASE WHEN p.updated_at IS NULL THEN NULL ELSE p.updated_at::text END AS updated_at
       FROM foods f
-      LEFT JOIN food_progress p ON p.food_id = f.id
+      LEFT JOIN food_progress p
+        ON p.food_id = f.id
+       AND p.owner_id = $2
       WHERE f.name = $1;
     `,
-    [foodName]
+    [foodName, resolvedOwnerId]
   );
 
   if (!row) return null;
 
   return {
+    ownerId: Number(row.owner_id || resolvedOwnerId),
     foodId: Number(row.food_id),
     foodName: row.food_name,
     exposureCount: Number(row.exposure_count ?? 0),
@@ -229,9 +292,11 @@ export async function upsertFoodProgressByName(
     preference?: -1 | 0 | 1;
     firstTastedOn?: string | null;
     note?: string;
+    ownerId?: number;
   }
 ) {
-  const existing = await getFoodProgressByName(foodName);
+  const resolvedOwnerId = data.ownerId ?? (await getDefaultOwnerId());
+  const existing = await getFoodProgressByName(foodName, resolvedOwnerId);
   if (!existing) {
     throw new Error(`Aliment introuvable dans la fixture: ${foodName}`);
   }
@@ -244,9 +309,9 @@ export async function upsertFoodProgressByName(
 
   await queryMany(
     `
-      INSERT INTO food_progress (food_id, exposure_count, preference, first_tasted_on, note, updated_at)
-      VALUES ($1, $2, $3, $4, $5, NOW())
-      ON CONFLICT (food_id)
+      INSERT INTO food_progress (owner_id, food_id, exposure_count, preference, first_tasted_on, note, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      ON CONFLICT (owner_id, food_id)
       DO UPDATE SET
         exposure_count = EXCLUDED.exposure_count,
         preference = EXCLUDED.preference,
@@ -254,26 +319,27 @@ export async function upsertFoodProgressByName(
         note = EXCLUDED.note,
         updated_at = NOW();
     `,
-    [existing.foodId, exposureCount, preference, firstTastedOn, note]
+    [resolvedOwnerId, existing.foodId, exposureCount, preference, firstTastedOn, note]
   );
 }
 
-export async function setIntroducedFoods(count: number) {
+export async function setIntroducedFoods(count: number, ownerId?: number) {
+  const resolvedOwnerId = ownerId ?? (await getDefaultOwnerId());
   const normalizedCount = Math.max(0, Math.trunc(count));
 
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
-    await client.query("DELETE FROM food_progress;");
+    await client.query("DELETE FROM food_progress WHERE owner_id = $1;", [resolvedOwnerId]);
     await client.query(
       `
-        INSERT INTO food_progress (food_id, exposure_count, preference, note, updated_at)
-        SELECT id, 1, 0, '', NOW()
+        INSERT INTO food_progress (owner_id, food_id, exposure_count, preference, note, updated_at)
+        SELECT $1, id, 1, 0, '', NOW()
         FROM foods
         ORDER BY id
-        LIMIT $1;
+        LIMIT $2;
       `,
-      [normalizedCount]
+      [resolvedOwnerId, normalizedCount]
     );
     await client.query("COMMIT");
   } catch (error) {
@@ -284,11 +350,62 @@ export async function setIntroducedFoods(count: number) {
   }
 }
 
+export async function createShareSnapshot(payload: {
+  shareId: string;
+  ownerId?: number;
+  firstName?: string | null;
+  introducedCount?: number;
+  totalFoods?: number;
+  likedCount?: number;
+  milestone?: number | null;
+  recentFoods?: string[];
+}) {
+  const resolvedOwnerId = payload.ownerId ?? (await getDefaultOwnerId());
+
+  await queryMany(
+    `
+      INSERT INTO share_snapshots (
+        share_id,
+        owner_id,
+        visibility,
+        first_name,
+        introduced_count,
+        total_foods,
+        liked_count,
+        milestone,
+        recent_foods
+      )
+      VALUES ($1, $2, 'public', $3, $4, $5, $6, $7, $8::jsonb)
+      ON CONFLICT (share_id)
+      DO UPDATE SET
+        owner_id = EXCLUDED.owner_id,
+        visibility = EXCLUDED.visibility,
+        first_name = EXCLUDED.first_name,
+        introduced_count = EXCLUDED.introduced_count,
+        total_foods = EXCLUDED.total_foods,
+        liked_count = EXCLUDED.liked_count,
+        milestone = EXCLUDED.milestone,
+        recent_foods = EXCLUDED.recent_foods;
+    `,
+    [
+      payload.shareId,
+      resolvedOwnerId,
+      payload.firstName || null,
+      payload.introducedCount ?? 0,
+      payload.totalFoods ?? 0,
+      payload.likedCount ?? 0,
+      payload.milestone ?? null,
+      JSON.stringify(payload.recentFoods || [])
+    ]
+  );
+}
+
 export type GrowthEventState = {
   id: number;
-  ownerKey: string;
+  ownerId: number;
   eventName: string;
   channel: string | null;
+  visibility: "private" | "public";
   metadata: Record<string, unknown>;
   createdAt: string;
 };
@@ -297,14 +414,15 @@ export async function getGrowthEvents(eventName?: string): Promise<GrowthEventSt
   const rows = eventName
     ? await queryMany<{
         id: number;
-        owner_key: string;
+        owner_id: number;
         event_name: string;
         channel: string | null;
+        visibility: "private" | "public";
         metadata: Record<string, unknown>;
         created_at: string;
       }>(
         `
-          SELECT id, owner_key, event_name, channel, metadata, created_at::text AS created_at
+          SELECT id, owner_id, event_name, channel, visibility, metadata, created_at::text AS created_at
           FROM growth_events
           WHERE event_name = $1
           ORDER BY id ASC;
@@ -313,14 +431,15 @@ export async function getGrowthEvents(eventName?: string): Promise<GrowthEventSt
       )
     : await queryMany<{
         id: number;
-        owner_key: string;
+        owner_id: number;
         event_name: string;
         channel: string | null;
+        visibility: "private" | "public";
         metadata: Record<string, unknown>;
         created_at: string;
       }>(
         `
-          SELECT id, owner_key, event_name, channel, metadata, created_at::text AS created_at
+          SELECT id, owner_id, event_name, channel, visibility, metadata, created_at::text AS created_at
           FROM growth_events
           ORDER BY id ASC;
         `
@@ -328,9 +447,10 @@ export async function getGrowthEvents(eventName?: string): Promise<GrowthEventSt
 
   return rows.map((row) => ({
     id: Number(row.id),
-    ownerKey: row.owner_key,
+    ownerId: Number(row.owner_id),
     eventName: row.event_name,
     channel: row.channel,
+    visibility: row.visibility,
     metadata: row.metadata || {},
     createdAt: row.created_at
   }));

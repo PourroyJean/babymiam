@@ -5,7 +5,7 @@ const parsedBaseUrl = new URL(baseURL);
 const host = parsedBaseUrl.hostname;
 const port = parsedBaseUrl.port || (parsedBaseUrl.protocol === "https:" ? "443" : "80");
 
-const authUser = process.env.E2E_AUTH_USER || "LJCLS";
+const authEmail = process.env.E2E_AUTH_EMAIL || "parent@example.com";
 const authPassword = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 const authSecret = process.env.E2E_AUTH_SECRET || "e2e-secret-change-me";
 const postgresUrl =
@@ -51,11 +51,12 @@ export default defineConfig({
     env: {
       ...process.env,
       SKIP_DB_SETUP: "1",
-      AUTH_USER: authUser,
-      AUTH_PASSWORD: authPassword,
       AUTH_SECRET: authSecret,
       POSTGRES_URL: postgresUrl,
       DATABASE_URL: postgresUrl,
+      E2E_AUTH_EMAIL: authEmail,
+      E2E_AUTH_PASSWORD: authPassword,
+      APP_BASE_URL: baseURL,
       E2E_DIST_DIR: ".next-e2e"
     }
   }

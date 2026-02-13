@@ -1,59 +1,21 @@
-import { Pool } from "pg";
-import type { ChildProfile, DashboardCategory } from "@/lib/types";
+import { query } from "@/lib/db";
+import type { ChildProfile, DashboardCategory, PublicShareSnapshot } from "@/lib/types";
 
-const LOCAL_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam";
+export type EventVisibility = "private" | "public";
 
-function normalizeConnectionString(value: string) {
-  try {
-    const parsed = new URL(value);
-    const sslMode = parsed.searchParams.get("sslmode")?.toLowerCase();
-    const useLibpqCompat = parsed.searchParams.get("uselibpqcompat")?.toLowerCase() === "true";
+type ShareSnapshotInput = {
+  shareId: string;
+  firstName: string | null;
+  introducedCount: number;
+  totalFoods: number;
+  likedCount: number;
+  milestone: number | null;
+  recentFoods: string[];
+  visibility?: EventVisibility;
+  expiresAt?: string | null;
+};
 
-    if (!sslMode || useLibpqCompat) return value;
-
-    // pg currently treats these sslmodes like verify-full and warns that behavior will change in v9.
-    if (sslMode === "prefer" || sslMode === "require" || sslMode === "verify-ca") {
-      parsed.searchParams.set("sslmode", "verify-full");
-      return parsed.toString();
-    }
-
-    return value;
-  } catch {
-    return value;
-  }
-}
-
-declare global {
-  var __grrrignotePool: Pool | undefined;
-}
-
-function getConnectionString() {
-  const raw = process.env.POSTGRES_URL || process.env.DATABASE_URL || LOCAL_POSTGRES_URL;
-  return normalizeConnectionString(raw);
-}
-
-function getPool() {
-  if (!global.__grrrignotePool) {
-    global.__grrrignotePool = new Pool({
-      connectionString: getConnectionString(),
-      max: Number(process.env.PG_POOL_MAX || 5),
-      idleTimeoutMillis: 10_000,
-      connectionTimeoutMillis: 5_000
-    });
-  }
-
-  return global.__grrrignotePool;
-}
-
-async function query<T extends Record<string, unknown> = Record<string, unknown>>(
-  text: string,
-  values: unknown[] = []
-) {
-  const pool = getPool();
-  return pool.query<T>(text, values);
-}
-
-export async function getDashboardData(): Promise<DashboardCategory[]> {
+export async function getDashboardData(ownerId: number): Promise<DashboardCategory[]> {
   const result = await query<{
     category_id: number;
     category_name: string;
@@ -66,24 +28,29 @@ export async function getDashboardData(): Promise<DashboardCategory[]> {
     first_tasted_on: string | null;
     note: string | null;
     updated_at: string | null;
-  }>(`
-    SELECT
-      c.id AS category_id,
-      c.name AS category_name,
-      c.sort_order AS category_sort_order,
-      f.id AS food_id,
-      f.name AS food_name,
-      f.sort_order AS food_sort_order,
-      COALESCE(p.exposure_count, 0) AS exposure_count,
-      COALESCE(p.preference, 0) AS preference,
-      CASE WHEN p.first_tasted_on IS NULL THEN NULL ELSE p.first_tasted_on::text END AS first_tasted_on,
-      COALESCE(p.note, '') AS note,
-      CASE WHEN p.updated_at IS NULL THEN NULL ELSE p.updated_at::text END AS updated_at
-    FROM categories c
-    INNER JOIN foods f ON f.category_id = c.id
-    LEFT JOIN food_progress p ON p.food_id = f.id
-    ORDER BY c.sort_order, f.sort_order;
-  `);
+  }>(
+    `
+      SELECT
+        c.id AS category_id,
+        c.name AS category_name,
+        c.sort_order AS category_sort_order,
+        f.id AS food_id,
+        f.name AS food_name,
+        f.sort_order AS food_sort_order,
+        COALESCE(p.exposure_count, 0) AS exposure_count,
+        COALESCE(p.preference, 0) AS preference,
+        CASE WHEN p.first_tasted_on IS NULL THEN NULL ELSE p.first_tasted_on::text END AS first_tasted_on,
+        COALESCE(p.note, '') AS note,
+        CASE WHEN p.updated_at IS NULL THEN NULL ELSE p.updated_at::text END AS updated_at
+      FROM categories c
+      INNER JOIN foods f ON f.category_id = c.id
+      LEFT JOIN food_progress p
+        ON p.food_id = f.id
+       AND p.owner_id = $1
+      ORDER BY c.sort_order, f.sort_order;
+    `,
+    [ownerId]
+  );
 
   const categoryMap = new Map<number, DashboardCategory>();
 
@@ -119,75 +86,75 @@ export async function getDashboardData(): Promise<DashboardCategory[]> {
   return [...categoryMap.values()].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
-export async function upsertExposure(foodId: number, exposureCount: number) {
+export async function upsertExposure(ownerId: number, foodId: number, exposureCount: number) {
   await query(
     `
-    INSERT INTO food_progress (food_id, exposure_count)
-    VALUES ($1, $2)
-    ON CONFLICT (food_id)
-    DO UPDATE SET
-      exposure_count = CASE
-        WHEN food_progress.exposure_count = EXCLUDED.exposure_count THEN 0
-        ELSE EXCLUDED.exposure_count
-      END,
-      updated_at = NOW();
+      INSERT INTO food_progress (owner_id, food_id, exposure_count)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (owner_id, food_id)
+      DO UPDATE SET
+        exposure_count = CASE
+          WHEN food_progress.exposure_count = EXCLUDED.exposure_count THEN 0
+          ELSE EXCLUDED.exposure_count
+        END,
+        updated_at = NOW();
     `,
-    [foodId, exposureCount]
+    [ownerId, foodId, exposureCount]
   );
 }
 
-export async function upsertPreference(foodId: number, preference: -1 | 0 | 1) {
+export async function upsertPreference(ownerId: number, foodId: number, preference: -1 | 0 | 1) {
   await query(
     `
-    INSERT INTO food_progress (food_id, preference)
-    VALUES ($1, $2)
-    ON CONFLICT (food_id)
-    DO UPDATE SET
-      preference = EXCLUDED.preference,
-      updated_at = NOW();
+      INSERT INTO food_progress (owner_id, food_id, preference)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (owner_id, food_id)
+      DO UPDATE SET
+        preference = EXCLUDED.preference,
+        updated_at = NOW();
     `,
-    [foodId, preference]
+    [ownerId, foodId, preference]
   );
 }
 
-export async function upsertFirstTastedOn(foodId: number, firstTastedOn: string | null) {
+export async function upsertFirstTastedOn(ownerId: number, foodId: number, firstTastedOn: string | null) {
   await query(
     `
-    INSERT INTO food_progress (food_id, first_tasted_on)
-    VALUES ($1, $2)
-    ON CONFLICT (food_id)
-    DO UPDATE SET
-      first_tasted_on = EXCLUDED.first_tasted_on,
-      updated_at = NOW();
+      INSERT INTO food_progress (owner_id, food_id, first_tasted_on)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (owner_id, food_id)
+      DO UPDATE SET
+        first_tasted_on = EXCLUDED.first_tasted_on,
+        updated_at = NOW();
     `,
-    [foodId, firstTastedOn]
+    [ownerId, foodId, firstTastedOn]
   );
 }
 
-export async function upsertNote(foodId: number, note: string) {
+export async function upsertNote(ownerId: number, foodId: number, note: string) {
   await query(
     `
-    INSERT INTO food_progress (food_id, note)
-    VALUES ($1, $2)
-    ON CONFLICT (food_id)
-    DO UPDATE SET
-      note = EXCLUDED.note,
-      updated_at = NOW();
+      INSERT INTO food_progress (owner_id, food_id, note)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (owner_id, food_id)
+      DO UPDATE SET
+        note = EXCLUDED.note,
+        updated_at = NOW();
     `,
-    [foodId, note]
+    [ownerId, foodId, note]
   );
 }
 
-export async function getChildProfile(ownerKey: string): Promise<ChildProfile | null> {
+export async function getChildProfile(ownerId: number): Promise<ChildProfile | null> {
   const result = await query<{ first_name: string; birth_date: string }>(
     `
-    SELECT
-      first_name,
-      birth_date::text AS birth_date
-    FROM child_profiles
-    WHERE owner_key = $1;
+      SELECT
+        first_name,
+        birth_date::text AS birth_date
+      FROM child_profiles
+      WHERE owner_id = $1;
     `,
-    [ownerKey]
+    [ownerId]
   );
 
   const row = result.rows[0];
@@ -199,32 +166,139 @@ export async function getChildProfile(ownerKey: string): Promise<ChildProfile | 
   };
 }
 
-export async function upsertChildProfile(ownerKey: string, firstName: string, birthDate: string) {
+export async function upsertChildProfile(ownerId: number, firstName: string, birthDate: string) {
   await query(
     `
-    INSERT INTO child_profiles (owner_key, first_name, birth_date)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (owner_key)
-    DO UPDATE SET
-      first_name = EXCLUDED.first_name,
-      birth_date = EXCLUDED.birth_date,
-      updated_at = NOW();
+      INSERT INTO child_profiles (owner_id, first_name, birth_date)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (owner_id)
+      DO UPDATE SET
+        first_name = EXCLUDED.first_name,
+        birth_date = EXCLUDED.birth_date,
+        updated_at = NOW();
     `,
-    [ownerKey, firstName, birthDate]
+    [ownerId, firstName, birthDate]
   );
 }
 
 export async function createGrowthEvent(
-  ownerKey: string,
+  ownerId: number,
   eventName: string,
   channel: string | null,
-  metadata: Record<string, unknown>
+  metadata: Record<string, unknown>,
+  visibility: EventVisibility = "private"
 ) {
   await query(
     `
-    INSERT INTO growth_events (owner_key, event_name, channel, metadata)
-    VALUES ($1, $2, $3, $4::jsonb);
+      INSERT INTO growth_events (owner_id, event_name, channel, visibility, metadata)
+      VALUES ($1, $2, $3, $4::event_visibility, $5::jsonb);
     `,
-    [ownerKey, eventName, channel, JSON.stringify(metadata)]
+    [ownerId, eventName, channel, visibility, JSON.stringify(metadata)]
   );
+}
+
+export async function upsertShareSnapshot(ownerId: number, payload: ShareSnapshotInput) {
+  const recentFoods = payload.recentFoods.slice(0, 3);
+
+  const result = await query(
+    `
+      INSERT INTO share_snapshots (
+        share_id,
+        owner_id,
+        visibility,
+        first_name,
+        introduced_count,
+        total_foods,
+        liked_count,
+        milestone,
+        recent_foods,
+        expires_at
+      )
+      VALUES ($1, $2, $3::event_visibility, $4, $5, $6, $7, $8, $9::jsonb, $10)
+      ON CONFLICT (share_id)
+      DO UPDATE SET
+        owner_id = EXCLUDED.owner_id,
+        visibility = EXCLUDED.visibility,
+        first_name = EXCLUDED.first_name,
+        introduced_count = EXCLUDED.introduced_count,
+        total_foods = EXCLUDED.total_foods,
+        liked_count = EXCLUDED.liked_count,
+        milestone = EXCLUDED.milestone,
+        recent_foods = EXCLUDED.recent_foods,
+        expires_at = EXCLUDED.expires_at
+      WHERE share_snapshots.owner_id = EXCLUDED.owner_id
+      RETURNING share_id;
+    `,
+    [
+      payload.shareId,
+      ownerId,
+      payload.visibility || "public",
+      payload.firstName,
+      payload.introducedCount,
+      payload.totalFoods,
+      payload.likedCount,
+      payload.milestone,
+      JSON.stringify(recentFoods),
+      payload.expiresAt || null
+    ]
+  );
+
+  if (result.rowCount !== 1) {
+    throw new Error("Share ID already exists for another user.");
+  }
+}
+
+export async function getPublicShareSnapshotById(shareId: string): Promise<PublicShareSnapshot | null> {
+  const result = await query<{
+    share_id: string;
+    owner_id: number;
+    first_name: string | null;
+    introduced_count: number;
+    total_foods: number;
+    liked_count: number;
+    milestone: number | null;
+    recent_foods: unknown;
+    created_at: string;
+    expires_at: string | null;
+  }>(
+    `
+      SELECT
+        share_id,
+        owner_id,
+        first_name,
+        introduced_count,
+        total_foods,
+        liked_count,
+        milestone,
+        recent_foods,
+        created_at::text AS created_at,
+        CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at::text END AS expires_at
+      FROM share_snapshots
+      WHERE share_id = $1
+        AND visibility = 'public'
+        AND (expires_at IS NULL OR expires_at > NOW())
+      LIMIT 1;
+    `,
+    [shareId]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  const recentFoods = Array.isArray(row.recent_foods)
+    ? row.recent_foods.map((item) => String(item)).filter(Boolean).slice(0, 3)
+    : [];
+
+  return {
+    shareId: row.share_id,
+    ownerId: Number(row.owner_id),
+    firstName: row.first_name,
+    introducedCount: Number(row.introduced_count),
+    totalFoods: Number(row.total_foods),
+    likedCount: Number(row.liked_count),
+    milestone: row.milestone === null ? null : Number(row.milestone),
+    recentFoods,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at
+  };
 }

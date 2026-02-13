@@ -1,7 +1,9 @@
 import type { Page } from "@playwright/test";
 import { expect, test as base } from "@playwright/test";
 import {
+  createShareSnapshot,
   getFoodProgressByName,
+  getDefaultOwnerId,
   getGrowthEvents,
   queryMany,
   queryOne,
@@ -10,16 +12,18 @@ import {
   upsertFoodProgressByName
 } from "../helpers/db";
 
-const AUTH_USER = process.env.E2E_AUTH_USER || "LJCLS";
+const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "parent@example.com";
 const AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 
 type DbFixture = {
   resetMutableTables: typeof resetMutableTables;
   queryMany: typeof queryMany;
   queryOne: typeof queryOne;
+  getDefaultOwnerId: typeof getDefaultOwnerId;
   getFoodProgressByName: typeof getFoodProgressByName;
   upsertFoodProgressByName: typeof upsertFoodProgressByName;
   setIntroducedFoods: typeof setIntroducedFoods;
+  createShareSnapshot: typeof createShareSnapshot;
   getGrowthEvents: typeof getGrowthEvents;
 };
 
@@ -39,9 +43,11 @@ export const test = base.extend<E2EFixtures & AutoFixtures>({
       resetMutableTables,
       queryMany,
       queryOne,
+      getDefaultOwnerId,
       getFoodProgressByName,
       upsertFoodProgressByName,
       setIntroducedFoods,
+      createShareSnapshot,
       getGrowthEvents
     });
   },
@@ -55,10 +61,10 @@ export const test = base.extend<E2EFixtures & AutoFixtures>({
   ],
 
   loginAsDefaultUser: async ({ page }, runFixture) => {
-    await runFixture(async () => {
-      await page.goto("/login");
-      await page.getByLabel("Identifiant").fill(AUTH_USER);
-      await page.getByLabel("Mot de passe").fill(AUTH_PASSWORD);
+      await runFixture(async () => {
+        await page.goto("/login");
+        await page.getByLabel("Email").fill(AUTH_EMAIL);
+        await page.getByLabel("Mot de passe").fill(AUTH_PASSWORD);
 
       await page.getByRole("button", { name: "Se connecter" }).click();
       await expect(page).toHaveURL(/\/$/);

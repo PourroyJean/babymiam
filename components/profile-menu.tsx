@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { saveChildProfileAction, trackShareEventAction } from "@/app/actions";
+import { createShareSnapshotAction, saveChildProfileAction, trackShareEventAction } from "@/app/actions";
 import type { ChildProfile, ProgressSummary } from "@/lib/types";
 
 type ProfileMenuProps = {
@@ -49,49 +49,9 @@ function createShareId() {
   return `sid_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function buildSnapshotUrl(params: {
-  origin: string;
-  childFirstName: string | null;
-  introducedCount: number;
-  totalFoods: number;
-  likedCount: number;
-  recentFoodNames: string[];
-  shareId: string;
-  milestone?: number;
-}) {
-  const {
-    origin,
-    childFirstName,
-    introducedCount,
-    totalFoods,
-    likedCount,
-    recentFoodNames,
-    shareId,
-    milestone
-  } = params;
-
+function buildSnapshotUrl(origin: string, shareId: string) {
   const query = new URLSearchParams();
   query.set("sid", shareId);
-  query.set("i", String(introducedCount));
-  query.set("t", String(totalFoods));
-  query.set("l", String(likedCount));
-
-  const normalizedFirstName = childFirstName?.trim();
-  if (normalizedFirstName) {
-    query.set("n", normalizedFirstName.slice(0, 40));
-  }
-
-  const normalizedRecentFoods = recentFoodNames
-    .map((food) => food.trim())
-    .filter(Boolean)
-    .slice(0, 3);
-  if (normalizedRecentFoods.length > 0) {
-    query.set("r", normalizedRecentFoods.join("|"));
-  }
-
-  if (milestone && milestone > 0) {
-    query.set("m", String(milestone));
-  }
 
   return `${origin}/share?${query.toString()}`;
 }
@@ -268,6 +228,24 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     void trackShareEventAction(formData);
   }
 
+  async function createShareSnapshot(shareId: string, milestone?: number) {
+    const formData = new FormData();
+    formData.set("shareId", shareId);
+    formData.set("firstName", getShareFirstName() || "");
+    formData.set("introducedCount", String(shareSnapshot.introducedCount));
+    formData.set("totalFoods", String(shareSnapshot.totalFoods));
+    formData.set("likedCount", String(shareSnapshot.likedCount));
+
+    if (shareSnapshot.recentFoodNames.length > 0) {
+      formData.set("recentFoods", shareSnapshot.recentFoodNames.join(","));
+    }
+    if (milestone && milestone > 0) {
+      formData.set("milestone", String(milestone));
+    }
+
+    return createShareSnapshotAction(formData);
+  }
+
   async function onShareProgress() {
     if (!canShareProgress || isSharePending) return;
 
@@ -275,15 +253,14 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
 
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const shareId = createShareId();
-    const snapshotUrl = buildSnapshotUrl({
-      origin,
-      childFirstName: getShareFirstName(),
-      introducedCount: shareSnapshot.introducedCount,
-      totalFoods: shareSnapshot.totalFoods,
-      likedCount: shareSnapshot.likedCount,
-      recentFoodNames: shareSnapshot.recentFoodNames,
-      shareId
-    });
+    const snapshotResult = await createShareSnapshot(shareId);
+    if (!snapshotResult.ok) {
+      setIsSharePending(false);
+      showShareFeedback("error", snapshotResult.error || "Impossible de créer le lien de partage.");
+      return;
+    }
+
+    const snapshotUrl = buildSnapshotUrl(origin, shareId);
 
     trackShareEvent("snapshot_link_created", "snapshot", shareId);
     trackShareEvent("share_clicked", "button", shareId);
@@ -342,16 +319,14 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
 
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const shareId = createShareId();
-    const snapshotUrl = buildSnapshotUrl({
-      origin,
-      childFirstName: getShareFirstName(),
-      introducedCount: shareSnapshot.introducedCount,
-      totalFoods: shareSnapshot.totalFoods,
-      likedCount: shareSnapshot.likedCount,
-      recentFoodNames: shareSnapshot.recentFoodNames,
-      shareId,
-      milestone
-    });
+    const snapshotResult = await createShareSnapshot(shareId, milestone);
+    if (!snapshotResult.ok) {
+      setActiveMilestone(null);
+      showShareFeedback("error", snapshotResult.error || "Impossible de créer le lien de partage.");
+      return;
+    }
+
+    const snapshotUrl = buildSnapshotUrl(origin, shareId);
 
     trackShareEvent("snapshot_link_created", "snapshot", shareId, milestone);
     trackShareEvent("milestone_share_clicked", "milestone", shareId, milestone);

@@ -1,6 +1,6 @@
 import { expect, test } from "../fixtures/test-fixtures";
 
-const AUTH_USER = process.env.E2E_AUTH_USER || "LJCLS";
+const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "parent@example.com";
 const AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 const BASE_URL = process.env.E2E_BASE_URL || "http://127.0.0.1:3005";
 
@@ -13,18 +13,18 @@ test.describe("auth and guards", () => {
   test("shows error when credentials are invalid", async ({ page }) => {
     await page.goto("/login");
 
-    await page.getByLabel("Identifiant").fill("wrong");
+    await page.getByLabel("Email").fill("wrong@example.com");
     await page.getByLabel("Mot de passe").fill("wrong");
     await page.getByRole("button", { name: "Se connecter" }).click();
 
     await expect(page).toHaveURL(/\/login\?error=1$/);
-    await expect(page.getByText("Identifiant ou mot de passe incorrect.")).toBeVisible();
+    await expect(page.getByText("Email ou mot de passe incorrect.")).toBeVisible();
   });
 
   test("logs in with valid credentials", async ({ page }) => {
     await page.goto("/login");
 
-    await page.getByLabel("Identifiant").fill(AUTH_USER);
+    await page.getByLabel("Email").fill(AUTH_EMAIL);
     await page.getByLabel("Mot de passe").fill(AUTH_PASSWORD);
     await page.getByRole("button", { name: "Se connecter" }).click();
 

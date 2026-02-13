@@ -7,8 +7,10 @@
     "db:migrate": "node scripts/db/migrate.js",
     "db:seed": "node scripts/db/seed.js",
     "db:setup": "npm run db:migrate && npm run db:seed",
-    "build": "npm run db:setup && next build",
+    "build": "next build",
     "start": "next start",
+    "users:create": "node scripts/users/create-user.js",
+    "users:migrate-legacy": "node scripts/users/migrate-legacy.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test:e2e": "playwright test",
@@ -18,11 +20,13 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "argon2": "^0.41.1",
     "lucide-react": "^0.563.0",
     "next": "^16.1.6",
     "pg": "^8.18.0",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "react-dom": "^18.3.0",
+    "resend": "^4.6.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

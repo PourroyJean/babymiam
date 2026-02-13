@@ -2,14 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { clearSession, getAuthenticatedUsername, requireAuth } from "@/lib/auth";
+import { clearSession, requireAuth } from "@/lib/auth";
 import {
   createGrowthEvent,
   upsertChildProfile,
   upsertExposure,
   upsertFirstTastedOn,
   upsertNote,
-  upsertPreference
+  upsertPreference,
+  upsertShareSnapshot
 } from "@/lib/data";
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -40,35 +41,46 @@ function getNonNegativeInteger(formData: FormData, key: string) {
   return Math.trunc(parsed);
 }
 
+function getRecentFoods(formData: FormData, key: string) {
+  const raw = String(formData.get(key) || "").trim();
+  if (!raw) return [];
+
+  return raw
+    .split(",")
+    .map((food) => food.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
 export async function logoutAction() {
   await clearSession();
   redirect("/login");
 }
 
 export async function setExposureAction(formData: FormData) {
-  await requireAuth();
+  const user = await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const selected = Number(formData.get("value"));
 
   if (!Number.isFinite(foodId) || ![1, 2, 3].includes(selected)) return;
-  await upsertExposure(foodId, selected);
+  await upsertExposure(user.id, foodId, selected);
   revalidatePath("/");
 }
 
 export async function setPreferenceAction(formData: FormData) {
-  await requireAuth();
+  const user = await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const selected = Number(formData.get("value"));
 
   if (!Number.isFinite(foodId) || ![-1, 0, 1].includes(selected)) return;
-  await upsertPreference(foodId, selected as -1 | 0 | 1);
+  await upsertPreference(user.id, foodId, selected as -1 | 0 | 1);
   revalidatePath("/");
 }
 
 export async function setFirstTastedOnAction(formData: FormData) {
-  await requireAuth();
+  const user = await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const firstTastedOnRaw = String(formData.get("firstTastedOn") || "").trim();
@@ -77,25 +89,24 @@ export async function setFirstTastedOnAction(formData: FormData) {
   if (!Number.isFinite(foodId)) return;
   if (firstTastedOn && !isValidIsoDate(firstTastedOn)) return;
 
-  await upsertFirstTastedOn(foodId, firstTastedOn);
+  await upsertFirstTastedOn(user.id, foodId, firstTastedOn);
   revalidatePath("/");
 }
 
 export async function setNoteAction(formData: FormData) {
-  await requireAuth();
+  const user = await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const note = String(formData.get("note") || "").trim();
 
   if (!Number.isFinite(foodId)) return;
 
-  await upsertNote(foodId, note);
+  await upsertNote(user.id, foodId, note);
   revalidatePath("/");
 }
 
 export async function saveChildProfileAction(formData: FormData) {
-  await requireAuth();
-  const ownerKey = await getAuthenticatedUsername();
+  const user = await requireAuth();
 
   const firstName = String(formData.get("firstName") || "").trim();
   const birthDate = String(formData.get("birthDate") || "").trim();
@@ -112,14 +123,51 @@ export async function saveChildProfileAction(formData: FormData) {
     return { ok: false, error: "La date de naissance ne peut pas être dans le futur." };
   }
 
-  await upsertChildProfile(ownerKey, firstName, birthDate);
+  await upsertChildProfile(user.id, firstName, birthDate);
   revalidatePath("/");
   return { ok: true };
 }
 
+export async function createShareSnapshotAction(formData: FormData) {
+  const user = await requireAuth();
+
+  const shareId = String(formData.get("shareId") || "").trim();
+  if (!SHARE_ID_PATTERN.test(shareId)) {
+    return { ok: false, error: "Lien de partage invalide." };
+  }
+
+  const firstNameRaw = String(formData.get("firstName") || "").trim();
+  const firstName = firstNameRaw ? firstNameRaw.slice(0, 40) : null;
+
+  const introducedCount = getNonNegativeInteger(formData, "introducedCount") ?? 0;
+  const totalFoodsRaw = getNonNegativeInteger(formData, "totalFoods") ?? 0;
+  const likedCount = getNonNegativeInteger(formData, "likedCount") ?? 0;
+  const milestoneRaw = getNonNegativeInteger(formData, "milestone");
+  const recentFoods = getRecentFoods(formData, "recentFoods");
+
+  const totalFoods = Math.max(totalFoodsRaw, introducedCount);
+  const milestone = milestoneRaw !== null && milestoneRaw > 0 ? milestoneRaw : null;
+
+  try {
+    await upsertShareSnapshot(user.id, {
+      shareId,
+      firstName,
+      introducedCount,
+      totalFoods,
+      likedCount,
+      milestone,
+      recentFoods,
+      visibility: "public"
+    });
+
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Impossible de générer le lien de partage." };
+  }
+}
+
 export async function trackShareEventAction(formData: FormData) {
-  await requireAuth();
-  const ownerKey = await getAuthenticatedUsername();
+  const user = await requireAuth();
 
   const eventName = String(formData.get("eventName") || "").trim();
   if (!SHARE_EVENT_NAMES.has(eventName)) return;
@@ -132,26 +180,22 @@ export async function trackShareEventAction(formData: FormData) {
   const totalFoods = getNonNegativeInteger(formData, "totalFoods");
   const likedCount = getNonNegativeInteger(formData, "likedCount");
   const milestone = getNonNegativeInteger(formData, "milestone");
-  const recentFoodsRaw = String(formData.get("recentFoods") || "").trim();
+  const recentFoods = getRecentFoods(formData, "recentFoods");
   const shareIdRaw = String(formData.get("shareId") || "").trim();
 
   if (introducedCount !== null) metadata.introducedCount = introducedCount;
   if (totalFoods !== null) metadata.totalFoods = totalFoods;
   if (likedCount !== null) metadata.likedCount = likedCount;
   if (milestone !== null) metadata.milestone = milestone;
-  if (recentFoodsRaw) {
-    metadata.recentFoods = recentFoodsRaw
-      .split(",")
-      .map((food) => food.trim())
-      .filter(Boolean)
-      .slice(0, 3);
+  if (recentFoods.length > 0) {
+    metadata.recentFoods = recentFoods;
   }
   if (SHARE_ID_PATTERN.test(shareIdRaw)) {
     metadata.shareId = shareIdRaw;
   }
 
   try {
-    await createGrowthEvent(ownerKey, eventName, channel, metadata);
+    await createGrowthEvent(user.id, eventName, channel, metadata, "private");
   } catch {
     // Tracking should never block core user actions.
   }

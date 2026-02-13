@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Fredoka } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const fredoka = Fredoka({
-  subsets: ["latin"],
+const fredoka = localFont({
+  src: "./fonts/fredoka-v17-latin-regular.woff2",
+  display: "swap",
   variable: "--font-fredoka"
 });
 

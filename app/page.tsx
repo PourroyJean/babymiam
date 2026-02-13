@@ -1,4 +1,4 @@
-import { getAuthenticatedUsername, requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { getChildProfile, getDashboardData } from "@/lib/data";
 import { CategoriesGrid } from "@/components/categories-grid";
 import { SiteNav } from "@/components/site-nav";
@@ -45,15 +45,14 @@ function buildProgressSummary(categories: DashboardCategory[]): ProgressSummary 
 }
 
 export default async function DashboardPage() {
-  await requireAuth();
-  const ownerKey = await getAuthenticatedUsername();
+  const user = await requireAuth();
   let childProfile: Awaited<ReturnType<typeof getChildProfile>> = null;
 
   let categories: Awaited<ReturnType<typeof getDashboardData>> = [];
   let dbError: string | null = null;
   try {
-    childProfile = await getChildProfile(ownerKey);
-    categories = await getDashboardData();
+    childProfile = await getChildProfile(user.id);
+    categories = await getDashboardData(user.id);
   } catch (error) {
     dbError = error instanceof Error ? error.message : "Erreur inconnue de connexion à la base.";
     categories = [];

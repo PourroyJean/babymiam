@@ -1,17 +1,16 @@
-import { getAuthenticatedUsername, requireAuth } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { getChildProfile } from "@/lib/data";
 import { SiteNav } from "@/components/site-nav";
 import { TextureTimeline } from "@/components/texture-timeline";
 
 export default async function BlogPage() {
-  await requireAuth();
-  const ownerKey = await getAuthenticatedUsername();
+  const user = await requireAuth();
 
   let childProfile: Awaited<ReturnType<typeof getChildProfile>> = null;
   let dbError: string | null = null;
 
   try {
-    childProfile = await getChildProfile(ownerKey);
+    childProfile = await getChildProfile(user.id);
   } catch (error) {
     dbError = error instanceof Error ? error.message : "Erreur inconnue de connexion à la base.";
   }

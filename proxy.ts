@@ -1,20 +1,36 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/share"];
+const PUBLIC_PATHS = ["/login", "/share", "/forgot-password", "/reset-password", "/maintenance"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
+function isMaintenanceModeEnabled() {
+  return String(process.env.MAINTENANCE_MODE || "").toLowerCase() === "true";
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    isPublicPath(pathname)
-  ) {
+  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
+    return NextResponse.next();
+  }
+
+  const maintenanceMode = isMaintenanceModeEnabled();
+
+  if (maintenanceMode && pathname !== "/maintenance") {
+    const maintenanceUrl = new URL("/maintenance", request.url);
+    return NextResponse.redirect(maintenanceUrl);
+  }
+
+  if (!maintenanceMode && pathname === "/maintenance") {
+    const homeUrl = new URL("/", request.url);
+    return NextResponse.redirect(homeUrl);
+  }
+
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 

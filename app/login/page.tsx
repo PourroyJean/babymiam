@@ -5,7 +5,7 @@ import { loginAction } from "@/app/login/actions";
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; reset?: string }>;
 }) {
   if (await isAuthenticated()) {
     redirect("/");
@@ -20,8 +20,8 @@ export default async function LoginPage({
 
         <form action={loginAction} className="login-form">
           <label>
-            Identifiant
-            <input name="username" type="text" placeholder="LJCLS" required />
+            Email
+            <input name="email" type="email" placeholder="parent@example.com" required />
           </label>
 
           <label>
@@ -32,9 +32,14 @@ export default async function LoginPage({
           <button type="submit">Se connecter</button>
         </form>
 
+        <p className="login-help-link">
+          <a href="/forgot-password">Mot de passe oublié ?</a>
+        </p>
+
         {params.error ? (
-          <p className="error-text">Identifiant ou mot de passe incorrect.</p>
+          <p className="error-text">Email ou mot de passe incorrect.</p>
         ) : null}
+        {params.reset ? <p className="info-text">Mot de passe mis à jour. Connecte-toi.</p> : null}
       </section>
     </main>
   );

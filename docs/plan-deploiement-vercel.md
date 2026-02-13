@@ -1,98 +1,49 @@
-# Plan de déploiement Grrrignote sur Vercel + Vercel SQL
+# Plan de déploiement Grrrignote sur Vercel + Neon
 
 ## 1. Objectif
-Déployer et exploiter l'application Next.js sur Vercel avec Vercel SQL (Neon/Postgres), avec une base reproductible, des secrets robustes et un runbook opérationnel simple.
+Déployer l'application Next.js multi-user sur Vercel avec Neon/Postgres, avec un runbook explicite pour les migrations et un mode maintenance pendant la bascule.
 
 ## 2. État actuel
-- App déployée en production sur Vercel (domaine Grrrignote).
+- App hébergée sur Vercel.
 - Base Neon liée au projet Vercel.
 - Variables DB (`POSTGRES_URL`, `DATABASE_URL`, etc.) configurées.
-- Variables auth (`AUTH_USER`, `AUTH_PASSWORD`, `AUTH_SECRET`) configurées.
-- Schéma + seed sortis du runtime et gérés par scripts (`scripts/db/*`).
-- Build exécute migration + seed avant `next build`.
+- Auth multi-user (table `users`, mot de passe hashé, session signée).
+- Build applicatif découplé des migrations DB.
 
 ## 3. Décisions techniques retenues
 - Hébergement: Vercel.
-- Base de données: une seule base Neon partagée entre Development, Preview et Production.
-- Connexion DB: `pg` avec pool borné dans l'app.
-- Migrations: script SQL versionné exécuté au build.
-- Seed: script idempotent à partir de `aliments_categories.json`.
-- Sauvegarde: stratégie manuelle simple (hebdomadaire + avant chaque release prod).
+- Base de données: Neon (Postgres).
+- Connexion DB: `pg` avec pool borné.
+- Migrations: script SQL versionné (`scripts/db/migrate.sql`) exécuté explicitement.
+- Migration legacy: script `scripts/users/migrate-legacy.js`.
+- Mode maintenance: variable `MAINTENANCE_MODE=true` pilotée via Vercel env.
 
-## 4. Plan de travail détaillé
+## 4. Runbook migration prod (downtime accepté)
+1. Activer `MAINTENANCE_MODE=true`.
+2. Exécuter la migration SQL sur la base Neon cible.
+3. Exécuter `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` sur la même base.
+4. Déployer le code applicatif.
+5. Désactiver `MAINTENANCE_MODE`.
 
-### Phase A - Préparation Vercel
-Statut: fait.
-
-### Phase B - Provisioning Vercel SQL
-Statut: fait.
-
-### Phase C - Refonte DB (runtime -> scripts)
-Statut: fait.
-
-### Phase D - Gestion des données
-Statut: fait (stratégie retenue: base recréée depuis seed, sans migration legacy).
-
-### Phase E - Secrets et sécurité
-Statut: fait.
-
-### Phase F - Validation Preview puis Production
-Statut: fait (preview et production déployées, tests fonctionnels validés).
-
-### Phase G - Exploitation
-Statut: fait.
-
-## 5. Procédure de migration future
-1. Modifier le schéma dans `scripts/db/migrate.sql`.
-2. Vérifier localement:
-   - `npm run db:setup`
-   - `npm run build`
-3. Déployer en preview et valider les parcours critiques (login, lecture, écriture, date).
-4. Déployer en production.
-5. Surveiller les logs Vercel après release.
-
-## 6. Backup/Restore (simple hebdo)
-### Backup
-1. Une fois par semaine: créer un backup/snapshot manuel dans Neon Dashboard (nom daté).
-2. Avant chaque déploiement production: créer un backup manuel supplémentaire.
-
-### Restore
-1. Restaurer vers une nouvelle branche/base Neon depuis le backup choisi.
-2. Mettre à jour sur Vercel les variables DB (`POSTGRES_URL` et `DATABASE_URL`) vers la cible restaurée.
-3. Redéployer l'application.
-4. Vérifier login, lecture dashboard et écriture d'une donnée test.
-
-## 7. Checklist release
-- Vérifier `AUTH_USER`, `AUTH_PASSWORD`, `AUTH_SECRET` dans Vercel.
+## 5. Checklist release
+- Vérifier `AUTH_SECRET` (ou `AUTH_SECRETS`) dans Vercel.
+- Vérifier `RESEND_API_KEY`, `MAIL_FROM`, `APP_BASE_URL`.
+- Vérifier `POSTGRES_URL` / `DATABASE_URL`.
 - Exécuter `npm run build` en local.
-- Valider preview (login + écriture + date sans décalage).
+- Valider preview (login, write path, partage public, reset password).
 - Déployer production.
-- Contrôler les logs Vercel après mise en ligne.
+- Contrôler les logs Vercel et Neon après mise en ligne.
 
-## 8. Risques principaux et mitigations
-- Saturation connexions DB:
-  - mitigation: pool borné (`max`, `idleTimeoutMillis`, `connectionTimeoutMillis`).
-- Échec migration au build:
-  - mitigation: build bloque la release, rollback via redéploiement précédent.
-- Erreur humaine sur secrets:
+## 6. Risques principaux et mitigations
+- Échec migration DB:
+  - mitigation: maintenance mode + backup Neon avant exécution.
+- Mauvaise migration legacy owner:
+  - mitigation: script idempotent + vérif post-migration (`owner_id` non null).
+- Erreur sur secrets mail/auth:
   - mitigation: checklist release systématique.
-- Décalage date/timezone:
-  - mitigation: test explicite de `first_tasted_on` en preview avant prod.
 
-## 9. Checklist exécutable
-- [x] Projet Vercel créé et connecté au repo
-- [x] Base Vercel SQL créée et liée
-- [x] Variables DB valides en Preview + Production
-- [x] Stratégie connexions choisie (`pg` borné)
-- [x] Scripts migration + seed versionnés
-- [x] Script build exécutant migration + seed avant `next build`
-- [x] Secrets `AUTH_*` configurés
-- [x] Déploiement Preview validé (smoke tests + timezone)
-- [x] Déploiement Production validé
-- [x] Procédure rollback documentée
-
-## 10. Definition of Done
+## 7. Definition of Done
 - Production active sur Vercel.
-- Schéma et seed reproductibles via scripts versionnés.
-- App fonctionnelle avec persistance Neon.
-- Procédure d'exploitation et rollback documentée.
+- Schéma multi-user en place (`owner_id` partout où requis).
+- Sessions/signatures et reset password opérationnels.
+- Runbook maintenance documenté et testable.
