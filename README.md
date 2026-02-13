@@ -62,6 +62,12 @@ npm run test:e2e:debug
 npm run test:e2e:report
 ```
 
+## Trace du chantier tests E2E
+- Authentification et guards (login, logout, session invalide, redirections).
+- Dashboard progression (jauges, préférences, recherche globale et raccourci clavier).
+- Profil enfant et partage (persistance, clipboard/web share, événements analytics).
+- Page publique `/share` (sanitization des params) + mode dégradé DB validé.
+
 ## Déploiement Vercel
 1. Importer le repo sur Vercel.
 2. Ajouter/lier une base Neon (Vercel SQL) au projet.
