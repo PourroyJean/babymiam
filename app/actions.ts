@@ -5,12 +5,11 @@ import { redirect } from "next/navigation";
 import { clearSession, requireAuth } from "@/lib/auth";
 import {
   createGrowthEvent,
-  markFirstTaste,
+  deleteFoodTastingEntry,
   upsertChildProfile,
-  upsertExposure,
-  upsertFirstTastedOn,
+  upsertFinalPreference,
+  upsertFoodTastingEntry,
   upsertNote,
-  upsertPreference,
   upsertShareSnapshot
 } from "@/lib/data";
 
@@ -58,50 +57,68 @@ export async function logoutAction() {
   redirect("/login");
 }
 
-export async function setExposureAction(formData: FormData) {
+export async function saveTastingEntryAction(formData: FormData) {
+  const user = await requireAuth();
+
+  const foodId = Number(formData.get("foodId"));
+  const slot = Number(formData.get("slot"));
+  const likedRaw = String(formData.get("liked") || "").trim().toLowerCase();
+  const tastedOnRaw = String(formData.get("tastedOn") || "").trim();
+  const tastedOn = tastedOnRaw || getTodayIsoDate();
+
+  if (!Number.isFinite(foodId) || ![1, 2, 3].includes(slot)) {
+    return { ok: false, error: "Entrée invalide." };
+  }
+
+  if (likedRaw !== "yes" && likedRaw !== "no") {
+    return { ok: false, error: "Choisis si bébé a aimé ou non." };
+  }
+
+  if (!isValidIsoDate(tastedOn)) {
+    return { ok: false, error: "La date de dégustation est invalide." };
+  }
+
+  if (tastedOn > getTodayIsoDate()) {
+    return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
+  }
+
+  await upsertFoodTastingEntry(user.id, foodId, slot as 1 | 2 | 3, likedRaw === "yes", tastedOn);
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function deleteTastingEntryAction(formData: FormData) {
+  const user = await requireAuth();
+
+  const foodId = Number(formData.get("foodId"));
+  const slot = Number(formData.get("slot"));
+
+  if (!Number.isFinite(foodId) || ![1, 2, 3].includes(slot)) {
+    return { ok: false, error: "Entrée invalide." };
+  }
+
+  const result = await deleteFoodTastingEntry(user.id, foodId, slot as 1 | 2 | 3);
+  if (!result.ok) {
+    return result;
+  }
+
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function setFinalPreferenceAction(formData: FormData) {
   const user = await requireAuth();
 
   const foodId = Number(formData.get("foodId"));
   const selected = Number(formData.get("value"));
 
-  if (!Number.isFinite(foodId) || ![1, 2, 3].includes(selected)) return;
-  await upsertExposure(user.id, foodId, selected);
+  if (!Number.isFinite(foodId) || ![-1, 0, 1].includes(selected)) {
+    return { ok: false, error: "Choix final invalide." };
+  }
+
+  const appliedPreference = await upsertFinalPreference(user.id, foodId, selected as -1 | 0 | 1);
   revalidatePath("/");
-}
-
-export async function setPreferenceAction(formData: FormData) {
-  const user = await requireAuth();
-
-  const foodId = Number(formData.get("foodId"));
-  const selected = Number(formData.get("value"));
-
-  if (!Number.isFinite(foodId) || ![-1, 0, 1].includes(selected)) return;
-  await upsertPreference(user.id, foodId, selected as -1 | 0 | 1);
-  revalidatePath("/");
-}
-
-export async function setFirstTastedOnAction(formData: FormData) {
-  const user = await requireAuth();
-
-  const foodId = Number(formData.get("foodId"));
-  const firstTastedOnRaw = String(formData.get("firstTastedOn") || "").trim();
-  const firstTastedOn = firstTastedOnRaw || null;
-
-  if (!Number.isFinite(foodId)) return;
-  if (firstTastedOn && !isValidIsoDate(firstTastedOn)) return;
-
-  await upsertFirstTastedOn(user.id, foodId, firstTastedOn);
-  revalidatePath("/");
-}
-
-export async function markFirstTasteAction(formData: FormData) {
-  const user = await requireAuth();
-
-  const foodId = Number(formData.get("foodId"));
-  if (!Number.isFinite(foodId)) return;
-
-  await markFirstTaste(user.id, foodId, getTodayIsoDate());
-  revalidatePath("/");
+  return { ok: true, appliedPreference };
 }
 
 export async function setNoteAction(formData: FormData) {

@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "../fixtures/test-fixtures";
 
@@ -9,7 +9,7 @@ const AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 const AUTH_SECRET = process.env.E2E_AUTH_SECRET || "e2e-secret-change-me";
 const BAD_POSTGRES_URL = "postgres://postgres:postgres@127.0.0.1:65432/broken_db";
 
-let degradedServer: ChildProcessWithoutNullStreams | null = null;
+let degradedServer: ChildProcess | null = null;
 let degradedLogs = "";
 
 async function waitForDegradedServerReady(baseUrl: string, timeoutMs: number) {
@@ -32,11 +32,10 @@ async function waitForDegradedServerReady(baseUrl: string, timeoutMs: number) {
 }
 
 async function stopDegradedServer() {
-  if (!degradedServer || degradedServer.killed) return;
+  const processRef = degradedServer;
+  if (!processRef || processRef.killed) return;
 
   await new Promise<void>((resolve) => {
-    const processRef = degradedServer;
-
     const timer = setTimeout(() => {
       processRef.kill("SIGKILL");
       resolve();
@@ -60,7 +59,7 @@ test.describe("db degraded mode", () => {
     testInfo.setTimeout(150_000);
     degradedLogs = "";
 
-    degradedServer = spawn(
+    const server = spawn(
       process.platform === "win32" ? "npm.cmd" : "npm",
       ["run", "dev", "--", "--hostname", "127.0.0.1", "--port", DEGRADED_PORT],
       {
@@ -79,14 +78,16 @@ test.describe("db degraded mode", () => {
       }
     );
 
-    degradedServer.stdout.on("data", (chunk: Buffer) => {
+    degradedServer = server;
+
+    server.stdout?.on("data", (chunk: Buffer) => {
       degradedLogs += chunk.toString();
       if (degradedLogs.length > 20_000) {
         degradedLogs = degradedLogs.slice(-20_000);
       }
     });
 
-    degradedServer.stderr.on("data", (chunk: Buffer) => {
+    server.stderr?.on("data", (chunk: Buffer) => {
       degradedLogs += chunk.toString();
       if (degradedLogs.length > 20_000) {
         degradedLogs = degradedLogs.slice(-20_000);

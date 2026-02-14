@@ -8,13 +8,19 @@ type SiteNavProps = {
   activePage: "suivi" | "blog";
   childProfile: ChildProfile | null;
   progressSummary?: ProgressSummary | null;
+  contextTitle?: string | null;
 };
 
 function getLinkClassName(isActive: boolean) {
   return isActive ? "site-nav-link is-active" : "site-nav-link";
 }
 
-export function SiteNav({ activePage, childProfile, progressSummary = null }: SiteNavProps) {
+export function SiteNav({
+  activePage,
+  childProfile,
+  progressSummary = null,
+  contextTitle = null
+}: SiteNavProps) {
   return (
     <header className="site-nav">
       <div className="site-nav-main">
@@ -50,6 +56,8 @@ export function SiteNav({ activePage, childProfile, progressSummary = null }: Si
             Blog
           </Link>
         </nav>
+
+        {contextTitle ? <h1 className="site-nav-context">{contextTitle}</h1> : null}
       </div>
 
       <div className="site-account-actions">

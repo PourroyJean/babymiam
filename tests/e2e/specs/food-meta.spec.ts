@@ -5,27 +5,21 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function getDateButton(scope: Locator, foodName: string) {
+function getDateButton(scope: Page | Locator, foodName: string) {
   return scope.getByRole("button", {
-    name: new RegExp(
-      `^(Ajouter une date pour|Voir la date de) ${escapeRegExp(foodName)}$`,
-      "i"
-    )
+    name: new RegExp(`^(Ajouter une date pour|Voir la date de) ${escapeRegExp(foodName)}$`, "i")
   });
 }
 
-function getNoteButton(scope: Locator, foodName: string) {
+function getNoteButton(scope: Page | Locator, foodName: string) {
   return scope.getByRole("button", {
-    name: new RegExp(
-      `^(Ajouter une note pour|Éditer la note de) ${escapeRegExp(foodName)}$`,
-      "i"
-    )
+    name: new RegExp(`^(Ajouter une note pour|Éditer la note de) ${escapeRegExp(foodName)}$`, "i")
   });
 }
 
 async function ensureCategoryExpanded(page: Page, categoryName: string) {
   const categoryToggle = page.getByRole("button", {
-    name: new RegExp(`^${escapeRegExp(categoryName)}$`, "i")
+    name: new RegExp(escapeRegExp(categoryName), "i")
   });
 
   await expect(categoryToggle).toBeVisible();
@@ -36,33 +30,18 @@ async function ensureCategoryExpanded(page: Page, categoryName: string) {
 }
 
 test.describe("food meta", () => {
-  test("adds, updates, then clears first tasted date", async ({ appPage, db }) => {
+  test("keeps only note editor (no date action)", async ({ appPage }) => {
     const foodName = "Brocoli";
     await ensureCategoryExpanded(appPage, "Légumes");
 
-    await getDateButton(appPage, foodName).click();
+    await expect(getDateButton(appPage, foodName)).toHaveCount(0);
+    await expect(getNoteButton(appPage, foodName)).toBeVisible();
 
+    await getNoteButton(appPage, foodName).click();
     const dialog = appPage.getByRole("dialog", { name: foodName });
     await expect(dialog).toBeVisible();
-
-    await dialog.getByLabel("Date de première fois").fill("2025-01-15");
-    await expect
-      .poll(async () => (await db.getFoodProgressByName(foodName))?.firstTastedOn ?? null)
-      .toBe("2025-01-15");
-
-    await dialog.getByRole("button", { name: "Fermer le panneau d'édition" }).click();
-
-    await ensureCategoryExpanded(appPage, "Légumes");
-    await getDateButton(appPage, foodName).click();
-    await dialog.getByLabel("Date de première fois").fill("2025-01-20");
-    await expect
-      .poll(async () => (await db.getFoodProgressByName(foodName))?.firstTastedOn ?? null)
-      .toBe("2025-01-20");
-
-    await dialog.getByRole("button", { name: "Effacer" }).click();
-    await expect
-      .poll(async () => (await db.getFoodProgressByName(foodName))?.firstTastedOn ?? null)
-      .toBeNull();
+    await expect(dialog.getByLabel("Note")).toBeVisible();
+    await expect(dialog.getByLabel("Date de première fois")).toHaveCount(0);
   });
 
   test("saves and trims notes", async ({ appPage, db }) => {
@@ -91,7 +70,7 @@ test.describe("food meta", () => {
       .toBe("Deuxième note");
   });
 
-  test("closes editor modal with Escape and overlay click", async ({ appPage }) => {
+  test("closes note editor modal with Escape and overlay click", async ({ appPage }) => {
     const foodName = "Brocoli";
     await ensureCategoryExpanded(appPage, "Légumes");
 

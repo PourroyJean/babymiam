@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { setPreferenceAction } from "@/app/actions";
+import { setFinalPreferenceAction } from "@/app/actions";
 import { VegetableRow } from "@/components/vegetable-row";
 import type { DashboardCategory, DashboardFood } from "@/lib/types";
 
 type CategoriesGridProps = {
   categories: DashboardCategory[];
   toneByCategory: Record<string, string>;
+  childFirstName?: string | null;
 };
 
 type SearchFood = DashboardFood & {
@@ -16,7 +17,7 @@ type SearchFood = DashboardFood & {
   normalizedName: string;
 };
 
-type PreferenceValue = -1 | 0 | 1;
+type FinalPreferenceValue = -1 | 0 | 1;
 type AllergenStage = 0 | 1 | 2 | 3;
 type AllergenSummary = {
   toTestCount: number;
@@ -27,8 +28,24 @@ type AllergenSummary = {
 const DIACRITICS_PATTERN = /[\u0300-\u036f]/g;
 const FRENCH_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
 const RECENT_FOODS_LIMIT = 15;
-const PREFERENCE_DEBOUNCE_MS = 2000;
+const FINAL_PREFERENCE_DEBOUNCE_MS = 2000;
 const ALLERGEN_CATEGORY_NAME = "Allergènes majeurs";
+const CATEGORY_PICTOGRAM_BY_NAME: Record<string, string> = {
+  "Légumes": "🥕",
+  "Fruits": "🍓",
+  "Féculents": "🍞",
+  "Protéines": "🍖",
+  "Légumineuses": "🫘",
+  "Produits laitiers": "🥛",
+  "Allergènes majeurs": "✨",
+  "Épices": "🌶️",
+  "Oléagineux et huiles": "🫒",
+  "Herbes et aromates": "🌿",
+  "Sucreries": "🍬",
+  "Condiments": "🧂",
+  "Autres": "🍽️"
+};
+const DEFAULT_CATEGORY_PICTOGRAM = "✨";
 
 function normalizeSearchValue(value: string) {
   return value.normalize("NFD").replace(DIACRITICS_PATTERN, "").toLowerCase().trim();
@@ -47,8 +64,8 @@ function getUpdatedTimestamp(updatedAt: string | null) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
-function getAllergenStage(exposureCount: number): AllergenStage {
-  const normalizedValue = Math.max(0, Math.trunc(exposureCount));
+function getAllergenStage(tastingCount: number): AllergenStage {
+  const normalizedValue = Math.max(0, Math.trunc(tastingCount));
   if (normalizedValue >= 3) return 3;
   if (normalizedValue === 2) return 2;
   if (normalizedValue === 1) return 1;
@@ -61,7 +78,7 @@ function buildAllergenSummary(foods: DashboardFood[]): AllergenSummary {
   let consolidatedCount = 0;
 
   for (const food of foods) {
-    const stage = getAllergenStage(food.exposureCount);
+    const stage = getAllergenStage(food.tastingCount);
 
     if (stage === 0) {
       toTestCount += 1;
@@ -83,7 +100,7 @@ function buildAllergenSummary(foods: DashboardFood[]): AllergenSummary {
   };
 }
 
-function getNextPreference(current: PreferenceValue): PreferenceValue {
+function getNextFinalPreference(current: FinalPreferenceValue): FinalPreferenceValue {
   if (current === 0) return 1;
   if (current === 1) return -1;
   return 0;
@@ -102,21 +119,28 @@ function getRedirectUrlFromError(error: unknown) {
   return redirectUrl || null;
 }
 
-export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridProps) {
+function getCategoryPictogram(categoryName: string) {
+  return CATEGORY_PICTOGRAM_BY_NAME[categoryName] || DEFAULT_CATEGORY_PICTOGRAM;
+}
+
+export function CategoriesGrid({ categories, toneByCategory, childFirstName = null }: CategoriesGridProps) {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
   const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({});
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [preferenceOverridesByFoodId, setPreferenceOverridesByFoodId] = useState<Record<number, PreferenceValue>>({});
+  const [showTestedOnly, setShowTestedOnly] = useState(false);
+  const [finalPreferenceOverridesByFoodId, setFinalPreferenceOverridesByFoodId] = useState<
+    Record<number, FinalPreferenceValue>
+  >({});
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const wasSearchOpenRef = useRef(false);
-  const preferenceOverridesRef = useRef<Record<number, PreferenceValue>>({});
-  const serverPreferenceByFoodIdRef = useRef<Map<number, PreferenceValue>>(new Map());
+  const finalPreferenceOverridesRef = useRef<Record<number, FinalPreferenceValue>>({});
+  const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-  const pendingPreferenceByFoodIdRef = useRef<Map<number, PreferenceValue>>(new Map());
-  const inFlightPreferenceByFoodIdRef = useRef<Map<number, PreferenceValue>>(new Map());
+  const pendingFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
+  const inFlightFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
 
   function toggleCategory(rowIndex: number, categoryId: number) {
     if (isMobileViewport) {
@@ -143,12 +167,12 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
     setQuery("");
   }
 
-  const serverPreferenceByFoodId = useMemo(() => {
-    const preferenceMap = new Map<number, PreferenceValue>();
+  const serverFinalPreferenceByFoodId = useMemo(() => {
+    const preferenceMap = new Map<number, FinalPreferenceValue>();
 
     for (const category of categories) {
       for (const food of category.foods) {
-        preferenceMap.set(food.id, food.preference);
+        preferenceMap.set(food.id, food.finalPreference);
       }
     }
 
@@ -156,39 +180,39 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
   }, [categories]);
 
   useEffect(() => {
-    serverPreferenceByFoodIdRef.current = serverPreferenceByFoodId;
-  }, [serverPreferenceByFoodId]);
+    serverFinalPreferenceByFoodIdRef.current = serverFinalPreferenceByFoodId;
+  }, [serverFinalPreferenceByFoodId]);
 
   useEffect(() => {
-    preferenceOverridesRef.current = preferenceOverridesByFoodId;
-  }, [preferenceOverridesByFoodId]);
+    finalPreferenceOverridesRef.current = finalPreferenceOverridesByFoodId;
+  }, [finalPreferenceOverridesByFoodId]);
 
-  const removePreferenceOverride = useCallback((foodId: number) => {
-    setPreferenceOverridesByFoodId((current) => {
+  const removeFinalPreferenceOverride = useCallback((foodId: number) => {
+    setFinalPreferenceOverridesByFoodId((current) => {
       if (!(foodId in current)) return current;
 
       const next = { ...current };
       delete next[foodId];
-      preferenceOverridesRef.current = next;
+      finalPreferenceOverridesRef.current = next;
       return next;
     });
   }, []);
 
   useEffect(() => {
-    setPreferenceOverridesByFoodId((current) => {
+    setFinalPreferenceOverridesByFoodId((current) => {
       let hasChanges = false;
       const next = { ...current };
 
       for (const [foodIdRaw, value] of Object.entries(current)) {
         const foodId = Number(foodIdRaw);
 
-        if (pendingPreferenceByFoodIdRef.current.has(foodId)) continue;
-        if (inFlightPreferenceByFoodIdRef.current.get(foodId) === value) continue;
+        if (pendingFinalPreferenceByFoodIdRef.current.has(foodId)) continue;
+        if (inFlightFinalPreferenceByFoodIdRef.current.get(foodId) === value) continue;
 
-        const serverValue = serverPreferenceByFoodId.get(foodId);
+        const serverValue = serverFinalPreferenceByFoodId.get(foodId);
         if (serverValue === undefined || serverValue === value) {
           delete next[foodId];
-          inFlightPreferenceByFoodIdRef.current.delete(foodId);
+          inFlightFinalPreferenceByFoodIdRef.current.delete(foodId);
           hasChanges = true;
           continue;
         }
@@ -196,25 +220,25 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
         // No pending/in-flight write for this value: server is now source of truth.
         if (serverValue !== value) {
           delete next[foodId];
-          inFlightPreferenceByFoodIdRef.current.delete(foodId);
+          inFlightFinalPreferenceByFoodIdRef.current.delete(foodId);
           hasChanges = true;
         }
       }
 
       if (!hasChanges) return current;
-      preferenceOverridesRef.current = next;
+      finalPreferenceOverridesRef.current = next;
       return next;
     });
-  }, [serverPreferenceByFoodId]);
+  }, [serverFinalPreferenceByFoodId]);
 
-  const persistPreference = useCallback(async (foodId: number, preference: PreferenceValue) => {
+  const persistFinalPreference = useCallback(async (foodId: number, preference: FinalPreferenceValue) => {
     const formData = new FormData();
     formData.set("foodId", String(foodId));
     formData.set("value", String(preference));
-    await setPreferenceAction(formData);
+    await setFinalPreferenceAction(formData);
   }, []);
 
-  const flushPendingPreference = useCallback(
+  const flushPendingFinalPreference = useCallback(
     (foodId: number) => {
       const existingTimer = debounceTimersRef.current.get(foodId);
       if (existingTimer) {
@@ -222,13 +246,13 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
         debounceTimersRef.current.delete(foodId);
       }
 
-      const pendingValue = pendingPreferenceByFoodIdRef.current.get(foodId);
+      const pendingValue = pendingFinalPreferenceByFoodIdRef.current.get(foodId);
       if (pendingValue === undefined) return;
 
-      pendingPreferenceByFoodIdRef.current.delete(foodId);
-      inFlightPreferenceByFoodIdRef.current.set(foodId, pendingValue);
+      pendingFinalPreferenceByFoodIdRef.current.delete(foodId);
+      inFlightFinalPreferenceByFoodIdRef.current.set(foodId, pendingValue);
 
-      void persistPreference(foodId, pendingValue)
+      void persistFinalPreference(foodId, pendingValue)
         .catch((error) => {
           const redirectUrl = getRedirectUrlFromError(error);
           if (redirectUrl) {
@@ -236,36 +260,36 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
             return;
           }
 
-          removePreferenceOverride(foodId);
+          removeFinalPreferenceOverride(foodId);
         })
         .finally(() => {
-          inFlightPreferenceByFoodIdRef.current.delete(foodId);
+          inFlightFinalPreferenceByFoodIdRef.current.delete(foodId);
         });
     },
-    [persistPreference, removePreferenceOverride]
+    [persistFinalPreference, removeFinalPreferenceOverride]
   );
 
-  const flushAllPendingPreferences = useCallback(() => {
-    const pendingFoodIds = Array.from(pendingPreferenceByFoodIdRef.current.keys());
+  const flushAllPendingFinalPreferences = useCallback(() => {
+    const pendingFoodIds = Array.from(pendingFinalPreferenceByFoodIdRef.current.keys());
     for (const foodId of pendingFoodIds) {
-      flushPendingPreference(foodId);
+      flushPendingFinalPreference(foodId);
     }
-  }, [flushPendingPreference]);
+  }, [flushPendingFinalPreference]);
 
-  const cyclePreference = useCallback(
+  const cycleFinalPreference = useCallback(
     (foodId: number) => {
-      const serverPreference = serverPreferenceByFoodIdRef.current.get(foodId) ?? 0;
-      const currentPreference = preferenceOverridesRef.current[foodId] ?? serverPreference;
-      const nextPreference = getNextPreference(currentPreference);
+      const serverPreference = serverFinalPreferenceByFoodIdRef.current.get(foodId) ?? 0;
+      const currentPreference = finalPreferenceOverridesRef.current[foodId] ?? serverPreference;
+      const nextPreference = getNextFinalPreference(currentPreference);
 
       const nextOverrides = {
-        ...preferenceOverridesRef.current,
+        ...finalPreferenceOverridesRef.current,
         [foodId]: nextPreference
       };
 
-      preferenceOverridesRef.current = nextOverrides;
-      setPreferenceOverridesByFoodId(nextOverrides);
-      pendingPreferenceByFoodIdRef.current.set(foodId, nextPreference);
+      finalPreferenceOverridesRef.current = nextOverrides;
+      setFinalPreferenceOverridesByFoodId(nextOverrides);
+      pendingFinalPreferenceByFoodIdRef.current.set(foodId, nextPreference);
 
       const existingTimer = debounceTimersRef.current.get(foodId);
       if (existingTimer) {
@@ -273,12 +297,12 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
       }
 
       const timerId = setTimeout(() => {
-        flushPendingPreference(foodId);
-      }, PREFERENCE_DEBOUNCE_MS);
+        flushPendingFinalPreference(foodId);
+      }, FINAL_PREFERENCE_DEBOUNCE_MS);
 
       debounceTimersRef.current.set(foodId, timerId);
     },
-    [flushPendingPreference]
+    [flushPendingFinalPreference]
   );
 
   useEffect(() => {
@@ -317,12 +341,12 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
     const debounceTimers = debounceTimersRef.current;
 
     function onPageHide() {
-      flushAllPendingPreferences();
+      flushAllPendingFinalPreferences();
     }
 
     function onVisibilityChange() {
       if (document.visibilityState === "hidden") {
-        flushAllPendingPreferences();
+        flushAllPendingFinalPreferences();
       }
     }
 
@@ -332,14 +356,14 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
     return () => {
       window.removeEventListener("pagehide", onPageHide);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      flushAllPendingPreferences();
+      flushAllPendingFinalPreferences();
 
       for (const timerId of debounceTimers.values()) {
         clearTimeout(timerId);
       }
       debounceTimers.clear();
     };
-  }, [flushAllPendingPreferences]);
+  }, [flushAllPendingFinalPreferences]);
 
   useEffect(() => {
     if (!isSearchOpen) return;
@@ -364,9 +388,20 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
 
   const normalizedQuery = useMemo(() => normalizeSearchValue(query), [query]);
 
+  const visibleCategories = useMemo(() => {
+    if (!showTestedOnly) return categories;
+
+    return categories
+      .map((category) => ({
+        ...category,
+        foods: category.foods.filter((food) => food.tastingCount > 0)
+      }))
+      .filter((category) => category.foods.length > 0);
+  }, [categories, showTestedOnly]);
+
   const searchableFoods = useMemo<SearchFood[]>(
     () =>
-      categories.flatMap((category) =>
+      visibleCategories.flatMap((category) =>
         category.foods.map((food) => ({
           ...food,
           categoryId: category.id,
@@ -374,7 +409,7 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
           normalizedName: normalizeSearchValue(food.name)
         }))
       ),
-    [categories]
+    [visibleCategories]
   );
 
   const recentFoods = useMemo(
@@ -411,27 +446,51 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
   return (
     <section className="categories-section">
       <div className="categories-toolbar">
-        <div className="categories-toolbar-actions">
-          <button
-            ref={searchTriggerRef}
-            type="button"
-            className="search-trigger-btn"
-            onClick={() => setIsSearchOpen(true)}
-          >
-            <span>Rechercher un aliment</span>
-            <span className="search-trigger-shortcut" aria-hidden="true">
-              ⌘/Ctrl + K
-            </span>
-          </button>
-        </div>
+        <section className="toolbox-card">
+          <div className="categories-toolbar-actions">
+            <button
+              ref={searchTriggerRef}
+              type="button"
+              className="search-trigger-btn"
+              onClick={() => setIsSearchOpen(true)}
+            >
+              <span>Rechercher un aliment</span>
+              <span className="search-trigger-shortcut" aria-hidden="true">
+                ⌘/Ctrl + K
+              </span>
+            </button>
+
+            <label className="toolbox-toggle">
+              <input
+                type="checkbox"
+                role="switch"
+                className="toolbox-toggle-input"
+                checked={showTestedOnly}
+                onChange={(event) => setShowTestedOnly(event.currentTarget.checked)}
+                aria-label="Afficher seulement les aliments déjà testés"
+              />
+              <span className="toolbox-toggle-track" aria-hidden="true">
+                <span className="toolbox-toggle-thumb" />
+              </span>
+              <span className="toolbox-toggle-text">Afficher seulement les aliments déjà testés</span>
+            </label>
+          </div>
+        </section>
       </div>
 
       <section className="categories-grid">
-        {categories.map((category, categoryIndex) => {
+        {visibleCategories.length === 0 ? (
+          <section className="categories-empty-state" aria-live="polite">
+            Aucun aliment déjà testé pour le moment.
+          </section>
+        ) : null}
+
+        {visibleCategories.map((category, categoryIndex) => {
           const rowIndex = Math.floor(categoryIndex / 3);
           const isRowExpanded = isCategoryExpanded(rowIndex, category.id);
           const isAllergenCategory = category.name === ALLERGEN_CATEGORY_NAME;
           const allergenSummary = isAllergenCategory ? buildAllergenSummary(category.foods) : null;
+          const categoryPictogram = getCategoryPictogram(category.name);
 
           return (
             <article
@@ -446,7 +505,10 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
                   title={isRowExpanded ? "Replier le tableau" : "Dérouler le tableau"}
                   onClick={() => toggleCategory(rowIndex, category.id)}
                 >
-                  <span>{category.name}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span aria-hidden="true">{categoryPictogram}</span>
+                    <span>{category.name}</span>
+                  </span>
                   <span className="category-toggle-icon" aria-hidden="true">
                     {isRowExpanded ? "▾" : "▴"}
                   </span>
@@ -478,13 +540,14 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
                     key={food.id}
                     foodId={food.id}
                     name={food.name}
-                    exposureCount={food.exposureCount}
-                    preference={preferenceOverridesByFoodId[food.id] ?? food.preference}
-                    firstTastedOn={food.firstTastedOn}
+                    tastings={food.tastings}
+                    tastingCount={food.tastingCount}
+                    finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
                     note={food.note}
-                    onCyclePreference={cyclePreference}
+                    onCycleFinalPreference={cycleFinalPreference}
+                    childFirstName={childFirstName}
                     isAllergen={isAllergenCategory}
-                    allergenStage={isAllergenCategory ? getAllergenStage(food.exposureCount) : null}
+                    allergenStage={isAllergenCategory ? getAllergenStage(food.tastingCount) : null}
                   />
                 ))}
               </ul>
@@ -532,15 +595,16 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
                       key={`search-${food.id}`}
                       foodId={food.id}
                       name={food.name}
-                      exposureCount={food.exposureCount}
-                      preference={preferenceOverridesByFoodId[food.id] ?? food.preference}
-                      firstTastedOn={food.firstTastedOn}
+                      tastings={food.tastings}
+                      tastingCount={food.tastingCount}
+                      finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
                       note={food.note}
-                      onCyclePreference={cyclePreference}
+                      onCycleFinalPreference={cycleFinalPreference}
+                      childFirstName={childFirstName}
                       isAllergen={food.categoryName === ALLERGEN_CATEGORY_NAME}
                       allergenStage={
                         food.categoryName === ALLERGEN_CATEGORY_NAME
-                          ? getAllergenStage(food.exposureCount)
+                          ? getAllergenStage(food.tastingCount)
                           : null
                       }
                     />

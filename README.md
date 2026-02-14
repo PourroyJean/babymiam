@@ -56,11 +56,24 @@ Si `POSTGRES_URL` n'est pas défini, l'app utilise `postgres://postgres:postgres
 - `npm run users:create -- --email <email> --password <password>`
 - `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` (migration des données legacy `owner_key` -> `owner_id`)
 
+## Parcours dégustation (v2)
+- Chaque aliment a 3 slots de dégustation indépendants (slots tigre).
+- Chaque slot enregistre une date + un résultat binaire (`aimé` / `pas aimé`) via la même popup en création/édition.
+- Le pouce final est visible uniquement quand 3 slots existent et cycle `neutre -> oui -> non -> neutre`.
+- La suppression n'est autorisée que sur le dernier slot rempli; si on repasse à moins de 3 slots, le pouce final est remis à neutre.
+- Le panneau meta d'un aliment gère uniquement la note.
+
 ## Ajout manuel d'un user (a la mano)
 Si la base locale vient d'un ancien schema, lance d'abord `npm run db:migrate` puis `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy`.
 Cree ensuite le compte avec `npm run users:create -- --email <email> --password <password>`.
 Connecte-toi avec l'email du compte cree (pas `AUTH_USER`).
 Redemarre enfin `npm run dev` avec la meme base locale (`POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam`).
+
+## Reset BD locale (memo 4 lignes)
+1. `docker compose down -v && docker compose up -d`
+2. `npm run db:migrate && npm run db:seed`
+3. `npm run users:create -- --email jean.pourroy@gmail.com --password "password38!!"`
+4. `npm run users:create -- --email parent@example.com --password "LOULOU38" && npm run dev`
 
 ## Tests E2E (Playwright)
 Variables de test supportées:

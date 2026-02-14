@@ -1,10 +1,16 @@
+export type FoodTastingEntry = {
+  slot: 1 | 2 | 3;
+  liked: boolean;
+  tastedOn: string;
+};
+
 export type DashboardFood = {
   id: number;
   name: string;
   sortOrder: number;
-  exposureCount: number;
-  preference: -1 | 0 | 1;
-  firstTastedOn: string | null;
+  tastings: FoodTastingEntry[];
+  tastingCount: number;
+  finalPreference: -1 | 0 | 1;
   note: string;
   updatedAt: string | null;
 };

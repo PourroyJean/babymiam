@@ -1,19 +1,25 @@
-import Image from "next/image";
-import { markFirstTasteAction, setExposureAction } from "@/app/actions";
-import { FoodMeta } from "@/components/food-meta";
+"use client";
 
-type PreferenceValue = -1 | 0 | 1;
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
+import { deleteTastingEntryAction, saveTastingEntryAction } from "@/app/actions";
+import { FoodMeta } from "@/components/food-meta";
+import type { FoodTastingEntry } from "@/lib/types";
+
 type AllergenStage = 0 | 1 | 2 | 3;
 
 type VegetableRowProps = {
   foodId: number;
   name: string;
-  exposureCount: number;
-  preference: PreferenceValue;
-  firstTastedOn: string | null;
+  tastings: FoodTastingEntry[];
+  tastingCount: number;
+  finalPreference: -1 | 0 | 1;
   note: string;
-  onCyclePreference: (foodId: number) => void;
-  isPreferenceSaving?: boolean;
+  onCycleFinalPreference: (foodId: number) => void;
+  childFirstName?: string | null;
+  isFinalPreferenceSaving?: boolean;
   isAllergen?: boolean;
   allergenStage?: AllergenStage | null;
 };
@@ -21,31 +27,41 @@ type VegetableRowProps = {
 const ACTION_BUTTON_BASE_CLASS =
   "touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-0 bg-transparent p-0 text-[#4c4136] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]";
 
-const ACTION_VISUAL_BASE_CLASS =
-  "pointer-events-none inline-flex h-9 w-9 items-center justify-center rounded-full border-2 bg-[#fcfbf9] text-[#4c4136]";
+const FIRST_BITE_BUTTON_CLASS =
+  "touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-11 w-[188px] min-h-[44px] items-center justify-center whitespace-nowrap rounded-full border border-[#e8d8b8] bg-[#f6ead4] px-4 py-2 text-sm font-semibold text-[#6c4b1b] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]";
 
-const SMILEY_VISUAL_BASE_CLASS =
-  "pointer-events-none inline-flex h-9 w-9 items-center justify-center border-2 p-0";
+const SLOT_VISUAL_BASE_CLASS =
+  "pointer-events-none inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 bg-[#fcfbf9] p-0";
 
-function getNextPreference(current: PreferenceValue): PreferenceValue {
+function getTodayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatDate(value: string) {
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+}
+
+function getNextFinalPreference(current: -1 | 0 | 1): -1 | 0 | 1 {
   if (current === 0) return 1;
   if (current === 1) return -1;
   return 0;
 }
 
-function getPreferenceLabel(preference: PreferenceValue) {
+function getFinalPreferenceLabel(preference: -1 | 0 | 1) {
   if (preference === 1) return "aimé";
   if (preference === -1) return "pas aimé";
   return "neutre";
 }
 
-function getPreferenceImageSrc(preference: PreferenceValue) {
-  if (preference === 1) return "/smiley_ok.png";
-  if (preference === -1) return "/smiley_ko.png";
-  return "/smiley_neutre.png";
+function getFinalPreferenceImageSrc(preference: -1 | 0 | 1) {
+  if (preference === 1) return "/pouce_YES.png";
+  if (preference === -1) return "/pouce_NO.png";
+  return "/pouce_NEUTRE.png";
 }
 
-function getPreferenceVisualClass(preference: PreferenceValue) {
+function getFinalPreferenceVisualClass(preference: -1 | 0 | 1) {
   if (preference === 1) return "border-emerald-500";
   if (preference === -1) return "border-rose-500";
   return "border-[#b9ac9b]";
@@ -68,127 +84,377 @@ function getAllergenStageClass(stage: AllergenStage | null | undefined) {
 export function VegetableRow({
   foodId,
   name,
-  exposureCount,
-  preference,
-  firstTastedOn,
+  tastings,
+  tastingCount,
+  finalPreference,
   note,
-  onCyclePreference,
-  isPreferenceSaving = false,
+  onCycleFinalPreference,
+  childFirstName = null,
+  isFinalPreferenceSaving = false,
   isAllergen = false,
   allergenStage = null
 }: VegetableRowProps) {
-  const currentPreferenceLabel = getPreferenceLabel(preference);
-  const nextPreference = getNextPreference(preference);
-  const nextPreferenceLabel = getPreferenceLabel(nextPreference);
-  const hasExposure = exposureCount > 0;
+  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorSlot, setEditorSlot] = useState<1 | 2 | 3 | null>(null);
+  const [editorLiked, setEditorLiked] = useState<"yes" | "no" | null>(null);
+  const [editorDate, setEditorDate] = useState("");
+  const [editorError, setEditorError] = useState("");
+  const [isEditorPending, startEditorTransition] = useTransition();
+
+  const tastingsBySlot = useMemo(() => {
+    const slotMap = new Map<1 | 2 | 3, FoodTastingEntry>();
+    for (const tasting of tastings) {
+      slotMap.set(tasting.slot, tasting);
+    }
+    return slotMap;
+  }, [tastings]);
+
+  const maxFilledSlot = useMemo(
+    () => tastings.reduce((maxSlot, tasting) => Math.max(maxSlot, tasting.slot), 0),
+    [tastings]
+  );
+  const nextCreatableSlot = useMemo(() => {
+    for (const slot of [1, 2, 3] as const) {
+      if (!tastingsBySlot.has(slot)) return slot;
+    }
+    return null;
+  }, [tastingsBySlot]);
+
+  const closeEditor = useCallback(() => {
+    setIsEditorOpen(false);
+    setEditorSlot(null);
+    setEditorLiked(null);
+    setEditorDate("");
+    setEditorError("");
+  }, []);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isEditorOpen) return;
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeEditor();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [closeEditor, isEditorOpen]);
+
+  useEffect(() => {
+    if (!isEditorOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isEditorOpen]);
+
   const allergenStageLabel = getAllergenStageLabel(allergenStage);
+  const currentFinalPreferenceLabel = getFinalPreferenceLabel(finalPreference);
+  const nextFinalPreference = getNextFinalPreference(finalPreference);
+  const nextFinalPreferenceLabel = getFinalPreferenceLabel(nextFinalPreference);
+  const canShowFinalPreference = tastingCount === 3;
+  const childLabel = childFirstName?.trim() || "bébé";
+  const childDisplayName = childFirstName?.trim() || "Bébé";
+
+  function openEditor(slot: 1 | 2 | 3) {
+    const existing = tastingsBySlot.get(slot);
+
+    setEditorSlot(slot);
+    setEditorLiked(existing ? (existing.liked ? "yes" : "no") : null);
+    setEditorDate(existing?.tastedOn || getTodayIsoDate());
+    setEditorError("");
+    setIsEditorOpen(true);
+  }
+
+  function openSequentialEditor(requestedSlot: 1 | 2 | 3) {
+    const hasEntryOnRequestedSlot = tastingsBySlot.has(requestedSlot);
+    if (hasEntryOnRequestedSlot || nextCreatableSlot === null) {
+      openEditor(requestedSlot);
+      return;
+    }
+
+    // Any neutral tiger click opens the next available slot from left to right.
+    openEditor(nextCreatableSlot);
+  }
+
+  function saveEntry() {
+    if (!editorSlot) return;
+    if (!editorLiked) {
+      setEditorError(`Choisis si ${childLabel} a aimé ou non.`);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.set("foodId", String(foodId));
+    formData.set("slot", String(editorSlot));
+    formData.set("liked", editorLiked);
+    formData.set("tastedOn", editorDate || getTodayIsoDate());
+
+    startEditorTransition(async () => {
+      const result = await saveTastingEntryAction(formData);
+      if (!result.ok) {
+        setEditorError(result.error || "Impossible d'enregistrer cette entrée.");
+        return;
+      }
+
+      closeEditor();
+      router.refresh();
+    });
+  }
+
+  function deleteEntry() {
+    if (!editorSlot) return;
+
+    const formData = new FormData();
+    formData.set("foodId", String(foodId));
+    formData.set("slot", String(editorSlot));
+
+    startEditorTransition(async () => {
+      const result = await deleteTastingEntryAction(formData);
+      if (!result.ok) {
+        setEditorError(result.error || "Impossible de supprimer cette entrée.");
+        return;
+      }
+
+      closeEditor();
+      router.refresh();
+    });
+  }
+
+  const activeEditorEntry = editorSlot ? tastingsBySlot.get(editorSlot) : null;
+  const canDeleteActiveEntry =
+    Boolean(activeEditorEntry) && editorSlot !== null && editorSlot === maxFilledSlot;
+
+  const editor = isEditorOpen && editorSlot ? (
+    <div
+      className="fixed inset-0 z-[2300] bg-[#1f1810]/45 sm:grid sm:place-items-center"
+      role="presentation"
+      onClick={closeEditor}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`tasting-editor-title-${foodId}-${editorSlot}`}
+        className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-3xl border border-[#e1d2bc] bg-[#fffdf8] p-4 shadow-2xl sm:relative sm:inset-auto sm:w-[min(100%,30rem)] sm:rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="mb-3">
+          <h2 id={`tasting-editor-title-${foodId}-${editorSlot}`} className="m-0 text-base font-bold text-[#3b3128]">
+            {name} · Entrée {editorSlot}
+          </h2>
+          <p className="m-0 mt-1 text-sm text-[#6c5b48]">
+            {activeEditorEntry ? "Modifier cette dégustation." : "Ajouter une dégustation."}
+          </p>
+        </header>
+
+        <div className="grid gap-4">
+          <div>
+            <p className="m-0 mb-2 text-sm font-semibold text-[#554a3f]">{childDisplayName} a aimé ?</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className={`touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border px-3 py-2 text-sm font-semibold ${
+                  editorLiked === "yes"
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                    : "border-[#ddcfbb] bg-white text-[#5c5144]"
+                }`}
+                onClick={() => setEditorLiked("yes")}
+              >
+                Oui
+              </button>
+              <button
+                type="button"
+                className={`touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border px-3 py-2 text-sm font-semibold ${
+                  editorLiked === "no"
+                    ? "border-rose-500 bg-rose-50 text-rose-800"
+                    : "border-[#ddcfbb] bg-white text-[#5c5144]"
+                }`}
+                onClick={() => setEditorLiked("no")}
+              >
+                Non
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor={`tasting-date-${foodId}-${editorSlot}`} className="mb-2 block text-sm font-semibold text-[#554a3f]">
+              Date de dégustation
+            </label>
+            <input
+              id={`tasting-date-${foodId}-${editorSlot}`}
+              type="date"
+              value={editorDate}
+              onChange={(event) => setEditorDate(event.currentTarget.value)}
+              className="h-12 w-full rounded-xl border border-[#ddcfbb] bg-white px-3 text-base text-[#40362c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
+            />
+          </div>
+
+          {editorError ? <p className="m-0 text-sm font-semibold text-rose-700">{editorError}</p> : null}
+
+          <div className="flex flex-wrap justify-between gap-2">
+            <div>
+              {canDeleteActiveEntry ? (
+                <button
+                  type="button"
+                  onClick={deleteEntry}
+                  disabled={isEditorPending}
+                  className="touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border border-rose-400 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Supprimer
+                </button>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={closeEditor}
+                disabled={isEditorPending}
+                className="touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[#ddcfbb] bg-white px-3 py-2 text-sm font-semibold text-[#554a3f] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={saveEntry}
+                disabled={isEditorPending}
+                className="touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[#b89056] bg-[#f6ead4] px-3 py-2 text-sm font-semibold text-[#5f4323] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  ) : null;
 
   return (
-    <li className="w-full rounded-2xl bg-white/75 px-2.5 py-2 sm:px-3">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="min-w-0 text-[0.98rem] font-semibold leading-tight text-[#3b3128]">
-            {name}
-          </span>
+    <>
+      <li className="w-full rounded-2xl bg-white/75 px-2.5 py-2 sm:px-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="min-w-0 text-[0.98rem] font-semibold leading-tight text-[#3b3128]">{name}</span>
 
-          {isAllergen ? (
-            <span
-              className={`allergen-stage-pill ${getAllergenStageClass(allergenStage)}`}
-              aria-label={`Statut allergène: ${allergenStageLabel}`}
-              title={`Statut allergène: ${allergenStageLabel}`}
-            >
-              {allergenStageLabel}
-            </span>
-          ) : null}
-        </div>
+            {isAllergen ? (
+              <span
+                className={`allergen-stage-pill ${getAllergenStageClass(allergenStage)}`}
+                aria-label={`Statut allergène: ${allergenStageLabel}`}
+                title={`Statut allergène: ${allergenStageLabel}`}
+              >
+                {allergenStageLabel}
+              </span>
+            ) : null}
+          </div>
 
-        <div
-          role="group"
-          aria-label={`Actions pour ${name}`}
-          className="flex flex-wrap items-center justify-start gap-1 sm:justify-end sm:gap-1.5"
-        >
-          {hasExposure ? (
-            <div role="group" aria-label={`Niveau d'exposition pour ${name}`} className="flex items-center gap-1 sm:gap-1.5">
-              {[1, 2, 3].map((value) => {
-                const isActive = exposureCount >= value;
-                const isSelected = exposureCount === value;
+          <div
+            role="group"
+            aria-label={`Actions pour ${name}`}
+            className="flex flex-wrap items-center justify-start gap-1 sm:justify-end sm:gap-1.5"
+          >
+            {tastingCount === 0 ? (
+              <>
+                <button
+                  type="button"
+                  className={FIRST_BITE_BUTTON_CLASS}
+                  onClick={() => openEditor(1)}
+                  aria-label={`Marquer ${name} en première bouchée`}
+                  title="Première bouchée"
+                >
+                  Première bouchée
+                </button>
+                <span aria-hidden="true" className={`${ACTION_BUTTON_BASE_CLASS} pointer-events-none opacity-0`}>
+                  <span className={SLOT_VISUAL_BASE_CLASS} />
+                </span>
+              </>
+            ) : (
+              <div role="group" aria-label={`Dégustations pour ${name}`} className="flex items-center gap-1 sm:gap-1.5">
+                {[1, 2, 3].map((slotValue) => {
+                  const slot = slotValue as 1 | 2 | 3;
+                  const tasting = tastingsBySlot.get(slot);
+                  const isLockedNeutral = !tasting && nextCreatableSlot !== null && slot !== nextCreatableSlot;
+                  const iconSrc = tasting ? (tasting.liked ? "/smiley_ok.png" : "/smiley_ko.png") : "/smiley_neutre.png";
+                  const iconAlt = tasting ? (tasting.liked ? "Aimé" : "Pas aimé") : "À remplir";
 
-                return (
-                  <form key={value} action={setExposureAction} className="inline-flex">
-                    <input type="hidden" name="foodId" value={foodId} />
+                  const ariaLabel = tasting
+                    ? `${name} - entrée ${slot} (${tasting.liked ? "aimé" : "pas aimé"} le ${formatDate(
+                        tasting.tastedOn
+                      )}). Modifier`
+                    : `${name} - ajouter l'entrée ${slot}`;
+
+                  return (
                     <button
-                      type="submit"
-                      name="value"
-                      value={value}
+                      key={slot}
+                      type="button"
                       className={ACTION_BUTTON_BASE_CLASS}
-                      aria-label={`${name} - régler la jauge à ${value} sur 3`}
-                      aria-pressed={isSelected}
-                      title={`Jauge ${value}/3`}
+                      aria-label={ariaLabel}
+                      title={ariaLabel}
+                      onClick={() => openSequentialEditor(slot)}
                     >
-                      <span
-                        aria-hidden="true"
-                        className={`${ACTION_VISUAL_BASE_CLASS} text-xs font-extrabold leading-none ${isActive ? "text-white" : "border-[#b9ac9b] text-[#7a6f62]"
-                          }`}
-                        style={isActive ? { borderColor: "var(--tone-dot-border)", backgroundColor: "var(--tone-dot)" } : undefined}
-                      >
-                        {value}
+                      <span aria-hidden="true" className={`${SLOT_VISUAL_BASE_CLASS} ${isLockedNeutral ? "opacity-60" : ""}`}>
+                        <Image
+                          src={iconSrc}
+                          alt={iconAlt}
+                          width={36}
+                          height={36}
+                          unoptimized
+                          className="h-full w-full object-contain"
+                        />
                       </span>
                     </button>
-                  </form>
-                );
-              })}
-            </div>
-          ) : null}
+                  );
+                })}
 
-          {!hasExposure ? (
-            <div className="flex w-[140px] items-center sm:w-[144px]">
-              <form action={markFirstTasteAction} className="inline-flex w-full">
-                <input type="hidden" name="foodId" value={foodId} />
-                <button
-                  type="submit"
-                  className={`${ACTION_BUTTON_BASE_CLASS} h-11 w-full min-w-0 rounded-full px-0 py-0`}
-                  aria-label={`Marquer ${name} en première bouchée`}
-                  title="Première bouchée (jauge 1/3)"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none inline-flex h-9 w-full items-center justify-center rounded-full border-2 border-[#d8a755] bg-[#ffefcb] px-2.5 py-1 text-[0.68rem] font-extrabold leading-none text-[#714f17] whitespace-nowrap"
+                {canShowFinalPreference ? (
+                  <button
+                    type="button"
+                    className={ACTION_BUTTON_BASE_CLASS}
+                    onClick={() => onCycleFinalPreference(foodId)}
+                    aria-pressed={finalPreference !== 0}
+                    aria-label={`Préférence finale pour ${name}: ${currentFinalPreferenceLabel}. Appuyer pour passer à ${nextFinalPreferenceLabel}.`}
+                    title={`Préférence finale: ${currentFinalPreferenceLabel} (prochain état: ${nextFinalPreferenceLabel})`}
                   >
-                    Première bouchée
+                    <span
+                      aria-hidden="true"
+                      className={`${SLOT_VISUAL_BASE_CLASS} ${getFinalPreferenceVisualClass(finalPreference)} ${
+                        isFinalPreferenceSaving ? "opacity-80" : ""
+                      }`}
+                    >
+                      <Image
+                        src={getFinalPreferenceImageSrc(finalPreference)}
+                        alt=""
+                        aria-hidden="true"
+                        width={36}
+                        height={36}
+                        unoptimized
+                        className="h-full w-full object-contain"
+                      />
+                    </span>
+                  </button>
+                ) : (
+                  <span aria-hidden="true" className={`${ACTION_BUTTON_BASE_CLASS} pointer-events-none opacity-0`}>
+                    <span className={SLOT_VISUAL_BASE_CLASS} />
                   </span>
-                </button>
-              </form>
-            </div>
-          ) : null}
+                )}
+              </div>
+            )}
 
-          <button
-            type="button"
-            className={ACTION_BUTTON_BASE_CLASS}
-            onClick={() => onCyclePreference(foodId)}
-            aria-pressed={preference !== 0}
-            aria-label={`Préférence actuelle pour ${name}: ${currentPreferenceLabel}. Appuyer pour passer à ${nextPreferenceLabel}.`}
-            title={`Préférence: ${currentPreferenceLabel} (prochain état: ${nextPreferenceLabel})`}
-          >
-            <span
-              aria-hidden="true"
-              className={`${SMILEY_VISUAL_BASE_CLASS} ${getPreferenceVisualClass(preference)} ${isPreferenceSaving ? "opacity-80" : ""
-                }`}
-            >
-              <Image
-                src={getPreferenceImageSrc(preference)}
-                alt=""
-                aria-hidden="true"
-                width={36}
-                height={36}
-                unoptimized
-                className="h-full w-full object-contain"
-              />
-            </span>
-          </button>
-
-          <FoodMeta foodId={foodId} foodName={name} firstTastedOn={firstTastedOn} note={note} />
+            <FoodMeta foodId={foodId} foodName={name} note={note} />
+          </div>
         </div>
-      </div>
-    </li>
+      </li>
+
+      {isMounted && editor ? createPortal(editor, document.body) : null}
+    </>
   );
 }

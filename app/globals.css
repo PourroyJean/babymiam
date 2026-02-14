@@ -257,26 +257,27 @@ a {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   margin-bottom: 16px;
-  padding: 12px 14px;
+  padding: 9px 14px;
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid #e6ddd2;
-  border-radius: 24px;
+  border-radius: 22px;
   backdrop-filter: blur(4px);
 }
 
 .site-nav-main {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  flex: 1;
   min-width: 0;
 }
 
 .site-brand {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--text);
 }
 
@@ -297,8 +298,8 @@ a {
 .site-logo {
   display: block;
   position: relative;
-  width: 113px;
-  height: 113px;
+  width: 84px;
+  height: 84px;
   overflow: hidden;
 }
 
@@ -315,31 +316,32 @@ a {
 }
 
 .site-brand-text {
-  font-size: 1.45rem;
+  font-size: 1.2rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.045em;
   text-transform: uppercase;
 }
 
 .site-nav-links {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .site-nav-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 132px;
-  padding: 12px 24px;
+  min-width: 116px;
+  min-height: 42px;
+  padding: 9px 18px;
   border-radius: 999px;
   border: 1px solid #d8c6aa;
   background: #fff6e6;
   color: #41372d;
   text-decoration: none;
-  font-size: 1rem;
-  font-weight: 800;
+  font-size: 0.96rem;
+  font-weight: 700;
   letter-spacing: 0.01em;
   transition: transform 120ms ease, background 120ms ease;
 }
@@ -364,10 +366,25 @@ a {
   outline-offset: 2px;
 }
 
+.site-nav-context {
+  margin: 0 auto;
+  flex: 1 1 auto;
+  text-align: center;
+  min-width: 0;
+  font-size: clamp(1.25rem, 1.95vw, 2rem);
+  font-weight: 800;
+  color: #665745;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .site-account-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .page-hero,
@@ -528,9 +545,11 @@ a {
   border: 1px solid #d7c4aa;
   background: #fff7eb;
   border-radius: 999px;
-  padding: 10px 16px;
+  min-height: 42px;
+  padding: 8px 14px;
   cursor: pointer;
-  font-weight: 600;
+  font-size: 0.96rem;
+  font-weight: 700;
 }
 
 .profile-btn:focus-visible,
@@ -540,8 +559,8 @@ a {
 }
 
 .logout-icon-btn {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -975,11 +994,95 @@ a {
   gap: 8px;
 }
 
+.toolbox-card {
+  border: 1px solid #e5d8c4;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fff9ef 0%, #fffdf8 100%);
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.toolbox-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-family: var(--font-fredoka), "Avenir Next", "Trebuchet MS", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #6b5b44;
+}
+
 .categories-toolbar-actions {
   display: flex;
   justify-content: flex-start;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.toolbox-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border: 1px solid #dcccb4;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #fffefc;
+  color: #4b3d2f;
+  cursor: pointer;
+}
+
+.toolbox-toggle-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.toolbox-toggle-track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #d9d0c3;
+  border: 1px solid #c7bbac;
+  transition: background-color 0.15s ease;
+}
+
+.toolbox-toggle-thumb {
+  position: absolute;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #c7bbac;
+  transition: transform 0.15s ease;
+}
+
+.toolbox-toggle-input:checked + .toolbox-toggle-track {
+  background: #a6c8a0;
+  border-color: #88b281;
+}
+
+.toolbox-toggle-input:checked + .toolbox-toggle-track .toolbox-toggle-thumb {
+  transform: translateX(18px);
+  border-color: #88b281;
+}
+
+.toolbox-toggle-input:focus-visible + .toolbox-toggle-track {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.toolbox-toggle-text {
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .search-trigger-btn {
@@ -1031,6 +1134,16 @@ a {
   border-radius: 999px;
   background: #fff;
   padding: 3px 8px;
+}
+
+.categories-empty-state {
+  border: 1px dashed #deceb6;
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+  background: #fff8ef;
+  color: #6d6255;
+  font-weight: 700;
 }
 
 .food-search-overlay {
@@ -1452,18 +1565,22 @@ a {
     flex-shrink: 0;
   }
 
+  .site-nav-context {
+    display: none;
+  }
+
   .site-brand {
     justify-content: flex-start;
     flex: 0 0 auto;
   }
 
   .site-logo {
-    width: 75px;
-    height: 75px;
+    width: 68px;
+    height: 68px;
   }
 
   .site-brand-text {
-    font-size: 1.08rem;
+    font-size: 1rem;
   }
 
   .site-nav-links {
@@ -1474,10 +1591,11 @@ a {
   }
 
   .site-nav-link {
-    min-width: 94px;
+    min-width: 90px;
     width: auto;
-    padding: 8px 14px;
-    font-size: 0.9rem;
+    min-height: 38px;
+    padding: 7px 12px;
+    font-size: 0.86rem;
     white-space: nowrap;
   }
 
@@ -1494,14 +1612,15 @@ a {
 
   .profile-btn {
     width: auto;
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    min-height: 38px;
+    padding: 7px 10px;
+    font-size: 0.86rem;
     white-space: nowrap;
   }
 
   .logout-icon-btn {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     flex: 0 0 auto;
   }
 
@@ -1557,6 +1676,12 @@ a {
   .categories-toolbar-actions {
     width: 100%;
     flex-direction: column;
+  }
+
+  .toolbox-toggle {
+    width: 100%;
+    justify-content: space-between;
+    border-radius: 16px;
   }
 
   .search-trigger-btn {

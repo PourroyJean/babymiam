@@ -88,22 +88,25 @@ test.describe("profile and share", () => {
   });
 
   test("shares recap through clipboard and stores growth events", async ({ appPage, db }) => {
-    await db.upsertFoodProgressByName("Épinard", {
-      exposureCount: 1,
-      preference: 1,
-      firstTastedOn: "2025-01-10",
-      note: ""
-    });
-    await db.upsertFoodProgressByName("Carotte", {
-      exposureCount: 1,
-      preference: 1,
-      note: ""
-    });
-    await db.upsertFoodProgressByName("Banane", {
-      exposureCount: 1,
-      preference: 0,
-      note: ""
-    });
+    await db.setFoodTastingsByName(
+      "Épinard",
+      [
+        { slot: 1, liked: true, tastedOn: "2025-01-10" },
+        { slot: 2, liked: true, tastedOn: "2025-01-11" },
+        { slot: 3, liked: false, tastedOn: "2025-01-12" }
+      ],
+      { finalPreference: 1 }
+    );
+    await db.setFoodTastingsByName(
+      "Carotte",
+      [
+        { slot: 1, liked: true, tastedOn: "2025-01-05" },
+        { slot: 2, liked: true, tastedOn: "2025-01-06" },
+        { slot: 3, liked: true, tastedOn: "2025-01-07" }
+      ],
+      { finalPreference: 1 }
+    );
+    await db.setFoodTastingsByName("Banane", [{ slot: 1, liked: true, tastedOn: "2025-01-09" }]);
 
     await setupClipboardMock(appPage);
     await appPage.reload();
@@ -140,6 +143,28 @@ test.describe("profile and share", () => {
         return String(latest?.metadata?.shareId || "");
       })
       .toMatch(/^[a-zA-Z0-9_-]{8,80}$/);
+
+    await expect
+      .poll(async () => {
+        const events = await db.getGrowthEvents("share_success");
+        const latest = events[events.length - 1];
+        const shareId = String(latest?.metadata?.shareId || "");
+        if (!shareId) return null;
+
+        const snapshot = await db.queryOne<{ introduced_count: number; liked_count: number }>(
+          `
+            SELECT introduced_count, liked_count
+            FROM share_snapshots
+            WHERE share_id = $1
+            LIMIT 1;
+          `,
+          [shareId]
+        );
+
+        if (!snapshot) return null;
+        return `${snapshot.introduced_count}|${snapshot.liked_count}`;
+      })
+      .toBe("3|2");
   });
 
   test("shares unlocked milestone and tracks dedicated milestone events", async ({ appPage, db }) => {

@@ -42,72 +42,34 @@ CREATE TABLE IF NOT EXISTS foods (
 CREATE INDEX IF NOT EXISTS idx_foods_category_sort_order
   ON foods(category_id, sort_order);
 
-CREATE TABLE IF NOT EXISTS food_progress (
+DROP TABLE IF EXISTS food_tastings;
+DROP TABLE IF EXISTS food_progress;
+
+CREATE TABLE food_progress (
   owner_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   food_id INTEGER NOT NULL REFERENCES foods(id) ON DELETE CASCADE,
-  exposure_count INTEGER NOT NULL DEFAULT 0 CHECK (exposure_count BETWEEN 0 AND 3),
-  preference SMALLINT NOT NULL DEFAULT 0 CHECK (preference BETWEEN -1 AND 1),
-  first_tasted_on DATE,
+  final_preference SMALLINT NOT NULL DEFAULT 0 CHECK (final_preference BETWEEN -1 AND 1),
   note TEXT NOT NULL DEFAULT '',
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY(owner_id, food_id)
 );
 
-ALTER TABLE food_progress
-  ADD COLUMN IF NOT EXISTS owner_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-  ADD COLUMN IF NOT EXISTS food_id INTEGER REFERENCES foods(id) ON DELETE CASCADE,
-  ADD COLUMN IF NOT EXISTS exposure_count INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS preference SMALLINT NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS first_tasted_on DATE,
-  ADD COLUMN IF NOT EXISTS note TEXT NOT NULL DEFAULT '',
-  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-
-DO $$
-DECLARE
-  pkey_name TEXT;
-  pkey_def TEXT;
-BEGIN
-  SELECT conname, pg_get_constraintdef(oid)
-  INTO pkey_name, pkey_def
-  FROM pg_constraint
-  WHERE conrelid = 'food_progress'::regclass
-    AND contype = 'p';
-
-  IF pkey_name IS NOT NULL
-    AND pkey_def NOT ILIKE '%(owner_id, food_id)%'
-    AND NOT EXISTS (SELECT 1 FROM food_progress WHERE owner_id IS NULL)
-  THEN
-    EXECUTE format('ALTER TABLE food_progress DROP CONSTRAINT %I', pkey_name);
-    ALTER TABLE food_progress ADD PRIMARY KEY(owner_id, food_id);
-  END IF;
-
-  IF pkey_name IS NULL
-    AND NOT EXISTS (SELECT 1 FROM food_progress WHERE owner_id IS NULL)
-  THEN
-    ALTER TABLE food_progress ADD PRIMARY KEY(owner_id, food_id);
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'food_progress'
-      AND column_name = 'owner_id'
-      AND is_nullable = 'YES'
-  ) AND NOT EXISTS (SELECT 1 FROM food_progress WHERE owner_id IS NULL)
-  THEN
-    ALTER TABLE food_progress ALTER COLUMN owner_id SET NOT NULL;
-  END IF;
-END $$;
-
-CREATE INDEX IF NOT EXISTS idx_food_progress_updated_at
-  ON food_progress(updated_at);
-
-CREATE INDEX IF NOT EXISTS idx_food_progress_owner_updated_at
+CREATE INDEX idx_food_progress_owner_updated_at
   ON food_progress(owner_id, updated_at DESC);
+
+CREATE TABLE food_tastings (
+  owner_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  food_id INTEGER NOT NULL REFERENCES foods(id) ON DELETE CASCADE,
+  slot SMALLINT NOT NULL CHECK (slot BETWEEN 1 AND 3),
+  liked BOOLEAN NOT NULL,
+  tasted_on DATE NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY(owner_id, food_id, slot)
+);
+
+CREATE INDEX idx_food_tastings_owner_updated_at
+  ON food_tastings(owner_id, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS child_profiles (
   owner_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,

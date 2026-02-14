@@ -8,6 +8,8 @@ import {
   queryMany,
   queryOne,
   resetMutableTables,
+  setFinalPreferenceByName,
+  setFoodTastingsByName,
   setIntroducedFoods,
   upsertFoodProgressByName
 } from "../helpers/db";
@@ -22,6 +24,8 @@ type DbFixture = {
   getDefaultOwnerId: typeof getDefaultOwnerId;
   getFoodProgressByName: typeof getFoodProgressByName;
   upsertFoodProgressByName: typeof upsertFoodProgressByName;
+  setFoodTastingsByName: typeof setFoodTastingsByName;
+  setFinalPreferenceByName: typeof setFinalPreferenceByName;
   setIntroducedFoods: typeof setIntroducedFoods;
   createShareSnapshot: typeof createShareSnapshot;
   getGrowthEvents: typeof getGrowthEvents;
@@ -46,6 +50,8 @@ export const test = base.extend<E2EFixtures & AutoFixtures>({
       getDefaultOwnerId,
       getFoodProgressByName,
       upsertFoodProgressByName,
+      setFoodTastingsByName,
+      setFinalPreferenceByName,
       setIntroducedFoods,
       createShareSnapshot,
       getGrowthEvents

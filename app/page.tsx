@@ -28,8 +28,8 @@ function getUpdatedTimestamp(updatedAt: string | null) {
 
 function buildProgressSummary(categories: DashboardCategory[]): ProgressSummary {
   const foods = categories.flatMap((category) => category.foods);
-  const introducedCount = foods.filter((food) => food.exposureCount > 0 || Boolean(food.firstTastedOn)).length;
-  const likedCount = foods.filter((food) => food.preference === 1).length;
+  const introducedCount = foods.filter((food) => food.tastingCount > 0).length;
+  const likedCount = foods.filter((food) => food.finalPreference === 1).length;
   const recentFoodNames = foods
     .filter((food) => food.updatedAt)
     .sort((a, b) => getUpdatedTimestamp(b.updatedAt) - getUpdatedTimestamp(a.updatedAt))
@@ -59,15 +59,16 @@ export default async function DashboardPage() {
   }
 
   const progressSummary = buildProgressSummary(categories);
+  const dashboardTitle = `Les premiers aliments de ${childProfile?.firstName ?? "bébé"}`;
 
   return (
     <main className="dashboard-page">
-      <SiteNav activePage="suivi" childProfile={childProfile} progressSummary={progressSummary} />
-
-      <section className="page-hero">
-        <h1>Les premiers aliments de {childProfile?.firstName ?? "bébé"}</h1>
-        <p>Suivi de la diversification alimentaire</p>
-      </section>
+      <SiteNav
+        activePage="suivi"
+        childProfile={childProfile}
+        progressSummary={progressSummary}
+        contextTitle={dashboardTitle}
+      />
 
       {dbError ? (
         <section className="db-warning">
@@ -82,7 +83,11 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      <CategoriesGrid categories={categories} toneByCategory={toneByCategory} />
+      <CategoriesGrid
+        categories={categories}
+        toneByCategory={toneByCategory}
+        childFirstName={childProfile?.firstName ?? null}
+      />
     </main>
   );
 }

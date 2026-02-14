@@ -7,6 +7,10 @@ const DEFAULT_E2E_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/ba
 const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "parent@example.com").toLowerCase();
 const DEFAULT_E2E_AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 
+function getTodayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 type FixtureCategory = {
   name: string;
   foods: string[];
@@ -183,7 +187,7 @@ export async function getDefaultOwnerId() {
 
 export async function resetMutableTables() {
   await queryMany(
-    "TRUNCATE TABLE food_progress, child_profiles, growth_events, share_snapshots, password_reset_tokens, auth_login_attempts RESTART IDENTITY;"
+    "TRUNCATE TABLE food_tastings, food_progress, child_profiles, growth_events, share_snapshots, password_reset_tokens, auth_login_attempts RESTART IDENTITY;"
   );
 }
 
@@ -247,6 +251,10 @@ export type FoodProgressState = {
   ownerId: number;
   foodId: number;
   foodName: string;
+  tastings: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string }>;
+  tastingCount: number;
+  finalPreference: -1 | 0 | 1;
+  // Compatibility aliases used by legacy tests.
   exposureCount: number;
   preference: -1 | 0 | 1;
   firstTastedOn: string | null;
@@ -261,26 +269,52 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
     owner_id: number;
     food_id: number;
     food_name: string;
-    exposure_count: number | null;
-    preference: number | null;
-    first_tasted_on: string | null;
+    tastings: unknown;
+    tasting_count: number;
+    final_preference: number | null;
     note: string | null;
     updated_at: string | null;
   }>(
     `
+      WITH tasting_agg AS (
+        SELECT
+          owner_id,
+          food_id,
+          COUNT(*)::int AS tasting_count,
+          jsonb_agg(
+            jsonb_build_object(
+              'slot', slot,
+              'liked', liked,
+              'tastedOn', tasted_on::text
+            )
+            ORDER BY slot
+          ) AS tastings,
+          MAX(updated_at) AS last_tasting_update
+        FROM food_tastings
+        WHERE owner_id = $2
+        GROUP BY owner_id, food_id
+      )
       SELECT
-        p.owner_id,
+        COALESCE(p.owner_id, t.owner_id, $2::bigint) AS owner_id,
         f.id AS food_id,
         f.name AS food_name,
-        p.exposure_count,
-        p.preference,
-        CASE WHEN p.first_tasted_on IS NULL THEN NULL ELSE p.first_tasted_on::text END AS first_tasted_on,
-        p.note,
-        CASE WHEN p.updated_at IS NULL THEN NULL ELSE p.updated_at::text END AS updated_at
+        COALESCE(t.tastings, '[]'::jsonb) AS tastings,
+        COALESCE(t.tasting_count, 0) AS tasting_count,
+        COALESCE(p.final_preference, 0) AS final_preference,
+        COALESCE(p.note, '') AS note,
+        CASE
+          WHEN p.updated_at IS NULL AND t.last_tasting_update IS NULL THEN NULL
+          WHEN p.updated_at IS NULL THEN t.last_tasting_update::text
+          WHEN t.last_tasting_update IS NULL THEN p.updated_at::text
+          ELSE GREATEST(p.updated_at, t.last_tasting_update)::text
+        END AS updated_at
       FROM foods f
       LEFT JOIN food_progress p
         ON p.food_id = f.id
        AND p.owner_id = $2
+      LEFT JOIN tasting_agg t
+        ON t.food_id = f.id
+       AND t.owner_id = $2
       WHERE f.name = $1;
     `,
     [foodName, resolvedOwnerId]
@@ -288,13 +322,41 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
 
   if (!row) return null;
 
+  const tastings = Array.isArray(row.tastings)
+    ? row.tastings
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const slot = Number((item as { slot?: unknown }).slot);
+          const liked = (item as { liked?: unknown }).liked;
+          const tastedOn = String((item as { tastedOn?: unknown }).tastedOn || "");
+
+          if (![1, 2, 3].includes(slot)) return null;
+          if (typeof liked !== "boolean") return null;
+          if (!tastedOn) return null;
+
+          return {
+            slot: slot as 1 | 2 | 3,
+            liked,
+            tastedOn
+          };
+        })
+        .filter((entry): entry is { slot: 1 | 2 | 3; liked: boolean; tastedOn: string } => entry !== null)
+    : [];
+
+  const tastingCount = Number(row.tasting_count ?? tastings.length);
+  const firstTastedOn = tastings.find((entry) => entry.slot === 1)?.tastedOn ?? null;
+  const finalPreference = Number(row.final_preference ?? 0) as -1 | 0 | 1;
+
   return {
     ownerId: Number(row.owner_id || resolvedOwnerId),
     foodId: Number(row.food_id),
     foodName: row.food_name,
-    exposureCount: Number(row.exposure_count ?? 0),
-    preference: Number(row.preference ?? 0) as -1 | 0 | 1,
-    firstTastedOn: row.first_tasted_on,
+    tastings,
+    tastingCount,
+    finalPreference,
+    exposureCount: tastingCount,
+    preference: finalPreference,
+    firstTastedOn,
     note: row.note ?? "",
     updatedAt: row.updated_at
   };
@@ -316,25 +378,170 @@ export async function upsertFoodProgressByName(
     throw new Error(`Aliment introuvable dans la fixture: ${foodName}`);
   }
 
-  const exposureCount = data.exposureCount ?? existing.exposureCount;
-  const preference = data.preference ?? existing.preference;
-  const firstTastedOn =
-    data.firstTastedOn === undefined ? existing.firstTastedOn : data.firstTastedOn;
+  const normalizeCount = (value: number) => Math.max(0, Math.min(3, Math.trunc(value)));
+  const existingBySlot = new Map(existing.tastings.map((entry) => [entry.slot, entry]));
+  const targetCount = normalizeCount(data.exposureCount ?? existing.tastingCount);
+
+  const targetTastings: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string }> = [];
+  for (let slot = 1; slot <= targetCount; slot += 1) {
+    const normalizedSlot = slot as 1 | 2 | 3;
+    const current = existingBySlot.get(normalizedSlot);
+    targetTastings.push(
+      current || {
+        slot: normalizedSlot,
+        liked: false,
+        tastedOn: getTodayIsoDate()
+      }
+    );
+  }
+
+  if (data.firstTastedOn && targetTastings.length > 0) {
+    targetTastings[0] = {
+      ...targetTastings[0],
+      tastedOn: data.firstTastedOn
+    };
+  }
+
+  const preferredFinalPreference = data.preference ?? existing.finalPreference;
+  const finalPreference = targetTastings.length === 3 ? preferredFinalPreference : 0;
   const note = data.note ?? existing.note;
+
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+
+    await client.query(
+      `
+        INSERT INTO food_progress (owner_id, food_id, final_preference, note, updated_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (owner_id, food_id)
+        DO UPDATE SET
+          final_preference = EXCLUDED.final_preference,
+          note = EXCLUDED.note,
+          updated_at = NOW();
+      `,
+      [resolvedOwnerId, existing.foodId, finalPreference, note]
+    );
+
+    await client.query(
+      `
+        DELETE FROM food_tastings
+        WHERE owner_id = $1
+          AND food_id = $2;
+      `,
+      [resolvedOwnerId, existing.foodId]
+    );
+
+    for (const entry of targetTastings) {
+      await client.query(
+        `
+          INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, updated_at)
+          VALUES ($1, $2, $3, $4, $5, NOW());
+        `,
+        [resolvedOwnerId, existing.foodId, entry.slot, entry.liked, entry.tastedOn]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function setFoodTastingsByName(
+  foodName: string,
+  tastings: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string }>,
+  options: {
+    ownerId?: number;
+    finalPreference?: -1 | 0 | 1;
+    note?: string;
+  } = {}
+) {
+  const resolvedOwnerId = options.ownerId ?? (await getDefaultOwnerId());
+  const existing = await getFoodProgressByName(foodName, resolvedOwnerId);
+  if (!existing) {
+    throw new Error(`Aliment introuvable dans la fixture: ${foodName}`);
+  }
+
+  const normalized = [...tastings]
+    .filter((entry) => [1, 2, 3].includes(entry.slot))
+    .sort((a, b) => a.slot - b.slot)
+    .slice(0, 3)
+    .map((entry) => ({
+      slot: entry.slot,
+      liked: Boolean(entry.liked),
+      tastedOn: entry.tastedOn
+    }));
+
+  const finalPreference =
+    normalized.length === 3 ? (options.finalPreference ?? existing.finalPreference) : 0;
+  const note = options.note ?? existing.note;
+
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+
+    await client.query(
+      `
+        INSERT INTO food_progress (owner_id, food_id, final_preference, note, updated_at)
+        VALUES ($1, $2, $3, $4, NOW())
+        ON CONFLICT (owner_id, food_id)
+        DO UPDATE SET
+          final_preference = EXCLUDED.final_preference,
+          note = EXCLUDED.note,
+          updated_at = NOW();
+      `,
+      [resolvedOwnerId, existing.foodId, finalPreference, note]
+    );
+
+    await client.query(
+      `
+        DELETE FROM food_tastings
+        WHERE owner_id = $1
+          AND food_id = $2;
+      `,
+      [resolvedOwnerId, existing.foodId]
+    );
+
+    for (const entry of normalized) {
+      await client.query(
+        `
+          INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, updated_at)
+          VALUES ($1, $2, $3, $4, $5, NOW());
+        `,
+        [resolvedOwnerId, existing.foodId, entry.slot, entry.liked, entry.tastedOn]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function setFinalPreferenceByName(foodName: string, finalPreference: -1 | 0 | 1, ownerId?: number) {
+  const resolvedOwnerId = ownerId ?? (await getDefaultOwnerId());
+  const existing = await getFoodProgressByName(foodName, resolvedOwnerId);
+  if (!existing) {
+    throw new Error(`Aliment introuvable dans la fixture: ${foodName}`);
+  }
 
   await queryMany(
     `
-      INSERT INTO food_progress (owner_id, food_id, exposure_count, preference, first_tasted_on, note, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      INSERT INTO food_progress (owner_id, food_id, final_preference, note, updated_at)
+      VALUES ($1, $2, $3, $4, NOW())
       ON CONFLICT (owner_id, food_id)
       DO UPDATE SET
-        exposure_count = EXCLUDED.exposure_count,
-        preference = EXCLUDED.preference,
-        first_tasted_on = EXCLUDED.first_tasted_on,
-        note = EXCLUDED.note,
+        final_preference = EXCLUDED.final_preference,
         updated_at = NOW();
     `,
-    [resolvedOwnerId, existing.foodId, exposureCount, preference, firstTastedOn, note]
+    [resolvedOwnerId, existing.foodId, finalPreference, existing.note]
   );
 }
 
@@ -345,11 +552,22 @@ export async function setIntroducedFoods(count: number, ownerId?: number) {
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
+    await client.query("DELETE FROM food_tastings WHERE owner_id = $1;", [resolvedOwnerId]);
     await client.query("DELETE FROM food_progress WHERE owner_id = $1;", [resolvedOwnerId]);
     await client.query(
       `
-        INSERT INTO food_progress (owner_id, food_id, exposure_count, preference, note, updated_at)
-        SELECT $1, id, 1, 0, '', NOW()
+        INSERT INTO food_progress (owner_id, food_id, final_preference, note, updated_at)
+        SELECT $1, id, 0, '', NOW()
+        FROM foods
+        ORDER BY id
+        LIMIT $2;
+      `,
+      [resolvedOwnerId, normalizedCount]
+    );
+    await client.query(
+      `
+        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, updated_at)
+        SELECT $1, id, 1, false, CURRENT_DATE, NOW()
         FROM foods
         ORDER BY id
         LIMIT $2;
