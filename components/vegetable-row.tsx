@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { setExposureAction } from "@/app/actions";
+import { markFirstTasteAction, setExposureAction } from "@/app/actions";
 import { FoodMeta } from "@/components/food-meta";
 
 type PreferenceValue = -1 | 0 | 1;
@@ -61,6 +61,7 @@ export function VegetableRow({
   const currentPreferenceLabel = getPreferenceLabel(preference);
   const nextPreference = getNextPreference(preference);
   const nextPreferenceLabel = getPreferenceLabel(nextPreference);
+  const hasExposure = exposureCount > 0;
 
   return (
     <li className="w-full rounded-2xl bg-white/75 px-2.5 py-2 sm:px-3">
@@ -74,37 +75,60 @@ export function VegetableRow({
           aria-label={`Actions pour ${name}`}
           className="flex flex-wrap items-center justify-start gap-1 sm:justify-end sm:gap-1.5"
         >
-          <div role="group" aria-label={`Niveau d'exposition pour ${name}`} className="flex items-center gap-1 sm:gap-1.5">
-            {[1, 2, 3].map((value) => {
-              const isActive = exposureCount >= value;
-              const isSelected = exposureCount === value;
+          {hasExposure ? (
+            <div role="group" aria-label={`Niveau d'exposition pour ${name}`} className="flex items-center gap-1 sm:gap-1.5">
+              {[1, 2, 3].map((value) => {
+                const isActive = exposureCount >= value;
+                const isSelected = exposureCount === value;
 
-              return (
-                <form key={value} action={setExposureAction} className="inline-flex">
-                  <input type="hidden" name="foodId" value={foodId} />
-                  <button
-                    type="submit"
-                    name="value"
-                    value={value}
-                    className={ACTION_BUTTON_BASE_CLASS}
-                    aria-label={`${name} - régler la jauge à ${value} sur 3`}
-                    aria-pressed={isSelected}
-                    title={`Jauge ${value}/3`}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className={`${ACTION_VISUAL_BASE_CLASS} text-xs font-extrabold leading-none ${
-                        isActive ? "text-white" : "border-[#b9ac9b] text-[#7a6f62]"
-                      }`}
-                      style={isActive ? { borderColor: "var(--tone-dot-border)", backgroundColor: "var(--tone-dot)" } : undefined}
+                return (
+                  <form key={value} action={setExposureAction} className="inline-flex">
+                    <input type="hidden" name="foodId" value={foodId} />
+                    <button
+                      type="submit"
+                      name="value"
+                      value={value}
+                      className={ACTION_BUTTON_BASE_CLASS}
+                      aria-label={`${name} - régler la jauge à ${value} sur 3`}
+                      aria-pressed={isSelected}
+                      title={`Jauge ${value}/3`}
                     >
-                      {value}
-                    </span>
-                  </button>
-                </form>
-              );
-            })}
-          </div>
+                      <span
+                        aria-hidden="true"
+                        className={`${ACTION_VISUAL_BASE_CLASS} text-xs font-extrabold leading-none ${
+                          isActive ? "text-white" : "border-[#b9ac9b] text-[#7a6f62]"
+                        }`}
+                        style={isActive ? { borderColor: "var(--tone-dot-border)", backgroundColor: "var(--tone-dot)" } : undefined}
+                      >
+                        {value}
+                      </span>
+                    </button>
+                  </form>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {!hasExposure ? (
+            <div className="flex w-[140px] items-center sm:w-[144px]">
+              <form action={markFirstTasteAction} className="inline-flex w-full">
+                <input type="hidden" name="foodId" value={foodId} />
+                <button
+                  type="submit"
+                  className={`${ACTION_BUTTON_BASE_CLASS} h-11 w-full min-w-0 rounded-full px-0 py-0`}
+                  aria-label={`Marquer ${name} en première bouchée`}
+                  title="Première bouchée (jauge 1/3)"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none inline-flex h-9 w-full items-center justify-center rounded-full border-2 border-[#d8a755] bg-[#ffefcb] px-2.5 py-1 text-[0.68rem] font-extrabold leading-none text-[#714f17] whitespace-nowrap"
+                  >
+                    Première bouchée
+                  </span>
+                </button>
+              </form>
+            </div>
+          ) : null}
 
           <button
             type="button"

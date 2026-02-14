@@ -97,6 +97,10 @@ export async function upsertExposure(ownerId: number, foodId: number, exposureCo
           WHEN food_progress.exposure_count = EXCLUDED.exposure_count THEN 0
           ELSE EXCLUDED.exposure_count
         END,
+        first_tasted_on = CASE
+          WHEN food_progress.exposure_count = EXCLUDED.exposure_count THEN NULL
+          ELSE food_progress.first_tasted_on
+        END,
         updated_at = NOW();
     `,
     [ownerId, foodId, exposureCount]
@@ -125,6 +129,21 @@ export async function upsertFirstTastedOn(ownerId: number, foodId: number, first
       ON CONFLICT (owner_id, food_id)
       DO UPDATE SET
         first_tasted_on = EXCLUDED.first_tasted_on,
+        updated_at = NOW();
+    `,
+    [ownerId, foodId, firstTastedOn]
+  );
+}
+
+export async function markFirstTaste(ownerId: number, foodId: number, firstTastedOn: string) {
+  await query(
+    `
+      INSERT INTO food_progress (owner_id, food_id, exposure_count, first_tasted_on)
+      VALUES ($1, $2, 1, $3)
+      ON CONFLICT (owner_id, food_id)
+      DO UPDATE SET
+        exposure_count = GREATEST(food_progress.exposure_count, 1),
+        first_tasted_on = COALESCE(food_progress.first_tasted_on, EXCLUDED.first_tasted_on),
         updated_at = NOW();
     `,
     [ownerId, foodId, firstTastedOn]

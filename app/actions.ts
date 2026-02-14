@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { clearSession, requireAuth } from "@/lib/auth";
 import {
   createGrowthEvent,
+  markFirstTaste,
   upsertChildProfile,
   upsertExposure,
   upsertFirstTastedOn,
@@ -90,6 +91,16 @@ export async function setFirstTastedOnAction(formData: FormData) {
   if (firstTastedOn && !isValidIsoDate(firstTastedOn)) return;
 
   await upsertFirstTastedOn(user.id, foodId, firstTastedOn);
+  revalidatePath("/");
+}
+
+export async function markFirstTasteAction(formData: FormData) {
+  const user = await requireAuth();
+
+  const foodId = Number(formData.get("foodId"));
+  if (!Number.isFinite(foodId)) return;
+
+  await markFirstTaste(user.id, foodId, getTodayIsoDate());
   revalidatePath("/");
 }
 

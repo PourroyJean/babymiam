@@ -50,6 +50,12 @@ Si `POSTGRES_URL` n'est pas défini, l'app utilise `postgres://postgres:postgres
 - `npm run users:create -- --email <email> --password <password>`
 - `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` (migration des données legacy `owner_key` -> `owner_id`)
 
+## Ajout manuel d'un user (a la mano)
+Si la base locale vient d'un ancien schema, lance d'abord `npm run db:migrate` puis `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy`.
+Cree ensuite le compte avec `npm run users:create -- --email <email> --password <password>`.
+Connecte-toi avec l'email du compte cree (pas `AUTH_USER`).
+Redemarre enfin `npm run dev` avec la meme base locale (`POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam`).
+
 ## Tests E2E (Playwright)
 Variables de test supportées:
 - `E2E_POSTGRES_URL` (défaut: `postgres://postgres:postgres@localhost:5432/babymiam_e2e`)
