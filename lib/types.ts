@@ -34,6 +34,16 @@ export type ProgressSummary = {
   recentFoodNames: string[];
 };
 
+export type FoodTimelineEntry = {
+  foodId: number;
+  foodName: string;
+  categoryName: string;
+  slot: 1 | 2 | 3;
+  tastedOn: string;
+  preference: -1 | 0 | 1;
+  note: string;
+};
+
 export type PublicShareSnapshot = {
   shareId: string;
   ownerId: number;

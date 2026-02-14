@@ -1,24 +1,9 @@
 import { requireAuth } from "@/lib/auth";
-import { getChildProfile, getDashboardData } from "@/lib/data";
+import { CATEGORY_TONE_BY_NAME } from "@/lib/category-ui";
+import { getChildProfile, getDashboardData, getFoodTimeline } from "@/lib/data";
 import { CategoriesGrid } from "@/components/categories-grid";
 import { SiteNav } from "@/components/site-nav";
-import type { DashboardCategory, ProgressSummary } from "@/lib/types";
-
-const toneByCategory: Record<string, string> = {
-  "Légumes": "tone-vegetables",
-  "Fruits": "tone-fruits",
-  "Féculents": "tone-starch",
-  "Protéines": "tone-proteins",
-  "Légumineuses": "tone-legumes",
-  "Produits laitiers": "tone-dairy",
-  "Allergènes majeurs": "tone-allergens",
-  "Épices": "tone-spices",
-  "Oléagineux et huiles": "tone-oils",
-  "Herbes et aromates": "tone-herbs",
-  "Sucreries": "tone-sweets",
-  "Condiments": "tone-condiments",
-  "Autres": "tone-other"
-};
+import type { DashboardCategory, FoodTimelineEntry, ProgressSummary } from "@/lib/types";
 
 function getUpdatedTimestamp(updatedAt: string | null) {
   if (!updatedAt) return 0;
@@ -49,13 +34,16 @@ export default async function DashboardPage() {
   let childProfile: Awaited<ReturnType<typeof getChildProfile>> = null;
 
   let categories: Awaited<ReturnType<typeof getDashboardData>> = [];
+  let timelineEntries: FoodTimelineEntry[] = [];
   let dbError: string | null = null;
   try {
     childProfile = await getChildProfile(user.id);
     categories = await getDashboardData(user.id);
+    timelineEntries = await getFoodTimeline(user.id);
   } catch (error) {
     dbError = error instanceof Error ? error.message : "Erreur inconnue de connexion à la base.";
     categories = [];
+    timelineEntries = [];
   }
 
   const progressSummary = buildProgressSummary(categories);
@@ -85,8 +73,9 @@ export default async function DashboardPage() {
 
       <CategoriesGrid
         categories={categories}
-        toneByCategory={toneByCategory}
+        toneByCategory={CATEGORY_TONE_BY_NAME}
         childFirstName={childProfile?.firstName ?? null}
+        timelineEntries={timelineEntries}
       />
     </main>
   );

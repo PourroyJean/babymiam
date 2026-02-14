@@ -1,5 +1,11 @@
 import { getPool, query } from "@/lib/db";
-import type { ChildProfile, DashboardCategory, FoodTastingEntry, PublicShareSnapshot } from "@/lib/types";
+import type {
+  ChildProfile,
+  DashboardCategory,
+  FoodTastingEntry,
+  FoodTimelineEntry,
+  PublicShareSnapshot
+} from "@/lib/types";
 
 export type EventVisibility = "private" | "public";
 
@@ -136,6 +142,63 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
   }
 
   return [...categoryMap.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntry[]> {
+  const result = await query<{
+    food_id: number;
+    food_name: string;
+    category_name: string;
+    slot: number;
+    tasted_on: string;
+    preference: number;
+    note: string | null;
+    category_sort_order: number;
+    food_sort_order: number;
+  }>(
+    `
+      SELECT
+        t.food_id,
+        f.name AS food_name,
+        c.name AS category_name,
+        t.slot,
+        t.tasted_on::text AS tasted_on,
+        COALESCE(p.final_preference, 0) AS preference,
+        COALESCE(p.note, '') AS note,
+        c.sort_order AS category_sort_order,
+        f.sort_order AS food_sort_order
+      FROM food_tastings t
+      INNER JOIN foods f ON f.id = t.food_id
+      INNER JOIN categories c ON c.id = f.category_id
+      LEFT JOIN food_progress p
+        ON p.owner_id = t.owner_id
+       AND p.food_id = t.food_id
+      WHERE t.owner_id = $1
+      ORDER BY
+        t.tasted_on DESC,
+        c.sort_order ASC,
+        f.sort_order ASC,
+        t.slot ASC;
+    `,
+    [ownerId]
+  );
+
+  return result.rows
+    .map((row) => {
+      const slot = Number(row.slot);
+      if (![1, 2, 3].includes(slot)) return null;
+
+      return {
+        foodId: Number(row.food_id),
+        foodName: row.food_name,
+        categoryName: row.category_name,
+        slot: slot as 1 | 2 | 3,
+        tastedOn: row.tasted_on,
+        preference: Number(row.preference || 0) as -1 | 0 | 1,
+        note: row.note ?? ""
+      };
+    })
+    .filter((entry): entry is FoodTimelineEntry => entry !== null);
 }
 
 async function ensureFoodProgressRow(ownerId: number, foodId: number) {
