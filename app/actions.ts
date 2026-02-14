@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { clearSession, requireAuth } from "@/lib/auth";
 import {
+  appendQuickEntry,
   createGrowthEvent,
   deleteFoodTastingEntry,
   upsertChildProfile,
@@ -32,7 +33,10 @@ function isValidIsoDate(value: string) {
 }
 
 function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 function getNonNegativeInteger(formData: FormData, key: string) {
@@ -131,6 +135,53 @@ export async function setNoteAction(formData: FormData) {
 
   await upsertNote(user.id, foodId, note);
   revalidatePath("/");
+}
+
+export async function addQuickEntryAction(formData: FormData) {
+  const user = await requireAuth();
+
+  const foodId = Number(formData.get("foodId"));
+  const tastedOn = String(formData.get("tastedOn") || "").trim();
+  const likedRaw = String(formData.get("liked") || "").trim().toLowerCase();
+  const note = String(formData.get("note") || "").trim();
+
+  if (!Number.isFinite(foodId)) {
+    return { ok: false, error: "Aliment invalide." };
+  }
+
+  if (!isValidIsoDate(tastedOn)) {
+    return { ok: false, error: "Date invalide." };
+  }
+
+  if (tastedOn > getTodayIsoDate()) {
+    return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
+  }
+
+  if (likedRaw !== "true" && likedRaw !== "false") {
+    return { ok: false, error: "Préférence invalide." };
+  }
+
+  const result = await appendQuickEntry(user.id, {
+    foodId,
+    tastedOn,
+    liked: likedRaw === "true",
+    note
+  });
+
+  if (result.status === "food_not_found") {
+    return { ok: false, error: "Aliment introuvable." };
+  }
+
+  if (result.status === "maxed") {
+    return { ok: false, error: "Cet aliment est déjà à 3/3." };
+  }
+
+  if (result.status === "unavailable") {
+    return { ok: false, error: "Ajout rapide indisponible pour le moment." };
+  }
+
+  revalidatePath("/");
+  return { ok: true };
 }
 
 export async function saveChildProfileAction(formData: FormData) {

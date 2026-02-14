@@ -9,6 +9,12 @@ function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function getTodayLocalIsoDate() {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
 function formatDateToFr(value: string) {
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
@@ -21,6 +27,19 @@ async function openSearchOverlay(page: Page) {
   await expect(dialog).toBeVisible();
   const searchInput = dialog.getByRole("textbox", { name: "Recherche d'aliment" });
   return { dialog, searchInput };
+}
+
+async function openQuickAddPanel(page: Page) {
+  await page.getByRole("button", { name: /Ajout rapide/i }).click();
+  const dialog = page.getByRole("dialog", { name: "Ajout rapide" });
+  await expect(dialog).toBeVisible();
+
+  const searchInput = dialog.getByRole("textbox", { name: "Rechercher un aliment" });
+  const dateInput = dialog.getByLabel("Date");
+  const noteInput = dialog.getByLabel("Note");
+  const addButton = dialog.getByRole("button", { name: "Ajouter" });
+
+  return { dialog, searchInput, dateInput, noteInput, addButton };
 }
 
 function getSlotButton(scope: Locator, foodName: string, slot: 1 | 2 | 3) {
@@ -339,5 +358,156 @@ test.describe("dashboard progression", () => {
 
     await reopenedDialog.getByRole("textbox", { name: "Recherche d'aliment" }).fill("aliment-introuvable");
     await expect(reopenedDialog.getByText("Aucun aliment trouvé.")).toBeVisible();
+  });
+
+  test("keeps overlays exclusive between Search, Timeline and Quick Add", async ({ appPage }) => {
+    await appPage.getByRole("button", { name: /Carnets de bords/i }).click();
+    await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toBeVisible();
+
+    await appPage.keyboard.press("Control+k");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
+    await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toHaveCount(0);
+
+    await appPage.keyboard.press("Escape");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
+
+    await appPage.getByRole("button", { name: /Ajout rapide/i }).click();
+    await expect(appPage.getByRole("dialog", { name: "Ajout rapide" })).toBeVisible();
+
+    await appPage.keyboard.press("Control+k");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
+    await expect(appPage.getByRole("dialog", { name: "Ajout rapide" })).toHaveCount(0);
+
+    await appPage.keyboard.press("Escape");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
+  });
+
+  test("opens quick add panel and filters foods with accent-insensitive search", async ({ appPage }) => {
+    const { dialog, searchInput } = await openQuickAddPanel(appPage);
+
+    await searchInput.fill("epinard");
+    await expect(dialog.locator(".quick-add-food-option", { hasText: "Épinard" })).toBeVisible();
+  });
+
+  test("resets quick add form fields after close and reopen", async ({ appPage }) => {
+    const todayLocalIsoDate = getTodayLocalIsoDate();
+    const { dialog, searchInput, dateInput, noteInput, addButton } = await openQuickAddPanel(appPage);
+
+    await searchInput.fill("brocoli");
+    await dialog.locator(".quick-add-food-option", { hasText: "Brocoli" }).first().click();
+    await dateInput.fill("2026-02-13");
+    await dialog.getByRole("button", { name: "Tigre KO" }).click();
+    await noteInput.fill("brouillon temporaire");
+    await expect(addButton).toBeEnabled();
+
+    await dialog.getByRole("button", { name: "Annuler" }).click();
+    await expect(dialog).toHaveCount(0);
+
+    const reopenedPanel = await openQuickAddPanel(appPage);
+    await expect(reopenedPanel.searchInput).toHaveValue("");
+    await expect(reopenedPanel.noteInput).toHaveValue("");
+    await expect(reopenedPanel.dateInput).toHaveValue(todayLocalIsoDate);
+    await expect(reopenedPanel.addButton).toBeDisabled();
+    await expect(reopenedPanel.dialog.getByText("Sélectionne un aliment existant.")).toBeVisible();
+  });
+
+  test("hides foods already at 3/3 in quick add panel", async ({ appPage, db }) => {
+    await db.setFoodTastingsByName("Épinard", [
+      { slot: 1, liked: true, tastedOn: "2025-02-10" },
+      { slot: 2, liked: false, tastedOn: "2025-02-11" },
+      { slot: 3, liked: true, tastedOn: "2025-02-12" }
+    ]);
+
+    await appPage.reload();
+
+    const { dialog, searchInput } = await openQuickAddPanel(appPage);
+    await searchInput.fill("epinard");
+    await expect(dialog.locator(".quick-add-food-option", { hasText: "Épinard" })).toHaveCount(0);
+    await expect(dialog.getByText("Aucun aliment trouvé.")).toBeVisible();
+  });
+
+  test("quick add creates the next slot, appends note, keeps panel open and preserves final preference", async ({
+    appPage,
+    db
+  }) => {
+    const foodName = "Brocoli";
+
+    await db.setFoodTastingsByName(
+      foodName,
+      [{ slot: 1, liked: true, tastedOn: "2025-01-20" }],
+      { note: "ancienne note" }
+    );
+    await db.setFinalPreferenceByName(foodName, 1);
+    await appPage.reload();
+
+    const { dialog, searchInput, dateInput, noteInput, addButton } = await openQuickAddPanel(appPage);
+    await searchInput.fill("brocoli");
+    await dialog.locator(".quick-add-food-option", { hasText: foodName }).first().click();
+    await dateInput.fill("2026-02-14");
+    await dialog.getByRole("button", { name: "Tigre KO" }).click();
+    await noteInput.fill("nouvelle note");
+    await addButton.click();
+
+    await expect(dialog).toBeVisible();
+    await expect(searchInput).toHaveValue("");
+    await expect(noteInput).toHaveValue("");
+    await expect(addButton).toBeDisabled();
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastingCount ?? -1)
+      .toBe(2);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings.map((entry) => entry.slot).join(","))
+      .toBe("1,2");
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings.find((entry) => entry.slot === 2)?.liked)
+      .toBe(false);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings.find((entry) => entry.slot === 2)?.tastedOn)
+      .toBe("2026-02-14");
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.note ?? "")
+      .toBe("ancienne note\nnouvelle note");
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.finalPreference ?? 999)
+      .toBe(1);
+  });
+
+  test("quick add returns a friendly error when food reaches 3/3 before submit", async ({ appPage, db }) => {
+    const foodName = "Épinard";
+
+    await db.setFoodTastingsByName(
+      foodName,
+      [
+        { slot: 1, liked: true, tastedOn: "2025-02-11" },
+        { slot: 2, liked: true, tastedOn: "2025-02-12" }
+      ],
+      { note: "note verrouillée" }
+    );
+    await appPage.reload();
+
+    const { dialog, searchInput, dateInput, noteInput, addButton } = await openQuickAddPanel(appPage);
+    await searchInput.fill("epinard");
+    await dialog.locator(".quick-add-food-option", { hasText: "Épinard" }).first().click();
+    await dateInput.fill("2026-02-14");
+    await dialog.getByRole("button", { name: "Tigre KO" }).click();
+    await noteInput.fill("ne doit pas passer");
+
+    await db.replaceFoodTastingsByName(foodName, [
+      { slot: 1, liked: true, tastedOn: "2025-02-11" },
+      { slot: 2, liked: true, tastedOn: "2025-02-12" },
+      { slot: 3, liked: true, tastedOn: "2025-02-13" }
+    ]);
+
+    await addButton.click();
+    await expect(dialog.getByText("Cet aliment est déjà à 3/3.")).toBeVisible();
+    await expect(dialog).toBeVisible();
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.note ?? "")
+      .toBe("note verrouillée");
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastingCount ?? -1)
+      .toBe(3);
   });
 });

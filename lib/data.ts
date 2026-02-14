@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { getPool, query } from "@/lib/db";
 import type {
   ChildProfile,
@@ -27,6 +28,167 @@ type ShareSnapshotInput = {
   visibility?: EventVisibility;
   expiresAt?: string | null;
 };
+
+type AppendQuickEntryInput = {
+  foodId: number;
+  tastedOn: string;
+  liked: boolean;
+  note: string;
+};
+
+export type AppendQuickEntryResult = {
+  status: "ok" | "maxed" | "food_not_found" | "unavailable";
+};
+
+type FoodProgressColumns = {
+  hasExposureCount: boolean;
+  hasFirstTastedOn: boolean;
+  hasNote: boolean;
+  hasUpdatedAt: boolean;
+};
+
+async function getFoodProgressColumns(client: PoolClient): Promise<FoodProgressColumns> {
+  const result = await client.query<{ column_name: string }>(
+    `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'food_progress';
+    `
+  );
+
+  const columnNames = new Set(result.rows.map((row) => row.column_name));
+  return {
+    hasExposureCount: columnNames.has("exposure_count"),
+    hasFirstTastedOn: columnNames.has("first_tasted_on"),
+    hasNote: columnNames.has("note"),
+    hasUpdatedAt: columnNames.has("updated_at")
+  };
+}
+
+export async function appendQuickEntry(ownerId: number, payload: AppendQuickEntryInput): Promise<AppendQuickEntryResult> {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const tableCheckResult = await client.query<{ exists: boolean }>(
+      "SELECT to_regclass('public.food_tastings') IS NOT NULL AS exists;"
+    );
+    if (!tableCheckResult.rows[0]?.exists) {
+      await client.query("ROLLBACK");
+      return { status: "unavailable" };
+    }
+
+    const foodCheckResult = await client.query("SELECT 1 FROM foods WHERE id = $1 LIMIT 1;", [payload.foodId]);
+    if (!foodCheckResult.rowCount) {
+      await client.query("ROLLBACK");
+      return { status: "food_not_found" };
+    }
+
+    await client.query(
+      `
+        INSERT INTO food_progress (owner_id, food_id)
+        VALUES ($1, $2)
+        ON CONFLICT (owner_id, food_id) DO NOTHING;
+      `,
+      [ownerId, payload.foodId]
+    );
+
+    await client.query("SELECT 1 FROM food_progress WHERE owner_id = $1 AND food_id = $2 FOR UPDATE;", [
+      ownerId,
+      payload.foodId
+    ]);
+
+    const existingSlotsResult = await client.query<{ slot: number }>(
+      `
+        SELECT slot
+        FROM food_tastings
+        WHERE owner_id = $1
+          AND food_id = $2
+        ORDER BY slot
+        FOR UPDATE;
+      `,
+      [ownerId, payload.foodId]
+    );
+
+    const takenSlots = new Set(existingSlotsResult.rows.map((row) => Number(row.slot)));
+    let nextSlot: number | null = null;
+    for (let slot = 1; slot <= 3; slot += 1) {
+      if (!takenSlots.has(slot)) {
+        nextSlot = slot;
+        break;
+      }
+    }
+
+    if (nextSlot === null) {
+      await client.query("ROLLBACK");
+      return { status: "maxed" };
+    }
+
+    await client.query(
+      `
+        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on)
+        VALUES ($1, $2, $3, $4, $5::date);
+      `,
+      [ownerId, payload.foodId, nextSlot, payload.liked, payload.tastedOn]
+    );
+
+    const nextExposureCount = Math.min(3, takenSlots.size + 1);
+    const progressColumns = await getFoodProgressColumns(client);
+    const updateParams: unknown[] = [ownerId, payload.foodId];
+    const setClauses: string[] = [];
+    let noteRef: string | null = null;
+    let exposureRef: string | null = null;
+    let tastedOnRef: string | null = null;
+
+    if (progressColumns.hasNote) {
+      noteRef = `$${updateParams.push(payload.note)}`;
+      setClauses.push(`
+        note = CASE
+          WHEN ${noteRef} = '' THEN food_progress.note
+          WHEN food_progress.note = '' THEN ${noteRef}
+          ELSE food_progress.note || E'\\n' || ${noteRef}
+        END
+      `);
+    }
+
+    if (progressColumns.hasExposureCount) {
+      exposureRef = `$${updateParams.push(nextExposureCount)}`;
+      setClauses.push(`exposure_count = ${exposureRef}`);
+    }
+
+    if (progressColumns.hasFirstTastedOn) {
+      tastedOnRef = `$${updateParams.push(payload.tastedOn)}`;
+      setClauses.push(`first_tasted_on = COALESCE(food_progress.first_tasted_on, ${tastedOnRef}::date)`);
+    }
+
+    if (progressColumns.hasUpdatedAt) {
+      setClauses.push("updated_at = NOW()");
+    }
+
+    if (setClauses.length > 0) {
+      await client.query(
+        `
+          UPDATE food_progress
+          SET ${setClauses.join(", ")}
+          WHERE owner_id = $1
+            AND food_id = $2;
+        `,
+        updateParams
+      );
+    }
+
+    await client.query("COMMIT");
+    return { status: "ok" };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 export async function getDashboardData(ownerId: number): Promise<DashboardCategory[]> {
   const result = await query<{

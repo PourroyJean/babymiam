@@ -7,6 +7,7 @@ import {
   getGrowthEvents,
   queryMany,
   queryOne,
+  replaceFoodTastingsByName,
   resetMutableTables,
   setFinalPreferenceByName,
   setFoodTastingsByName,
@@ -26,6 +27,7 @@ type DbFixture = {
   upsertFoodProgressByName: typeof upsertFoodProgressByName;
   setFoodTastingsByName: typeof setFoodTastingsByName;
   setFinalPreferenceByName: typeof setFinalPreferenceByName;
+  replaceFoodTastingsByName: typeof replaceFoodTastingsByName;
   setIntroducedFoods: typeof setIntroducedFoods;
   createShareSnapshot: typeof createShareSnapshot;
   getGrowthEvents: typeof getGrowthEvents;
@@ -52,6 +54,7 @@ export const test = base.extend<E2EFixtures & AutoFixtures>({
       upsertFoodProgressByName,
       setFoodTastingsByName,
       setFinalPreferenceByName,
+      replaceFoodTastingsByName,
       setIntroducedFoods,
       createShareSnapshot,
       getGrowthEvents
@@ -67,10 +70,10 @@ export const test = base.extend<E2EFixtures & AutoFixtures>({
   ],
 
   loginAsDefaultUser: async ({ page }, runFixture) => {
-      await runFixture(async () => {
-        await page.goto("/login");
-        await page.getByLabel("Email").fill(AUTH_EMAIL);
-        await page.getByLabel("Mot de passe").fill(AUTH_PASSWORD);
+    await runFixture(async () => {
+      await page.goto("/login");
+      await page.getByLabel("Email").fill(AUTH_EMAIL);
+      await page.getByLabel("Mot de passe").fill(AUTH_PASSWORD);
 
       await page.getByRole("button", { name: "Se connecter" }).click();
       await expect(page).toHaveURL(/\/$/);

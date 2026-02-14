@@ -545,6 +545,33 @@ export async function setFinalPreferenceByName(foodName: string, finalPreference
   );
 }
 
+export async function replaceFoodTastingsByName(
+  foodName: string,
+  entries: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string }>,
+  ownerId?: number
+) {
+  const resolvedOwnerId = ownerId ?? (await getDefaultOwnerId());
+  const existing = await getFoodProgressByName(foodName, resolvedOwnerId);
+  if (!existing) {
+    throw new Error(`Aliment introuvable dans la fixture: ${foodName}`);
+  }
+
+  await queryMany("DELETE FROM food_tastings WHERE owner_id = $1 AND food_id = $2;", [
+    resolvedOwnerId,
+    existing.foodId
+  ]);
+
+  for (const entry of entries) {
+    await queryMany(
+      `
+        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW());
+      `,
+      [resolvedOwnerId, existing.foodId, entry.slot, entry.liked, entry.tastedOn]
+    );
+  }
+}
+
 export async function setIntroducedFoods(count: number, ownerId?: number) {
   const resolvedOwnerId = ownerId ?? (await getDefaultOwnerId());
   const normalizedCount = Math.max(0, Math.trunc(count));

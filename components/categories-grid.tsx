@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setFinalPreferenceAction } from "@/app/actions";
+import { QuickAddPanel } from "@/components/quick-add-panel";
 import { VegetableRow } from "@/components/vegetable-row";
 import { getCategoryUi } from "@/lib/category-ui";
 import type { DashboardCategory, DashboardFood, FoodTimelineEntry } from "@/lib/types";
@@ -18,6 +19,14 @@ type SearchFood = DashboardFood & {
   categoryId: number;
   categoryName: string;
   normalizedName: string;
+};
+
+type QuickAddFood = {
+  id: number;
+  name: string;
+  categoryName: string;
+  normalizedName: string;
+  exposureCount: number;
 };
 
 type FinalPreferenceValue = -1 | 0 | 1;
@@ -155,6 +164,7 @@ export function CategoriesGrid({
   const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({});
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [showTestedOnly, setShowTestedOnly] = useState(false);
   const [finalPreferenceOverridesByFoodId, setFinalPreferenceOverridesByFoodId] = useState<
@@ -163,12 +173,14 @@ export function CategoriesGrid({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineTriggerRef = useRef<HTMLButtonElement>(null);
+  const quickAddTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineModalRef = useRef<HTMLElement>(null);
   const timelineCloseRef = useRef<HTMLButtonElement>(null);
   const wasSearchOpenRef = useRef(false);
   const finalPreferenceOverridesRef = useRef<Record<number, FinalPreferenceValue>>({});
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const wasTimelineOpenRef = useRef(false);
+  const wasQuickAddOpenRef = useRef(false);
   const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const pendingFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const inFlightFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
@@ -200,6 +212,7 @@ export function CategoriesGrid({
 
   function openSearch() {
     setIsTimelineOpen(false);
+    setIsQuickAddOpen(false);
     setIsSearchOpen(true);
   }
 
@@ -210,7 +223,19 @@ export function CategoriesGrid({
   function openTimeline() {
     setIsSearchOpen(false);
     setQuery("");
+    setIsQuickAddOpen(false);
     setIsTimelineOpen(true);
+  }
+
+  function closeQuickAdd() {
+    setIsQuickAddOpen(false);
+  }
+
+  function openQuickAdd() {
+    setIsSearchOpen(false);
+    setQuery("");
+    setIsTimelineOpen(false);
+    setIsQuickAddOpen(true);
   }
 
   const serverFinalPreferenceByFoodId = useMemo(() => {
@@ -370,6 +395,7 @@ export function CategoriesGrid({
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setIsTimelineOpen(false);
+        setIsQuickAddOpen(false);
         setIsSearchOpen(true);
         return;
       }
@@ -378,6 +404,7 @@ export function CategoriesGrid({
         setIsSearchOpen(false);
         setQuery("");
         setIsTimelineOpen(false);
+        setIsQuickAddOpen(false);
       }
     }
 
@@ -482,7 +509,19 @@ export function CategoriesGrid({
   }, [isTimelineOpen]);
 
   useEffect(() => {
-    const hasOverlayOpen = isSearchOpen || isTimelineOpen;
+    if (isQuickAddOpen) {
+      wasQuickAddOpenRef.current = true;
+      return;
+    }
+
+    if (wasQuickAddOpenRef.current) {
+      quickAddTriggerRef.current?.focus();
+      wasQuickAddOpenRef.current = false;
+    }
+  }, [isQuickAddOpen]);
+
+  useEffect(() => {
+    const hasOverlayOpen = isSearchOpen || isTimelineOpen || isQuickAddOpen;
     if (!hasOverlayOpen) return;
 
     const previousOverflow = document.body.style.overflow;
@@ -491,7 +530,7 @@ export function CategoriesGrid({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isSearchOpen, isTimelineOpen]);
+  }, [isSearchOpen, isTimelineOpen, isQuickAddOpen]);
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -560,6 +599,22 @@ export function CategoriesGrid({
       .map((entry) => entry.food);
   }, [normalizedQuery, recentFoods, searchableFoods]);
 
+  const quickAddEligibleFoods = useMemo<QuickAddFood[]>(
+    () =>
+      categories.flatMap((category) =>
+        category.foods
+          .filter((food) => food.tastingCount < 3)
+          .map((food) => ({
+            id: food.id,
+            name: food.name,
+            categoryName: category.name,
+            normalizedName: normalizeSearchValue(food.name),
+            exposureCount: food.tastingCount
+          }))
+      ),
+    [categories]
+  );
+
   const isQueryEmpty = normalizedQuery.length === 0;
   const sortedTimelineEntries = useMemo(
     () =>
@@ -616,6 +671,10 @@ export function CategoriesGrid({
 
             <button ref={timelineTriggerRef} type="button" className="timeline-trigger-btn" onClick={openTimeline}>
               <span>Carnets de bords</span>
+            </button>
+
+            <button ref={quickAddTriggerRef} type="button" className="quick-add-trigger-btn" onClick={openQuickAdd}>
+              <span>Ajout rapide</span>
             </button>
 
             <label className="toolbox-toggle">
@@ -857,6 +916,8 @@ export function CategoriesGrid({
           </section>
         </div>
       ) : null}
+
+      <QuickAddPanel isOpen={isQuickAddOpen} foods={quickAddEligibleFoods} onClose={closeQuickAdd} />
     </section>
   );
 }
