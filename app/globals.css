@@ -1139,7 +1139,7 @@ a {
   --tone-dot: #c2a768;
   --tone-dot-border: #af9455;
   --collapsed-row-count: 5;
-  --collapsed-row-height: 66px;
+  --collapsed-row-height: 63px;
   --collapsed-row-gap: 4px;
 
   background: linear-gradient(180deg, var(--tone-surface) 0%, #ffffff 55%);
@@ -1152,6 +1152,83 @@ a {
 
 .category-title {
   margin: 0 0 10px;
+}
+
+.allergen-focus-summary {
+  margin: 0 0 10px;
+  border: 1px solid #efcca5;
+  border-radius: 14px;
+  background: #fff4ea;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.allergen-focus-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.allergen-focus-stat {
+  margin: 0;
+  border: 1px solid #e8c59f;
+  border-radius: 10px;
+  background: #fff9f1;
+  padding: 6px 8px;
+  text-align: center;
+  display: grid;
+  gap: 2px;
+}
+
+.allergen-focus-stat span {
+  font-size: 0.72rem;
+  color: #7b6246;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.allergen-focus-stat strong {
+  font-size: 1rem;
+  color: #5f4323;
+  line-height: 1;
+}
+
+.allergen-stage-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d6c9b5;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.allergen-stage-pill.todo {
+  border-color: #d7c9b8;
+  background: #efeae2;
+  color: #72665a;
+}
+
+.allergen-stage-pill.step1 {
+  border-color: #e0c39f;
+  background: #ffe8cf;
+  color: #815b2f;
+}
+
+.allergen-stage-pill.step2 {
+  border-color: #d8b07d;
+  background: #ffddb0;
+  color: #724820;
+}
+
+.allergen-stage-pill.done {
+  border-color: #cc9b5f;
+  background: #ffd39b;
+  color: #673f16;
 }
 
 .category-pill {
@@ -1466,7 +1543,7 @@ a {
 
   .category-card {
     --collapsed-row-count: 3;
-    --collapsed-row-height: 92px;
+    --collapsed-row-height: 87px;
   }
 
   .categories-section,
@@ -1485,6 +1562,10 @@ a {
   .search-trigger-btn {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .allergen-focus-stats {
+    grid-template-columns: 1fr;
   }
 
   .food-search-overlay {

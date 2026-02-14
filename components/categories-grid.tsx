@@ -17,11 +17,18 @@ type SearchFood = DashboardFood & {
 };
 
 type PreferenceValue = -1 | 0 | 1;
+type AllergenStage = 0 | 1 | 2 | 3;
+type AllergenSummary = {
+  toTestCount: number;
+  inProgressCount: number;
+  consolidatedCount: number;
+};
 
 const DIACRITICS_PATTERN = /[\u0300-\u036f]/g;
 const FRENCH_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
 const RECENT_FOODS_LIMIT = 15;
 const PREFERENCE_DEBOUNCE_MS = 2000;
+const ALLERGEN_CATEGORY_NAME = "Allergènes majeurs";
 
 function normalizeSearchValue(value: string) {
   return value.normalize("NFD").replace(DIACRITICS_PATTERN, "").toLowerCase().trim();
@@ -38,6 +45,42 @@ function getUpdatedTimestamp(updatedAt: string | null) {
   if (!updatedAt) return 0;
   const parsed = Date.parse(updatedAt);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function getAllergenStage(exposureCount: number): AllergenStage {
+  const normalizedValue = Math.max(0, Math.trunc(exposureCount));
+  if (normalizedValue >= 3) return 3;
+  if (normalizedValue === 2) return 2;
+  if (normalizedValue === 1) return 1;
+  return 0;
+}
+
+function buildAllergenSummary(foods: DashboardFood[]): AllergenSummary {
+  let toTestCount = 0;
+  let inProgressCount = 0;
+  let consolidatedCount = 0;
+
+  for (const food of foods) {
+    const stage = getAllergenStage(food.exposureCount);
+
+    if (stage === 0) {
+      toTestCount += 1;
+      continue;
+    }
+
+    if (stage === 3) {
+      consolidatedCount += 1;
+      continue;
+    }
+
+    inProgressCount += 1;
+  }
+
+  return {
+    toTestCount,
+    inProgressCount,
+    consolidatedCount
+  };
 }
 
 function getNextPreference(current: PreferenceValue): PreferenceValue {
@@ -387,6 +430,8 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
         {categories.map((category, categoryIndex) => {
           const rowIndex = Math.floor(categoryIndex / 3);
           const isRowExpanded = isCategoryExpanded(rowIndex, category.id);
+          const isAllergenCategory = category.name === ALLERGEN_CATEGORY_NAME;
+          const allergenSummary = isAllergenCategory ? buildAllergenSummary(category.foods) : null;
 
           return (
             <article
@@ -408,6 +453,25 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
                 </button>
               </h3>
 
+              {isAllergenCategory && allergenSummary ? (
+                <section className="allergen-focus-summary" aria-label="Résumé allergènes">
+                  <div className="allergen-focus-stats">
+                    <p className="allergen-focus-stat">
+                      <span>À tester</span>
+                      <strong>{allergenSummary.toTestCount}</strong>
+                    </p>
+                    <p className="allergen-focus-stat">
+                      <span>En cours</span>
+                      <strong>{allergenSummary.inProgressCount}</strong>
+                    </p>
+                    <p className="allergen-focus-stat">
+                      <span>Consolidés</span>
+                      <strong>{allergenSummary.consolidatedCount}</strong>
+                    </p>
+                  </div>
+                </section>
+              ) : null}
+
               <ul className={`category-list ${isRowExpanded ? "expanded" : "collapsed"}`}>
                 {category.foods.map((food) => (
                   <VegetableRow
@@ -419,6 +483,8 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
                     firstTastedOn={food.firstTastedOn}
                     note={food.note}
                     onCyclePreference={cyclePreference}
+                    isAllergen={isAllergenCategory}
+                    allergenStage={isAllergenCategory ? getAllergenStage(food.exposureCount) : null}
                   />
                 ))}
               </ul>
@@ -471,6 +537,12 @@ export function CategoriesGrid({ categories, toneByCategory }: CategoriesGridPro
                       firstTastedOn={food.firstTastedOn}
                       note={food.note}
                       onCyclePreference={cyclePreference}
+                      isAllergen={food.categoryName === ALLERGEN_CATEGORY_NAME}
+                      allergenStage={
+                        food.categoryName === ALLERGEN_CATEGORY_NAME
+                          ? getAllergenStage(food.exposureCount)
+                          : null
+                      }
                     />
                   ))}
                 </ul>

@@ -3,6 +3,7 @@ import { markFirstTasteAction, setExposureAction } from "@/app/actions";
 import { FoodMeta } from "@/components/food-meta";
 
 type PreferenceValue = -1 | 0 | 1;
+type AllergenStage = 0 | 1 | 2 | 3;
 
 type VegetableRowProps = {
   foodId: number;
@@ -13,6 +14,8 @@ type VegetableRowProps = {
   note: string;
   onCyclePreference: (foodId: number) => void;
   isPreferenceSaving?: boolean;
+  isAllergen?: boolean;
+  allergenStage?: AllergenStage | null;
 };
 
 const ACTION_BUTTON_BASE_CLASS =
@@ -22,7 +25,7 @@ const ACTION_VISUAL_BASE_CLASS =
   "pointer-events-none inline-flex h-9 w-9 items-center justify-center rounded-full border-2 bg-[#fcfbf9] text-[#4c4136]";
 
 const SMILEY_VISUAL_BASE_CLASS =
-  "pointer-events-none inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 bg-[#fcfbf9] p-0";
+  "pointer-events-none inline-flex h-9 w-9 items-center justify-center border-2 p-0";
 
 function getNextPreference(current: PreferenceValue): PreferenceValue {
   if (current === 0) return 1;
@@ -43,9 +46,23 @@ function getPreferenceImageSrc(preference: PreferenceValue) {
 }
 
 function getPreferenceVisualClass(preference: PreferenceValue) {
-  if (preference === 1) return "border-emerald-500 bg-emerald-100";
-  if (preference === -1) return "border-rose-500 bg-rose-100";
+  if (preference === 1) return "border-emerald-500";
+  if (preference === -1) return "border-rose-500";
   return "border-[#b9ac9b]";
+}
+
+function getAllergenStageLabel(stage: AllergenStage | null | undefined) {
+  if (stage === 3) return "Tigre 3/3";
+  if (stage === 2) return "Étape 2/3";
+  if (stage === 1) return "Étape 1/3";
+  return "À tester";
+}
+
+function getAllergenStageClass(stage: AllergenStage | null | undefined) {
+  if (stage === 3) return "done";
+  if (stage === 2) return "step2";
+  if (stage === 1) return "step1";
+  return "todo";
 }
 
 export function VegetableRow({
@@ -56,19 +73,34 @@ export function VegetableRow({
   firstTastedOn,
   note,
   onCyclePreference,
-  isPreferenceSaving = false
+  isPreferenceSaving = false,
+  isAllergen = false,
+  allergenStage = null
 }: VegetableRowProps) {
   const currentPreferenceLabel = getPreferenceLabel(preference);
   const nextPreference = getNextPreference(preference);
   const nextPreferenceLabel = getPreferenceLabel(nextPreference);
   const hasExposure = exposureCount > 0;
+  const allergenStageLabel = getAllergenStageLabel(allergenStage);
 
   return (
     <li className="w-full rounded-2xl bg-white/75 px-2.5 py-2 sm:px-3">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
-        <span className="min-w-0 text-[0.98rem] font-semibold leading-tight text-[#3b3128]">
-          {name}
-        </span>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="min-w-0 text-[0.98rem] font-semibold leading-tight text-[#3b3128]">
+            {name}
+          </span>
+
+          {isAllergen ? (
+            <span
+              className={`allergen-stage-pill ${getAllergenStageClass(allergenStage)}`}
+              aria-label={`Statut allergène: ${allergenStageLabel}`}
+              title={`Statut allergène: ${allergenStageLabel}`}
+            >
+              {allergenStageLabel}
+            </span>
+          ) : null}
+        </div>
 
         <div
           role="group"
@@ -95,9 +127,8 @@ export function VegetableRow({
                     >
                       <span
                         aria-hidden="true"
-                        className={`${ACTION_VISUAL_BASE_CLASS} text-xs font-extrabold leading-none ${
-                          isActive ? "text-white" : "border-[#b9ac9b] text-[#7a6f62]"
-                        }`}
+                        className={`${ACTION_VISUAL_BASE_CLASS} text-xs font-extrabold leading-none ${isActive ? "text-white" : "border-[#b9ac9b] text-[#7a6f62]"
+                          }`}
                         style={isActive ? { borderColor: "var(--tone-dot-border)", backgroundColor: "var(--tone-dot)" } : undefined}
                       >
                         {value}
@@ -140,9 +171,8 @@ export function VegetableRow({
           >
             <span
               aria-hidden="true"
-              className={`${SMILEY_VISUAL_BASE_CLASS} ${getPreferenceVisualClass(preference)} ${
-                isPreferenceSaving ? "opacity-80" : ""
-              }`}
+              className={`${SMILEY_VISUAL_BASE_CLASS} ${getPreferenceVisualClass(preference)} ${isPreferenceSaving ? "opacity-80" : ""
+                }`}
             >
               <Image
                 src={getPreferenceImageSrc(preference)}
@@ -151,7 +181,7 @@ export function VegetableRow({
                 width={36}
                 height={36}
                 unoptimized
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             </span>
           </button>

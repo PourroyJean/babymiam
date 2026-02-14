@@ -37,6 +37,12 @@ MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-use
 Le seed charge les catégories/aliments depuis `aliments_categories.json`.
 Si `POSTGRES_URL` n'est pas défini, l'app utilise `postgres://postgres:postgres@localhost:5432/babymiam`.
 
+## Scripts DB
+- `npm run db:migrate`
+- `npm run db:sync-allergens` (prune + resync transactionnel de `Allergènes majeurs` depuis `aliments_categories.json`)
+- `npm run db:seed`
+- `npm run db:setup`
+
 ## Variables d'environnement
 - `AUTH_SECRET` (ou `AUTH_SECRETS` pour rotation)
 - `POSTGRES_URL`
@@ -69,11 +75,40 @@ Exécuter la suite:
 npm run test:e2e
 ```
 
+## Runbook synchro allergènes (14 officiels)
+1. Backup:
+   ```bash
+   pg_dump "$POSTGRES_URL" -Fc -f backups/local-before-allergens-sync.dump
+   ```
+2. Exécution:
+   ```bash
+   npm run db:migrate
+   npm run db:sync-allergens
+   npm run db:seed
+   ```
+3. Contrôles SQL:
+   ```sql
+   SELECT COUNT(*)
+   FROM foods f
+   JOIN categories c ON c.id = f.category_id
+   WHERE c.name = 'Allergènes majeurs';
+   ```
+   ```sql
+   SELECT f.sort_order, f.name
+   FROM foods f
+   JOIN categories c ON c.id = f.category_id
+   WHERE c.name = 'Allergènes majeurs'
+   ORDER BY f.sort_order;
+   ```
+4. Idempotence: rejouer `npm run db:sync-allergens` puis `npm run db:seed`, et revérifier les 2 requêtes ci-dessus.
+
 ## Runbook déploiement prod (downtime accepté)
 1. Activer `MAINTENANCE_MODE=true` sur Vercel.
 2. Exécuter `npm run db:migrate` sur la base Neon cible.
-3. Exécuter `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` sur la base Neon cible.
-4. Déployer le code applicatif.
-5. Désactiver `MAINTENANCE_MODE`.
+3. Exécuter `npm run db:sync-allergens` sur la base Neon cible.
+4. Exécuter `npm run db:seed` sur la base Neon cible.
+5. Exécuter `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` si nécessaire.
+6. Déployer le code applicatif.
+7. Désactiver `MAINTENANCE_MODE`.
 
 Le build n'exécute plus les migrations automatiquement.

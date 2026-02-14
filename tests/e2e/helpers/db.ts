@@ -31,7 +31,22 @@ const FIXTURE_CATEGORIES: FixtureCategory[] = [
   },
   {
     name: "Allergènes majeurs",
-    foods: ["Arachide", "Sésame"]
+    foods: [
+      "Céréales contenant du gluten",
+      "Crustacés",
+      "Oeufs",
+      "Poissons",
+      "Arachides",
+      "Soja",
+      "Lait",
+      "Fruits à coque",
+      "Céleri",
+      "Moutarde",
+      "Graines de sésame",
+      "Anhydride sulfureux et sulfites",
+      "Lupin",
+      "Mollusques"
+    ]
   }
 ];
 
