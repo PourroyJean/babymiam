@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
 import { loginAction } from "@/app/login/actions";
+import { PasswordField } from "@/components/password-field";
 
 export default async function LoginPage({
   searchParams
@@ -24,10 +25,13 @@ export default async function LoginPage({
             <input name="email" type="email" placeholder="parent@example.com" required />
           </label>
 
-          <label>
-            Mot de passe
-            <input name="password" type="password" placeholder="••••••••" required />
-          </label>
+          <PasswordField
+            name="password"
+            label="Mot de passe"
+            placeholder="••••••••"
+            required
+            autoComplete="current-password"
+          />
 
           <button type="submit">Se connecter</button>
         </form>

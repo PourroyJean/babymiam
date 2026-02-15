@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signupAction } from "@/app/signup/actions";
 import { isAuthenticated } from "@/lib/auth";
+import { PasswordField } from "@/components/password-field";
 
 function getErrorMessage(code?: string) {
   if (code === "invalid_email") {
@@ -55,29 +56,23 @@ export default async function SignupPage({
             <input name="email" type="email" placeholder="parent@example.com" required />
           </label>
 
-          <label>
-            Mot de passe
-            <input
-              name="password"
-              type="password"
-              placeholder="••••••••"
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </label>
+          <PasswordField
+            name="password"
+            label="Mot de passe"
+            placeholder="••••••••"
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
 
-          <label>
-            Confirmer le mot de passe
-            <input
-              name="confirmPassword"
-              type="password"
-              placeholder="••••••••"
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </label>
+          <PasswordField
+            name="confirmPassword"
+            label="Confirmer le mot de passe"
+            placeholder="••••••••"
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
 
           <button type="submit">Créer mon compte</button>
         </form>
@@ -91,4 +86,3 @@ export default async function SignupPage({
     </main>
   );
 }
-

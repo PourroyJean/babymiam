@@ -82,6 +82,55 @@ a {
   background: #fffefc;
 }
 
+.password-field {
+  display: grid;
+  gap: 6px;
+}
+
+.password-field-label {
+  font-size: 0.95rem;
+}
+
+.password-field-control {
+  position: relative;
+}
+
+.password-field-input {
+  width: 100%;
+  border: 1px solid #d9cfc2;
+  border-radius: 14px;
+  padding: 11px 44px 11px 13px;
+  background: #fffefc;
+  color: inherit;
+  font: inherit;
+}
+
+.password-field-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #7a654f;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-field-toggle:hover {
+  color: #4f3f30;
+}
+
+.password-field-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
 .login-form button {
   border: 0;
   border-radius: 14px;

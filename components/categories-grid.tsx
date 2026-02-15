@@ -805,6 +805,7 @@ export function CategoriesGrid({
                       finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
                       note={food.note}
                       onCycleFinalPreference={cycleFinalPreference}
+                      onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
                       isAllergen={isAllergenCategory}
                       allergenStage={isAllergenCategory ? getAllergenStage(food.tastingCount) : null}
