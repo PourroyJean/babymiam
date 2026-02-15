@@ -2226,43 +2226,6 @@ a {
   line-height: 1;
 }
 
-.allergen-stage-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #d6c9b5;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.72rem;
-  line-height: 1.25;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.allergen-stage-pill.todo {
-  border-color: #d7c9b8;
-  background: #efeae2;
-  color: #72665a;
-}
-
-.allergen-stage-pill.step1 {
-  border-color: #e0c39f;
-  background: #ffe8cf;
-  color: #815b2f;
-}
-
-.allergen-stage-pill.step2 {
-  border-color: #d8b07d;
-  background: #ffddb0;
-  color: #724820;
-}
-
-.allergen-stage-pill.done {
-  border-color: #cc9b5f;
-  background: #ffd39b;
-  color: #673f16;
-}
-
 .category-pill {
   margin: 0;
   width: fit-content;

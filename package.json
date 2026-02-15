@@ -8,7 +8,7 @@
     "db:sync-allergens": "node scripts/db/sync-allergens.js",
     "db:seed": "node scripts/db/seed.js",
     "db:setup": "npm run db:migrate && npm run db:seed",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "users:create": "node scripts/users/create-user.js",
     "users:migrate-legacy": "node scripts/users/migrate-legacy.js",

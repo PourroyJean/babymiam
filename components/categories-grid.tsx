@@ -36,7 +36,6 @@ type FoodIndexEntry = {
 };
 
 type FinalPreferenceValue = -1 | 0 | 1;
-type AllergenStage = 0 | 1 | 2 | 3;
 type CategoryKpi = {
   totalCount: number;
   todoCount: number;
@@ -59,7 +58,6 @@ const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const RECENT_FOODS_LIMIT = 15;
 const FINAL_PREFERENCE_DEBOUNCE_MS = 2000;
-const ALLERGEN_CATEGORY_NAME = "Allergènes majeurs";
 
 function normalizeSearchValue(value: string) {
   return value.normalize("NFD").replace(DIACRITICS_PATTERN, "").toLowerCase().trim();
@@ -114,14 +112,6 @@ function getFinalTimelineToneClass(preference: -1 | 0 | 1) {
   if (preference === 1) return "food-timeline-result-positive";
   if (preference === -1) return "food-timeline-result-negative";
   return "food-timeline-result-neutral";
-}
-
-function getAllergenStage(tastingCount: number): AllergenStage {
-  const normalizedValue = Math.max(0, Math.trunc(tastingCount));
-  if (normalizedValue >= 3) return 3;
-  if (normalizedValue === 2) return 2;
-  if (normalizedValue === 1) return 1;
-  return 0;
 }
 
 function buildCategoryKpi(foods: DashboardFood[]): CategoryKpi {
@@ -788,7 +778,6 @@ export function CategoriesGrid({
         ) : null}
 
         {visibleCategories.map((category, categoryIndex) => {
-          const isAllergenCategory = category.name === ALLERGEN_CATEGORY_NAME;
           const categoryPictogram = getCategoryPictogram(category.name);
           const isOpen = isCategoryOpen(category.id);
           const categoryKpi = buildCategoryKpi(category.foods);
@@ -832,8 +821,6 @@ export function CategoriesGrid({
                       onCycleFinalPreference={cycleFinalPreference}
                       onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
-                      isAllergen={isAllergenCategory}
-                      allergenStage={isAllergenCategory ? getAllergenStage(food.tastingCount) : null}
                     />
                   ))}
                 </ul>
@@ -930,12 +917,6 @@ export function CategoriesGrid({
                       onCycleFinalPreference={cycleFinalPreference}
                       onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
-                      isAllergen={food.categoryName === ALLERGEN_CATEGORY_NAME}
-                      allergenStage={
-                        food.categoryName === ALLERGEN_CATEGORY_NAME
-                          ? getAllergenStage(food.tastingCount)
-                          : null
-                      }
                     />
                   ))}
                 </ul>

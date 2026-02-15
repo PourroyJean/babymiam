@@ -20,12 +20,12 @@ type ProfileMenuProps = {
 
 type ShareFeedbackTone = "success" | "error" | "info";
 
-type AccountOverviewDTO = {
-  id: number;
-  email: string;
-  emailVerifiedAt: string | null;
-  createdAt: string;
-};
+type GetAccountOverviewOkResult = Extract<
+  Awaited<ReturnType<typeof getAccountOverviewAction>>,
+  { ok: true }
+>;
+
+type AccountOverviewDTO = NonNullable<GetAccountOverviewOkResult["overview"]>;
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MILESTONE_THRESHOLDS = [10, 25, 50, 100];
@@ -289,7 +289,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
 
         accountLoadedRef.current = true;
         setAccountUserEmail(result.userEmail);
-        setAccountOverview(result.overview as AccountOverviewDTO | null);
+        setAccountOverview(result.overview);
       } catch {
         setAccountLoadError("Impossible de charger les infos du compte.");
         accountLoadedRef.current = false;

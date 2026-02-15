@@ -75,7 +75,7 @@ test.describe("allergen focus", () => {
     await expect(summaryStats.nth(2)).toContainText(`${OFFICIAL_ALLERGENS.length - 2}/${OFFICIAL_ALLERGENS.length}`);
   });
 
-  test("updates allergen stage to Tigre 3/3 when a third tasting is added", async ({ appPage, db }) => {
+  test("adds the third allergen tasting and keeps row actions", async ({ appPage, db }) => {
     await db.setFoodTastingsByName("Arachides", [
       { slot: 1, liked: true, tastedOn: "2025-01-01" },
       { slot: 2, liked: false, tastedOn: "2025-01-02" }
@@ -91,7 +91,9 @@ test.describe("allergen focus", () => {
     const card = await getCategoryCard(appPage, "Allergènes majeurs");
 
     const arachideRow = card.locator("li", { hasText: "Arachides" });
-    await expect(arachideRow.getByText("Étape 2/3")).toBeVisible();
+    await expect
+      .poll(async () => (await db.getFoodProgressByName("Arachides"))?.tastingCount ?? -1)
+      .toBe(2);
 
     await getSlotButton(card, "Arachides", 3).click();
     const editor = appPage.getByRole("dialog", { name: /Arachides\s*[·-]\s*Entrée\s*3/i });
@@ -103,7 +105,10 @@ test.describe("allergen focus", () => {
     await expect
       .poll(async () => (await db.getFoodProgressByName("Arachides"))?.tastingCount ?? -1)
       .toBe(3);
-    await expect(arachideRow.getByText("Tigre 3/3")).toBeVisible();
+    await expect(arachideRow.getByText("Tigre 3/3")).toHaveCount(0);
+    await expect(arachideRow.getByText("Étape 2/3")).toHaveCount(0);
+    await expect(arachideRow.getByText("Étape 1/3")).toHaveCount(0);
+    await expect(arachideRow.getByText("À tester")).toHaveCount(0);
   });
 
   test("keeps allergen list visible when all allergens are consolidated", async ({ appPage, db }) => {
@@ -121,9 +126,11 @@ test.describe("allergen focus", () => {
 
     const arachideRow = card.locator("li", { hasText: "Arachides" });
     const sesameRow = card.locator("li", { hasText: "Graines de sésame" });
-    await expect(arachideRow.getByText("Tigre 3/3")).toBeVisible();
+    await expect(arachideRow.getByText("Tigre 3/3")).toHaveCount(0);
+    await expect(sesameRow.getByText("Tigre 3/3")).toHaveCount(0);
+    await expect(arachideRow.getByText("Étape 2/3")).toHaveCount(0);
+    await expect(sesameRow.getByText("Étape 2/3")).toHaveCount(0);
     await sesameRow.scrollIntoViewIfNeeded();
-    await expect(sesameRow.getByText("Tigre 3/3")).toBeVisible();
 
     await expect(card.getByText("Arachides", { exact: true })).toBeVisible();
     await expect(card.getByText("Graines de sésame", { exact: true })).toBeVisible();

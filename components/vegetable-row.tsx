@@ -8,8 +8,6 @@ import { deleteTastingEntryAction, saveTastingEntryAction } from "@/app/actions"
 import { Pencil } from "lucide-react";
 import type { FoodTastingEntry } from "@/lib/types";
 
-type AllergenStage = 0 | 1 | 2 | 3;
-
 type VegetableRowProps = {
   foodId: number;
   name: string;
@@ -21,8 +19,6 @@ type VegetableRowProps = {
   onOpenFoodSummary?: (foodId: number, triggerEl: HTMLElement) => void;
   childFirstName?: string | null;
   isFinalPreferenceSaving?: boolean;
-  isAllergen?: boolean;
-  allergenStage?: AllergenStage | null;
 };
 
 const ACTION_BUTTON_BASE_CLASS =
@@ -74,20 +70,6 @@ function getFinalPreferenceVisualClass(preference: -1 | 0 | 1) {
   return "border-[#b9ac9b]";
 }
 
-function getAllergenStageLabel(stage: AllergenStage | null | undefined) {
-  if (stage === 3) return "Tigre 3/3";
-  if (stage === 2) return "Étape 2/3";
-  if (stage === 1) return "Étape 1/3";
-  return "À tester";
-}
-
-function getAllergenStageClass(stage: AllergenStage | null | undefined) {
-  if (stage === 3) return "done";
-  if (stage === 2) return "step2";
-  if (stage === 1) return "step1";
-  return "todo";
-}
-
 export function VegetableRow({
   foodId,
   name,
@@ -98,9 +80,7 @@ export function VegetableRow({
   onCycleFinalPreference,
   onOpenFoodSummary,
   childFirstName = null,
-  isFinalPreferenceSaving = false,
-  isAllergen = false,
-  allergenStage = null
+  isFinalPreferenceSaving = false
 }: VegetableRowProps) {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
@@ -168,7 +148,6 @@ export function VegetableRow({
     };
   }, [isEditorOpen]);
 
-  const allergenStageLabel = getAllergenStageLabel(allergenStage);
   const currentFinalPreferenceLabel = getFinalPreferenceLabel(finalPreference);
   const nextFinalPreference = getNextFinalPreference(finalPreference);
   const nextFinalPreferenceLabel = getFinalPreferenceLabel(nextFinalPreference);
@@ -441,15 +420,6 @@ export function VegetableRow({
               {name}
             </button>
 
-            {isAllergen ? (
-              <span
-                className={`allergen-stage-pill shrink-0 ${getAllergenStageClass(allergenStage)}`}
-                aria-label={`Statut allergène: ${allergenStageLabel}`}
-                title={`Statut allergène: ${allergenStageLabel}`}
-              >
-                {allergenStageLabel}
-              </span>
-            ) : null}
           </div>
 
           <div
