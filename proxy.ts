@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/share", "/forgot-password", "/reset-password", "/maintenance"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/share",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/maintenance"
+];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));

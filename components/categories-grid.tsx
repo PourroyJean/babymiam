@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setFinalPreferenceAction } from "@/app/actions";
+import { FoodSummaryModal } from "@/components/food-summary-modal";
 import { QuickAddPanel } from "@/components/quick-add-panel";
 import { VegetableRow } from "@/components/vegetable-row";
 import { getCategoryUi } from "@/lib/category-ui";
@@ -27,6 +28,11 @@ type QuickAddFood = {
   categoryName: string;
   normalizedName: string;
   exposureCount: number;
+};
+
+type FoodIndexEntry = {
+  food: DashboardFood;
+  categoryName: string;
 };
 
 type FinalPreferenceValue = -1 | 0 | 1;
@@ -165,6 +171,7 @@ export function CategoriesGrid({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [summaryFoodId, setSummaryFoodId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [showTestedOnly, setShowTestedOnly] = useState(false);
   const [finalPreferenceOverridesByFoodId, setFinalPreferenceOverridesByFoodId] = useState<
@@ -176,7 +183,10 @@ export function CategoriesGrid({
   const quickAddTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineModalRef = useRef<HTMLElement>(null);
   const timelineCloseRef = useRef<HTMLButtonElement>(null);
+  const summaryTriggerRef = useRef<HTMLElement | null>(null);
   const wasSearchOpenRef = useRef(false);
+  const wasSummaryOpenRef = useRef(false);
+  const summaryFoodIdRef = useRef<number | null>(null);
   const finalPreferenceOverridesRef = useRef<Record<number, FinalPreferenceValue>>({});
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const wasTimelineOpenRef = useRef(false);
@@ -238,6 +248,17 @@ export function CategoriesGrid({
     setIsQuickAddOpen(true);
   }
 
+  const isSummaryOpen = summaryFoodId !== null;
+
+  const openFoodSummary = useCallback((foodId: number, triggerEl: HTMLElement) => {
+    summaryTriggerRef.current = triggerEl;
+    setSummaryFoodId(foodId);
+  }, []);
+
+  const closeFoodSummary = useCallback(() => {
+    setSummaryFoodId(null);
+  }, []);
+
   const serverFinalPreferenceByFoodId = useMemo(() => {
     const preferenceMap = new Map<number, FinalPreferenceValue>();
 
@@ -257,6 +278,24 @@ export function CategoriesGrid({
   useEffect(() => {
     finalPreferenceOverridesRef.current = finalPreferenceOverridesByFoodId;
   }, [finalPreferenceOverridesByFoodId]);
+
+  useEffect(() => {
+    summaryFoodIdRef.current = summaryFoodId;
+  }, [summaryFoodId]);
+
+  useEffect(() => {
+    if (isSummaryOpen) {
+      wasSummaryOpenRef.current = true;
+      return;
+    }
+
+    if (!wasSummaryOpenRef.current) return;
+
+    const trigger = summaryTriggerRef.current;
+    summaryTriggerRef.current = null;
+    wasSummaryOpenRef.current = false;
+    trigger?.focus();
+  }, [isSummaryOpen]);
 
   const removeFinalPreferenceOverride = useCallback((foodId: number) => {
     setFinalPreferenceOverridesByFoodId((current) => {
@@ -401,6 +440,12 @@ export function CategoriesGrid({
       }
 
       if (event.key === "Escape") {
+        if (summaryFoodIdRef.current !== null) {
+          event.preventDefault();
+          setSummaryFoodId(null);
+          return;
+        }
+
         setIsSearchOpen(false);
         setQuery("");
         setIsTimelineOpen(false);
@@ -472,7 +517,7 @@ export function CategoriesGrid({
   }, [isTimelineOpen]);
 
   useEffect(() => {
-    if (!isTimelineOpen) return;
+    if (!isTimelineOpen || isSummaryOpen) return;
 
     function trapTimelineFocus(event: KeyboardEvent) {
       if (event.key !== "Tab") return;
@@ -506,7 +551,7 @@ export function CategoriesGrid({
 
     document.addEventListener("keydown", trapTimelineFocus);
     return () => document.removeEventListener("keydown", trapTimelineFocus);
-  }, [isTimelineOpen]);
+  }, [isTimelineOpen, isSummaryOpen]);
 
   useEffect(() => {
     if (isQuickAddOpen) {
@@ -521,7 +566,7 @@ export function CategoriesGrid({
   }, [isQuickAddOpen]);
 
   useEffect(() => {
-    const hasOverlayOpen = isSearchOpen || isTimelineOpen || isQuickAddOpen;
+    const hasOverlayOpen = isSearchOpen || isTimelineOpen || isQuickAddOpen || isSummaryOpen;
     if (!hasOverlayOpen) return;
 
     const previousOverflow = document.body.style.overflow;
@@ -530,7 +575,7 @@ export function CategoriesGrid({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isSearchOpen, isTimelineOpen, isQuickAddOpen]);
+  }, [isSearchOpen, isTimelineOpen, isQuickAddOpen, isSummaryOpen]);
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -556,6 +601,24 @@ export function CategoriesGrid({
       }))
       .filter((category) => category.foods.length > 0);
   }, [categories, showTestedOnly]);
+
+  const foodIndexById = useMemo(() => {
+    const index = new Map<number, FoodIndexEntry>();
+
+    for (const category of categories) {
+      for (const food of category.foods) {
+        index.set(food.id, { food, categoryName: category.name });
+      }
+    }
+
+    return index;
+  }, [categories]);
+
+  useEffect(() => {
+    if (summaryFoodId === null) return;
+    if (foodIndexById.has(summaryFoodId)) return;
+    setSummaryFoodId(null);
+  }, [foodIndexById, summaryFoodId]);
 
   const searchableFoods = useMemo<SearchFood[]>(
     () =>
@@ -651,6 +714,13 @@ export function CategoriesGrid({
 
   const normalizedFirstName = childFirstName?.trim() || "";
   const timelineTitle = normalizedFirstName ? `Carnets de bords de ${normalizedFirstName}` : "Carnets de bords";
+
+  const summaryEntry = summaryFoodId !== null ? foodIndexById.get(summaryFoodId) ?? null : null;
+  const summaryFood = summaryEntry?.food ?? null;
+  const summaryCategoryName = summaryEntry?.categoryName ?? "";
+  const summaryToneClass = toneByCategory[summaryCategoryName] || "tone-other";
+  const summaryFinalPreference =
+    summaryFoodId !== null ? (finalPreferenceOverridesByFoodId[summaryFoodId] ?? summaryFood?.finalPreference ?? 0) : 0;
 
   return (
     <section className="categories-section">
@@ -762,6 +832,7 @@ export function CategoriesGrid({
                     finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
                     note={food.note}
                     onCycleFinalPreference={cycleFinalPreference}
+                    onOpenFoodSummary={openFoodSummary}
                     childFirstName={childFirstName}
                     isAllergen={isAllergenCategory}
                     allergenStage={isAllergenCategory ? getAllergenStage(food.tastingCount) : null}
@@ -817,6 +888,7 @@ export function CategoriesGrid({
                       finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
                       note={food.note}
                       onCycleFinalPreference={cycleFinalPreference}
+                      onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
                       isAllergen={food.categoryName === ALLERGEN_CATEGORY_NAME}
                       allergenStage={
@@ -879,7 +951,15 @@ export function CategoriesGrid({
                             <div className="food-timeline-rail-dot" aria-hidden="true" />
                             <article className="food-timeline-card">
                               <header className="food-timeline-card-header">
-                                <p className="food-timeline-food-name">{entry.foodName}</p>
+                                <button
+                                  type="button"
+                                  className="food-timeline-food-name touch-manipulation appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
+                                  onClick={(event) => openFoodSummary(entry.foodId, event.currentTarget)}
+                                  aria-label={`Ouvrir le résumé de ${entry.foodName}`}
+                                  title="Résumé"
+                                >
+                                  {entry.foodName}
+                                </button>
                                 <span className={`food-timeline-slot-badge slot-${entry.slot}`}>
                                   <Image
                                     src={getTimelineTigerIcon(entry.preference)}
@@ -918,6 +998,18 @@ export function CategoriesGrid({
       ) : null}
 
       <QuickAddPanel isOpen={isQuickAddOpen} foods={quickAddEligibleFoods} onClose={closeQuickAdd} />
+      <FoodSummaryModal
+        isOpen={summaryFoodId !== null && summaryFood !== null}
+        onClose={closeFoodSummary}
+        foodId={summaryFoodId ?? 0}
+        foodName={summaryFood?.name ?? ""}
+        categoryName={summaryCategoryName}
+        categoryToneClass={summaryToneClass}
+        tastings={summaryFood?.tastings ?? []}
+        tastingCount={summaryFood?.tastingCount ?? 0}
+        finalPreference={summaryFinalPreference}
+        initialNote={summaryFood?.note ?? ""}
+      />
     </section>
   );
 }

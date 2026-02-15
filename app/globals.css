@@ -244,7 +244,8 @@ a {
 }
 
 .dashboard-page,
-.blog-page {
+.blog-page,
+.account-page {
   max-width: 1680px;
   margin: 0 auto;
   padding: 20px;
@@ -385,6 +386,117 @@ a {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.account-card {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 16px;
+  background: #fffdf9;
+  box-shadow: 0 14px 28px rgba(67, 52, 28, 0.08);
+}
+
+.account-card h2 {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+}
+
+.account-kv {
+  margin: 0 0 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-kv span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.account-kv strong {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.account-muted {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.account-form {
+  display: grid;
+  gap: 10px;
+}
+
+.account-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.account-form input {
+  border: 1px solid #d9cfc2;
+  border-radius: 14px;
+  padding: 11px 13px;
+  background: #fffefc;
+}
+
+.account-form input:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.account-inline-form {
+  margin-top: 12px;
+}
+
+.account-btn {
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  padding: 12px;
+  background: #b99a52;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.account-btn:hover {
+  background: #aa8a43;
+}
+
+.account-btn:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.account-btn-secondary {
+  border: 1px solid #ccb487;
+  background: #f4e6ca;
+  color: #4b3926;
+}
+
+.account-btn-secondary:hover {
+  background: #ecd9b2;
+}
+
+.account-feedback {
+  margin: 10px 0 0;
+}
+
+.account-global-error {
+  margin: 14px 0 0;
 }
 
 .page-hero,

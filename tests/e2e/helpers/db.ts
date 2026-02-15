@@ -187,7 +187,7 @@ export async function getDefaultOwnerId() {
 
 export async function resetMutableTables() {
   await queryMany(
-    "TRUNCATE TABLE food_tastings, food_progress, child_profiles, growth_events, share_snapshots, password_reset_tokens, auth_login_attempts RESTART IDENTITY;"
+    "TRUNCATE TABLE food_tastings, food_progress, child_profiles, growth_events, share_snapshots, password_reset_tokens, email_verification_tokens, auth_login_attempts, auth_signup_attempts RESTART IDENTITY;"
   );
 }
 

@@ -18,6 +18,7 @@ type VegetableRowProps = {
   finalPreference: -1 | 0 | 1;
   note: string;
   onCycleFinalPreference: (foodId: number) => void;
+  onOpenFoodSummary?: (foodId: number, triggerEl: HTMLElement) => void;
   childFirstName?: string | null;
   isFinalPreferenceSaving?: boolean;
   isAllergen?: boolean;
@@ -89,6 +90,7 @@ export function VegetableRow({
   finalPreference,
   note,
   onCycleFinalPreference,
+  onOpenFoodSummary,
   childFirstName = null,
   isFinalPreferenceSaving = false,
   isAllergen = false,
@@ -344,7 +346,15 @@ export function VegetableRow({
       <li className="w-full rounded-2xl bg-white/75 px-2.5 py-2 sm:px-3">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="min-w-0 text-[0.98rem] font-semibold leading-tight text-[#3b3128]">{name}</span>
+            <button
+              type="button"
+              className="touch-manipulation min-w-0 appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left text-[0.98rem] font-semibold leading-tight text-[#3b3128] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
+              onClick={(event) => onOpenFoodSummary?.(foodId, event.currentTarget)}
+              aria-label={`Ouvrir le résumé de ${name}`}
+              title="Résumé"
+            >
+              {name}
+            </button>
 
             {isAllergen ? (
               <span

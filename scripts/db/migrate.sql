@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   id BIGSERIAL PRIMARY KEY,
   email CITEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  email_verified_at TIMESTAMPTZ,
   session_version INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'active',
   password_changed_at TIMESTAMPTZ,
@@ -22,6 +23,7 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 1,
   ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active',
   ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
@@ -259,3 +261,32 @@ CREATE INDEX IF NOT EXISTS idx_auth_login_attempts_email_created_at
 
 CREATE INDEX IF NOT EXISTS idx_auth_login_attempts_ip_created_at
   ON auth_login_attempts(ip, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS auth_signup_attempts (
+  id BIGSERIAL PRIMARY KEY,
+  email_norm TEXT,
+  ip INET,
+  success BOOLEAN NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_signup_attempts_email_created_at
+  ON auth_signup_attempts(email_norm, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_auth_signup_attempts_ip_created_at
+  ON auth_signup_attempts(ip, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_created_at
+  ON email_verification_tokens(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_expiry
+  ON email_verification_tokens(expires_at);

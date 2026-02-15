@@ -35,6 +35,9 @@ export default async function LoginPage({
         <p className="login-help-link">
           <a href="/forgot-password">Mot de passe oublié ?</a>
         </p>
+        <p className="login-help-link">
+          <a href="/signup">Créer un compte</a>
+        </p>
 
         {params.error ? (
           <p className="error-text">Email ou mot de passe incorrect.</p>

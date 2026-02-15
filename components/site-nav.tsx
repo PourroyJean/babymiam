@@ -5,7 +5,7 @@ import { ProfileMenu } from "@/components/profile-menu";
 import type { ChildProfile, ProgressSummary } from "@/lib/types";
 
 type SiteNavProps = {
-  activePage: "suivi" | "blog";
+  activePage: "suivi" | "blog" | "account";
   childProfile: ChildProfile | null;
   progressSummary?: ProgressSummary | null;
   contextTitle?: string | null;
@@ -54,6 +54,13 @@ export function SiteNav({
             aria-current={activePage === "blog" ? "page" : undefined}
           >
             Blog
+          </Link>
+          <Link
+            href="/account"
+            className={getLinkClassName(activePage === "account")}
+            aria-current={activePage === "account" ? "page" : undefined}
+          >
+            Compte
           </Link>
         </nav>
 

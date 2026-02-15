@@ -12,6 +12,9 @@ const SESSION_ROTATE_THRESHOLD_SECONDS = 15 * 24 * 60 * 60;
 const LOGIN_RATE_LIMIT_WINDOW_MINUTES = 15;
 const LOGIN_RATE_LIMIT_MAX_FAILURES = 5;
 const PASSWORD_RESET_DEFAULT_TTL_MINUTES = 60;
+const SIGNUP_RATE_LIMIT_WINDOW_MINUTES = 30;
+const SIGNUP_RATE_LIMIT_MAX_FAILURES = 5;
+const EMAIL_VERIFICATION_DEFAULT_TTL_MINUTES = 3 * 24 * 60;
 
 type SessionPayload = {
   uid: number;
@@ -25,6 +28,13 @@ export type AuthenticatedUser = {
   email: string;
   sessionVersion: number;
   status: string;
+};
+
+export type AccountOverview = {
+  id: number;
+  email: string;
+  emailVerifiedAt: string | null;
+  createdAt: string;
 };
 
 function getSessionSecrets() {
@@ -143,6 +153,13 @@ function hashResetToken(token: string) {
   return crypto.createHash("sha256").update(`${token}:${getPrimarySessionSecret()}`).digest("hex");
 }
 
+function hashEmailVerificationToken(token: string) {
+  return crypto
+    .createHash("sha256")
+    .update(`email_verify:${token}:${getPrimarySessionSecret()}`)
+    .digest("hex");
+}
+
 function generateResetTokenValue() {
   return crypto.randomBytes(32).toString("hex");
 }
@@ -190,6 +207,16 @@ async function tryRotateSessionCookie(user: AuthenticatedUser, payload: SessionP
 
 export function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+export function validateEmail(value: string) {
+  const email = normalizeEmail(value);
+  if (!email) return "L'email est obligatoire.";
+  if (email.length > 254) return "L'email est trop long.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return "Format d'email invalide.";
+  }
+  return null;
 }
 
 export function validatePasswordPolicy(value: string) {
@@ -246,6 +273,74 @@ export async function getUserByEmail(email: string) {
     sessionVersion: Number(row.session_version),
     status: row.status
   };
+}
+
+export async function createUser(params: { email: string; passwordHash: string }) {
+  const normalizedEmail = normalizeEmail(params.email);
+
+  const result = await query<{ id: number; session_version: number }>(
+    `
+      INSERT INTO users (email, password_hash, status)
+      VALUES ($1, $2, 'active')
+      RETURNING id, session_version;
+    `,
+    [normalizedEmail, params.passwordHash]
+  );
+
+  const row = result.rows[0];
+  if (!row) {
+    throw new Error("Failed to create user.");
+  }
+
+  return {
+    id: Number(row.id),
+    sessionVersion: Number(row.session_version)
+  };
+}
+
+export async function getAccountOverview(userId: number): Promise<AccountOverview | null> {
+  const result = await query<{
+    id: number;
+    email: string;
+    email_verified_at: string | null;
+    created_at: string;
+  }>(
+    `
+      SELECT
+        id,
+        email::text AS email,
+        email_verified_at::text AS email_verified_at,
+        created_at::text AS created_at
+      FROM users
+      WHERE id = $1
+      LIMIT 1;
+    `,
+    [userId]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return {
+    id: Number(row.id),
+    email: row.email,
+    emailVerifiedAt: row.email_verified_at,
+    createdAt: row.created_at
+  };
+}
+
+export async function getUserPasswordHashById(userId: number) {
+  const result = await query<{ password_hash: string }>(
+    `
+      SELECT password_hash
+      FROM users
+      WHERE id = $1
+      LIMIT 1;
+    `,
+    [userId]
+  );
+
+  return result.rows[0]?.password_hash || null;
 }
 
 export async function createSession(userId: number, sessionVersion: number) {
@@ -329,6 +424,34 @@ export async function isLoginRateLimited(emailNorm: string, ip: string | null) {
   return Number(result.rows[0]?.failed_attempts || 0) >= LOGIN_RATE_LIMIT_MAX_FAILURES;
 }
 
+export async function recordSignupAttempt(emailNorm: string, ip: string | null, success: boolean) {
+  await query(
+    `
+      INSERT INTO auth_signup_attempts (email_norm, ip, success)
+      VALUES ($1, NULLIF($2, '')::inet, $3);
+    `,
+    [emailNorm, ip || null, success]
+  );
+}
+
+export async function isSignupRateLimited(emailNorm: string, ip: string | null) {
+  const result = await query<{ failed_attempts: number }>(
+    `
+      SELECT COUNT(*)::int AS failed_attempts
+      FROM auth_signup_attempts
+      WHERE success = false
+        AND created_at > NOW() - ($3::text || ' minutes')::interval
+        AND (
+          email_norm = $1
+          OR (NULLIF($2, '')::inet IS NOT NULL AND ip = NULLIF($2, '')::inet)
+        );
+    `,
+    [emailNorm, ip || null, SIGNUP_RATE_LIMIT_WINDOW_MINUTES]
+  );
+
+  return Number(result.rows[0]?.failed_attempts || 0) >= SIGNUP_RATE_LIMIT_MAX_FAILURES;
+}
+
 export async function createPasswordResetToken(userId: number) {
   const token = generateResetTokenValue();
   const tokenHash = hashResetToken(token);
@@ -352,6 +475,91 @@ export async function createPasswordResetToken(userId: number) {
   );
 
   return token;
+}
+
+export async function createEmailVerificationToken(userId: number) {
+  const token = generateResetTokenValue();
+  const tokenHash = hashEmailVerificationToken(token);
+  const ttlMinutes = Number(
+    process.env.EMAIL_VERIFICATION_TTL_MINUTES || EMAIL_VERIFICATION_DEFAULT_TTL_MINUTES
+  );
+
+  await query(
+    `
+      DELETE FROM email_verification_tokens
+      WHERE user_id = $1
+         OR expires_at < NOW();
+    `,
+    [userId]
+  );
+
+  await query(
+    `
+      INSERT INTO email_verification_tokens (user_id, token_hash, expires_at)
+      VALUES ($1, $2, NOW() + ($3::text || ' minutes')::interval);
+    `,
+    [userId, tokenHash, ttlMinutes]
+  );
+
+  return token;
+}
+
+export async function verifyEmailWithToken(token: string) {
+  const tokenHash = hashEmailVerificationToken(token);
+  const client = await getPool().connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const tokenResult = await client.query<{ user_id: number }>(
+      `
+        UPDATE email_verification_tokens
+        SET used_at = NOW()
+        WHERE token_hash = $1
+          AND used_at IS NULL
+          AND expires_at > NOW()
+        RETURNING user_id;
+      `,
+      [tokenHash]
+    );
+
+    const userId = Number(tokenResult.rows[0]?.user_id || 0);
+    if (!userId) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+
+    await client.query(
+      `
+        UPDATE users
+        SET
+          email_verified_at = COALESCE(email_verified_at, NOW()),
+          updated_at = NOW()
+        WHERE id = $1;
+      `,
+      [userId]
+    );
+
+    await client.query(
+      `
+        DELETE FROM email_verification_tokens
+        WHERE user_id = $1;
+      `,
+      [userId]
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Ignore rollback errors and surface the original failure.
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function consumePasswordResetToken(token: string) {
@@ -474,6 +682,22 @@ export async function getSessionVersionForUser(userId: number) {
       FROM users
       WHERE id = $1
       LIMIT 1;
+    `,
+    [userId]
+  );
+
+  return Number(result.rows[0]?.session_version || 0);
+}
+
+export async function rotateSessionVersionForUser(userId: number) {
+  const result = await query<{ session_version: number }>(
+    `
+      UPDATE users
+      SET
+        session_version = session_version + 1,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING session_version;
     `,
     [userId]
   );

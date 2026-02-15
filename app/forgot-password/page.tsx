@@ -37,6 +37,9 @@ export default async function ForgotPasswordPage({
         <p className="login-help-link">
           <a href="/login">Retour à la connexion</a>
         </p>
+        <p className="login-help-link">
+          <a href="/signup">Créer un compte</a>
+        </p>
       </section>
     </main>
   );
