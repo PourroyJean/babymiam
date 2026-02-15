@@ -93,7 +93,7 @@ function formatTimelineDayLabel(value: string) {
   return firstChar ? `${firstChar.toUpperCase()}${formatted.slice(1)}` : formatted;
 }
 
-function getPreferenceLabel(preference: -1 | 0 | 1) {
+function getFinalPreferenceLabel(preference: -1 | 0 | 1) {
   if (preference === 1) return "Adoré";
   if (preference === -1) return "Pas aimé";
   return "Neutre";
@@ -102,6 +102,18 @@ function getPreferenceLabel(preference: -1 | 0 | 1) {
 function getTimelineTigerIcon(preference: -1 | 0 | 1) {
   if (preference === -1) return "/smiley_ko.png";
   return "/smiley_ok.png";
+}
+
+function getFinalPreferenceImageSrc(preference: -1 | 0 | 1) {
+  if (preference === 1) return "/pouce_YES.png";
+  if (preference === -1) return "/pouce_NO.png";
+  return "/pouce_NEUTRE.png";
+}
+
+function getFinalTimelineToneClass(preference: -1 | 0 | 1) {
+  if (preference === 1) return "food-timeline-result-positive";
+  if (preference === -1) return "food-timeline-result-negative";
+  return "food-timeline-result-neutral";
 }
 
 function getAllergenStage(tastingCount: number): AllergenStage {
@@ -669,12 +681,25 @@ export function CategoriesGrid({
   );
 
   const isQueryEmpty = normalizedQuery.length === 0;
+
+  const finalPreferenceByFoodId = useMemo(() => {
+    const preferenceMap = new Map<number, -1 | 0 | 1>();
+
+    for (const category of categories) {
+      for (const food of category.foods) {
+        preferenceMap.set(food.id, finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference);
+      }
+    }
+
+    return preferenceMap;
+  }, [categories, finalPreferenceOverridesByFoodId]);
+
   const sortedTimelineEntries = useMemo(
     () =>
       [...timelineEntries].sort((a, b) => {
         const dateDiff = getTimelineDateTimestamp(b.tastedOn) - getTimelineDateTimestamp(a.tastedOn);
         if (dateDiff !== 0) return dateDiff;
-        if (a.slot !== b.slot) return a.slot - b.slot;
+        if (a.slot !== b.slot) return b.slot - a.slot;
         return FRENCH_COLLATOR.compare(a.foodName, b.foodName);
       }),
     [timelineEntries]
@@ -962,42 +987,74 @@ export function CategoriesGrid({
                             className="food-timeline-entry"
                           >
                             <div className="food-timeline-rail-dot" aria-hidden="true" />
-                            <article className="food-timeline-card">
-                              <header className="food-timeline-card-header">
-                                <button
-                                  type="button"
-                                  className="food-timeline-food-name touch-manipulation appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
-                                  onClick={(event) => openFoodSummary(entry.foodId, event.currentTarget)}
-                                  aria-label={`Ouvrir le résumé de ${entry.foodName}`}
-                                  title="Résumé"
-                                >
-                                  {entry.foodName}
-                                </button>
-                                <span className={`food-timeline-slot-badge slot-${entry.slot}`}>
-                                  <Image
-                                    src={getTimelineTigerIcon(entry.preference)}
-                                    alt=""
-                                    aria-hidden="true"
-                                    width={20}
-                                    height={20}
-                                    unoptimized
-                                    className="food-timeline-slot-icon"
-                                  />
-                                  <span>Tigre {entry.slot}/3</span>
-                                </span>
-                              </header>
+                            {(() => {
+                              const entryFinalPreference = finalPreferenceByFoodId.get(entry.foodId) ?? 0;
 
-                              <p className="food-timeline-meta-row">
-                                <span
-                                  className={`food-timeline-category-pill ${toneByCategory[entry.categoryName] || "tone-other"}`}
+                              return (
+                                <article
+                                  className={`food-timeline-card ${
+                                    entry.slot === 3
+                                      ? `food-timeline-card--final ${getFinalTimelineToneClass(entryFinalPreference)}`
+                                      : ""
+                                  }`}
                                 >
-                                  {entry.categoryName}
-                                </span>
-                                <span className="food-timeline-preference-text">{getPreferenceLabel(entry.preference)}</span>
-                              </p>
+                                  <header className="food-timeline-card-header food-timeline-card-header--line">
+                                    <div className="food-timeline-one-liner food-timeline-one-liner--compact">
+                                      <span
+                                        className={`food-timeline-category-pill food-timeline-category-inline ${toneByCategory[entry.categoryName] || "tone-other"}`}
+                                        title={entry.categoryName}
+                                        aria-label={entry.categoryName}
+                                        role="img"
+                                      >
+                                        {getCategoryPictogram(entry.categoryName)}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="food-timeline-food-name food-timeline-food-name-inline touch-manipulation appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
+                                        onClick={(event) => openFoodSummary(entry.foodId, event.currentTarget)}
+                                        aria-label={`Ouvrir le résumé de ${entry.foodName}`}
+                                        title="Résumé"
+                                      >
+                                        {entry.foodName}
+                                      </button>
 
-                              {entry.note.trim() ? <p className="food-timeline-note">{entry.note}</p> : null}
-                            </article>
+                                      <span className={`food-timeline-slot-badge slot-${entry.slot}`}>
+                                      <Image
+                                        src={getTimelineTigerIcon(entry.preference)}
+                                        alt=""
+                                        aria-hidden="true"
+                                        width={20}
+                                        height={20}
+                                        unoptimized
+                                        className="food-timeline-slot-icon"
+                                      />
+                                      <span>{entry.slot}/3</span>
+                                    </span>
+
+                                    {entry.slot === 3 ? (
+                                      <span
+                                        className="food-timeline-result-inline"
+                                        aria-label={`Résultat final : ${getFinalPreferenceLabel(entryFinalPreference)}`}
+                                      >
+                                        <Image
+                                          src={getFinalPreferenceImageSrc(entryFinalPreference)}
+                                          alt=""
+                                          aria-hidden="true"
+                                          width={31}
+                                          height={31}
+                                          unoptimized
+                                          className="food-timeline-result-inline-icon"
+                                        />
+                                      </span>
+                                    ) : null}
+
+                                      {entry.note.trim() ? <span className="food-timeline-note-inline" title={entry.note}>{entry.note}</span> : null}
+                                    </div>
+
+                                  </header>
+                                </article>
+                              );
+                            })()}
                           </li>
                         ))}
                       </ol>
