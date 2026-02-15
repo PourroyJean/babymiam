@@ -1001,7 +1001,7 @@ export function CategoriesGrid({
                                   <header className="food-timeline-card-header food-timeline-card-header--line">
                                     <div className="food-timeline-one-liner food-timeline-one-liner--compact">
                                       <span
-                                        className={`food-timeline-category-pill food-timeline-category-inline ${toneByCategory[entry.categoryName] || "tone-other"}`}
+                                        className={`food-timeline-category-pill food-timeline-category-inline food-timeline-category-emoji-pill ${toneByCategory[entry.categoryName] || "tone-other"}`}
                                         title={entry.categoryName}
                                         aria-label={entry.categoryName}
                                         role="img"

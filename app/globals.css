@@ -1691,8 +1691,21 @@ a {
   letter-spacing: 0.02em;
 }
 
+.food-timeline-category-emoji-pill {
+  width: 3ch;
+  max-width: 3ch;
+  min-width: 3ch;
+  height: 3ch;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  font-size: 0.95rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+
 .food-timeline-category-inline {
-  width: 20ch;
+  width: auto;
   max-width: 20ch;
   min-width: 0;
   flex: 0 0 auto;
@@ -1701,6 +1714,13 @@ a {
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-right: 10px;
+}
+
+.food-timeline-category-inline.food-timeline-category-emoji-pill {
+  width: 3ch;
+  max-width: 3ch;
+  min-width: 3ch;
+  height: 3ch;
 }
 
 .food-timeline-preference-text {
@@ -1716,7 +1736,7 @@ a {
   background: #fffbe8;
   padding: 2px 8px;
   min-width: 0;
-  max-width: 42ch;
+  max-width: 4ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2634,7 +2654,7 @@ a {
   }
 
   .food-timeline-note-inline {
-    max-width: 16ch;
+    max-width: 4ch;
   }
 
   .food-timeline-slot-badge {
@@ -2656,6 +2676,26 @@ a {
   .food-timeline-result-inline-icon {
     width: 21px;
     height: 21px;
+  }
+
+  .food-timeline-category-emoji-pill {
+    width: 3ch;
+    max-width: 3ch;
+    min-width: 3ch;
+    height: 3ch;
+    display: inline-grid;
+    place-items: center;
+    line-height: 1;
+  }
+
+  .food-timeline-category-inline.food-timeline-category-emoji-pill {
+    width: 3ch;
+    max-width: 3ch;
+    min-width: 3ch;
+    height: 3ch;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
   }
 
   .food-timeline-result-inline-text {
