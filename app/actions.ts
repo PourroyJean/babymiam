@@ -69,6 +69,8 @@ export async function saveTastingEntryAction(formData: FormData) {
   const likedRaw = String(formData.get("liked") || "").trim().toLowerCase();
   const tastedOnRaw = String(formData.get("tastedOn") || "").trim();
   const tastedOn = tastedOnRaw || getTodayIsoDate();
+  const note = String(formData.get("note") || "").trim();
+  const hasNote = formData.has("note");
 
   if (!Number.isFinite(foodId) || ![1, 2, 3].includes(slot)) {
     return { ok: false, error: "Entrée invalide." };
@@ -87,6 +89,9 @@ export async function saveTastingEntryAction(formData: FormData) {
   }
 
   await upsertFoodTastingEntry(user.id, foodId, slot as 1 | 2 | 3, likedRaw === "yes", tastedOn);
+  if (hasNote) {
+    await upsertNote(user.id, foodId, note);
+  }
   revalidatePath("/");
   return { ok: true };
 }

@@ -828,6 +828,7 @@ export function CategoriesGrid({
                       tastings={food.tastings}
                       tastingCount={food.tastingCount}
                       finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
+                      note={food.note}
                       onCycleFinalPreference={cycleFinalPreference}
                       onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
@@ -925,6 +926,7 @@ export function CategoriesGrid({
                       tastings={food.tastings}
                       tastingCount={food.tastingCount}
                       finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
+                      note={food.note}
                       onCycleFinalPreference={cycleFinalPreference}
                       onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
