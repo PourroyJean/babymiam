@@ -788,7 +788,7 @@ export function CategoriesGrid({
                     <span>{category.name}</span>
                   </span>
                   <span className="category-toggle-icon" aria-hidden="true">
-                    {isOpen ? "▾" : "▴"}
+                    {isOpen ? "▴" : "▾"}
                   </span>
                 </button>
               </h3>
@@ -803,7 +803,6 @@ export function CategoriesGrid({
                       tastings={food.tastings}
                       tastingCount={food.tastingCount}
                       finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
-                      note={food.note}
                       onCycleFinalPreference={cycleFinalPreference}
                       onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
@@ -901,7 +900,6 @@ export function CategoriesGrid({
                       tastings={food.tastings}
                       tastingCount={food.tastingCount}
                       finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
-                      note={food.note}
                       onCycleFinalPreference={cycleFinalPreference}
                       onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}

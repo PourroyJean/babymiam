@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { deleteTastingEntryAction, saveTastingEntryAction } from "@/app/actions";
-import { FoodMeta } from "@/components/food-meta";
+import { Pencil } from "lucide-react";
 import type { FoodTastingEntry } from "@/lib/types";
 
 type AllergenStage = 0 | 1 | 2 | 3;
@@ -16,7 +16,6 @@ type VegetableRowProps = {
   tastings: FoodTastingEntry[];
   tastingCount: number;
   finalPreference: -1 | 0 | 1;
-  note: string;
   onCycleFinalPreference: (foodId: number) => void;
   onOpenFoodSummary?: (foodId: number, triggerEl: HTMLElement) => void;
   childFirstName?: string | null;
@@ -33,6 +32,12 @@ const FIRST_BITE_BUTTON_CLASS =
 
 const SLOT_VISUAL_BASE_CLASS =
   "pointer-events-none inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 bg-[#fcfbf9] p-0";
+
+const META_BUTTON_BASE_CLASS =
+  "touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-0 bg-transparent p-0 text-[#4c4136] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]";
+
+const META_VISUAL_BASE_CLASS =
+  "pointer-events-none inline-flex h-9 w-9 items-center justify-center rounded-full border-2 bg-[#fcfbf9]";
 
 function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -88,7 +93,6 @@ export function VegetableRow({
   tastings,
   tastingCount,
   finalPreference,
-  note,
   onCycleFinalPreference,
   onOpenFoodSummary,
   childFirstName = null,
@@ -459,7 +463,17 @@ export function VegetableRow({
               </div>
             )}
 
-            <FoodMeta foodId={foodId} foodName={name} note={note} />
+            <button
+              type="button"
+              className={META_BUTTON_BASE_CLASS}
+              aria-label={`Voir le résumé de ${name}`}
+              title="Résumé"
+              onClick={(event) => onOpenFoodSummary?.(foodId, event.currentTarget)}
+            >
+              <span aria-hidden="true" className={`${META_VISUAL_BASE_CLASS} border-[#b9ac9b]`}>
+                <Pencil className="h-[17px] w-[17px]" />
+              </span>
+            </button>
           </div>
         </div>
       </li>
