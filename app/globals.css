@@ -747,6 +747,8 @@ a {
 
 .profile-modal {
   width: min(100%, 420px);
+  max-height: min(88vh, 860px);
+  overflow-y: auto;
   border-radius: 20px;
   border: 1px solid #e1d2bc;
   background: #fffdf8;
@@ -754,9 +756,57 @@ a {
   padding: 18px;
 }
 
+.profile-modal.is-wide {
+  width: min(100%, 780px);
+}
+
 .profile-modal h2 {
   margin: 0 0 10px;
   font-size: 1.2rem;
+}
+
+.profile-tabs {
+  margin: 8px 0 14px;
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid #e2d2bb;
+  border-radius: 999px;
+  background: #fff8ec;
+}
+
+.profile-tab {
+  flex: 1;
+  border: 0;
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #5c4a33;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.profile-tab:hover {
+  transform: translateY(-1px);
+}
+
+.profile-tab.is-active {
+  background: #b99a52;
+  color: #fff;
+}
+
+.profile-tab:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.profile-tabpanel {
+  display: grid;
+  gap: 10px;
 }
 
 .profile-form {

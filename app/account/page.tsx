@@ -37,6 +37,21 @@ export default async function AccountPage({
   const childProfile = await getChildProfile(user.id);
   const overview = await getAccountOverview(user.id);
 
+  async function sendVerificationEmailPageAction(formData: FormData) {
+    "use server";
+    await sendVerificationEmailAction(formData);
+  }
+
+  async function changePasswordPageAction(formData: FormData) {
+    "use server";
+    await changePasswordAction(formData);
+  }
+
+  async function logoutEverywherePageAction(formData: FormData) {
+    "use server";
+    await logoutEverywhereAction(formData);
+  }
+
   const verifiedAt = formatDate(overview?.emailVerifiedAt ?? null);
   const createdAt = formatDate(overview?.createdAt ?? null);
   const errorMessage = getErrorMessage(params.error);
@@ -62,7 +77,7 @@ export default async function AccountPage({
           </p>
 
           {!overview?.emailVerifiedAt ? (
-            <form action={sendVerificationEmailAction} className="account-inline-form">
+            <form action={sendVerificationEmailPageAction} className="account-inline-form">
               <button type="submit" className="account-btn">
                 Envoyer un lien de vérification
               </button>
@@ -83,7 +98,7 @@ export default async function AccountPage({
           <h2>Sécurité</h2>
           <p className="account-muted">Change ton mot de passe (8 caractères minimum).</p>
 
-          <form action={changePasswordAction} className="account-form">
+          <form action={changePasswordPageAction} className="account-form">
             <label>
               Mot de passe actuel
               <input
@@ -133,7 +148,7 @@ export default async function AccountPage({
             Si tu as oublié de te déconnecter ailleurs, tu peux invalider toutes les sessions.
           </p>
 
-          <form action={logoutEverywhereAction} className="account-inline-form">
+          <form action={logoutEverywherePageAction} className="account-inline-form">
             <button type="submit" className="account-btn account-btn-secondary">
               Déconnecter les autres appareils
             </button>
@@ -159,4 +174,3 @@ export default async function AccountPage({
     </main>
   );
 }
-

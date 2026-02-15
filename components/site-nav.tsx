@@ -55,13 +55,6 @@ export function SiteNav({
           >
             Blog
           </Link>
-          <Link
-            href="/account"
-            className={getLinkClassName(activePage === "account")}
-            aria-current={activePage === "account" ? "page" : undefined}
-          >
-            Compte
-          </Link>
         </nav>
 
         {contextTitle ? <h1 className="site-nav-context">{contextTitle}</h1> : null}

@@ -25,22 +25,61 @@ function buildAccountRedirect(query: Record<string, string>) {
   return suffix ? `/account?${suffix}` : "/account";
 }
 
-export async function changePasswordAction(formData: FormData) {
+type ChangePasswordErrorCode =
+  | "missing_fields"
+  | "weak_password"
+  | "password_mismatch"
+  | "bad_password"
+  | "unknown";
+
+type ChangePasswordActionResult = { ok: true } | { ok: false; error: ChangePasswordErrorCode };
+
+type SendVerificationEmailStatus = "sent" | "already_verified";
+type SendVerificationEmailActionResult =
+  | { ok: true; status: SendVerificationEmailStatus }
+  | { ok: false; error: "unknown" };
+
+type LogoutEverywhereActionResult = { ok: true } | { ok: false; error: "unknown" };
+
+type GetAccountOverviewActionResult =
+  | { ok: true; userEmail: string; overview: Awaited<ReturnType<typeof getAccountOverview>> }
+  | { ok: false; error: "unknown" };
+
+function isModalAction(formData?: FormData | null) {
+  return String(formData?.get("__mode") || "").trim() === "modal";
+}
+
+export async function getAccountOverviewAction(): Promise<GetAccountOverviewActionResult> {
+  const user = await requireAuth();
+
+  try {
+    const overview = await getAccountOverview(user.id);
+    return { ok: true, userEmail: user.email, overview };
+  } catch {
+    return { ok: false, error: "unknown" };
+  }
+}
+
+export async function changePasswordAction(formData: FormData): Promise<ChangePasswordActionResult> {
+  const modal = isModalAction(formData);
   const user = await requireAuth();
   const currentPassword = String(formData.get("currentPassword") || "");
   const password = String(formData.get("password") || "");
   const confirmPassword = String(formData.get("confirmPassword") || "");
 
   if (!currentPassword || !password || !confirmPassword) {
+    if (modal) return { ok: false, error: "missing_fields" };
     redirect(buildAccountRedirect({ error: "missing_fields" }));
   }
 
   const policyError = validatePasswordPolicy(password);
   if (policyError) {
+    if (modal) return { ok: false, error: "weak_password" };
     redirect(buildAccountRedirect({ error: "weak_password" }));
   }
 
   if (password !== confirmPassword) {
+    if (modal) return { ok: false, error: "password_mismatch" };
     redirect(buildAccountRedirect({ error: "password_mismatch" }));
   }
 
@@ -52,25 +91,32 @@ export async function changePasswordAction(formData: FormData) {
   }
 
   if (!currentHash) {
+    if (modal) return { ok: false, error: "unknown" };
     redirect(buildAccountRedirect({ error: "unknown" }));
   }
 
   const isCurrentValid = await verifyPasswordHash(currentHash, currentPassword);
   if (!isCurrentValid) {
+    if (modal) return { ok: false, error: "bad_password" };
     redirect(buildAccountRedirect({ error: "bad_password" }));
   }
 
   const newHash = await hashPassword(password);
   const sessionVersion = await updateUserPassword(user.id, newHash);
   if (!sessionVersion) {
+    if (modal) return { ok: false, error: "unknown" };
     redirect(buildAccountRedirect({ error: "unknown" }));
   }
 
   await createSession(user.id, sessionVersion);
+  if (modal) return { ok: true };
   redirect(buildAccountRedirect({ pw: "1" }));
 }
 
-export async function sendVerificationEmailAction() {
+export async function sendVerificationEmailAction(
+  formData?: FormData
+): Promise<SendVerificationEmailActionResult> {
+  const modal = isModalAction(formData);
   const user = await requireAuth();
 
   let overview: Awaited<ReturnType<typeof getAccountOverview>> = null;
@@ -81,10 +127,12 @@ export async function sendVerificationEmailAction() {
   }
 
   if (!overview) {
+    if (modal) return { ok: false, error: "unknown" };
     redirect(buildAccountRedirect({ error: "unknown" }));
   }
 
   if (overview.emailVerifiedAt) {
+    if (modal) return { ok: true, status: "already_verified" };
     redirect(buildAccountRedirect({ already_verified: "1" }));
   }
 
@@ -99,13 +147,18 @@ export async function sendVerificationEmailAction() {
       // Email delivery is best-effort.
     }
   } catch {
+    if (modal) return { ok: false, error: "unknown" };
     redirect(buildAccountRedirect({ error: "unknown" }));
   }
 
+  if (modal) return { ok: true, status: "sent" };
   redirect(buildAccountRedirect({ verify_sent: "1" }));
 }
 
-export async function logoutEverywhereAction() {
+export async function logoutEverywhereAction(
+  formData?: FormData
+): Promise<LogoutEverywhereActionResult> {
+  const modal = isModalAction(formData);
   const user = await requireAuth();
 
   let nextSessionVersion = 0;
@@ -116,10 +169,11 @@ export async function logoutEverywhereAction() {
   }
 
   if (!nextSessionVersion) {
+    if (modal) return { ok: false, error: "unknown" };
     redirect(buildAccountRedirect({ error: "unknown" }));
   }
 
   await createSession(user.id, nextSessionVersion);
+  if (modal) return { ok: true };
   redirect(buildAccountRedirect({ sessions: "1" }));
 }
-

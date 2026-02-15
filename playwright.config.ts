@@ -43,7 +43,7 @@ export default defineConfig({
     command: `node scripts/e2e/web-server.js --hostname ${host} --port ${port}`,
     url: baseURL,
     timeout: 120_000,
-    reuseExistingServer: false,
+    reuseExistingServer: process.env.CI ? false : true,
     gracefulShutdown: {
       signal: "SIGTERM",
       timeout: 5_000
