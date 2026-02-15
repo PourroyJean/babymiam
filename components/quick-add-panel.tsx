@@ -257,8 +257,13 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
                   setErrorMessage("");
                 }}
                 aria-pressed={tigerChoice === "ok"}
+                aria-label="Tigre OK"
               >
-                Tigre OK
+                <img
+                  src="/smiley_ok.png"
+                  alt="Tigre OK"
+                  className="quick-add-tiger-img"
+                />
               </button>
               <button
                 type="button"
@@ -268,8 +273,13 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
                   setErrorMessage("");
                 }}
                 aria-pressed={tigerChoice === "ko"}
+                aria-label="Tigre KO"
               >
-                Tigre KO
+                <img
+                  src="/smiley_ko.png"
+                  alt="Tigre KO"
+                  className="quick-add-tiger-img"
+                />
               </button>
             </div>
           </div>

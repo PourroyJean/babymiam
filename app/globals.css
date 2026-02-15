@@ -1656,12 +1656,22 @@ a {
 .quick-add-tiger-btn {
   border: 1px solid #dbc8ad;
   border-radius: 12px;
+  padding: 8px;
   background: #fff;
   color: #4f4033;
-  min-height: 44px;
+  min-height: 64px;
   font: inherit;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+}
+
+.quick-add-tiger-img {
+  width: 100%;
+  max-width: 40px;
+  height: auto;
 }
 
 .quick-add-tiger-btn:hover {
