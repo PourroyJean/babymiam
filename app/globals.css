@@ -1870,9 +1870,9 @@ a {
   --tone-border: #e8dfd2;
   --tone-dot: #c2a768;
   --tone-dot-border: #af9455;
-  --collapsed-row-count: 5;
+  --collapsed-row-count: 10;
   --collapsed-row-height: 63px;
-  --collapsed-row-gap: 4px;
+  --collapsed-row-gap: 6px;
 
   background: linear-gradient(180deg, var(--tone-surface) 0%, #ffffff 55%);
   border: 1px solid var(--tone-border);
@@ -1884,6 +1884,96 @@ a {
 
 .category-title {
   margin: 0 0 10px;
+}
+
+.category-kpi {
+  margin: 0 0 10px;
+  border: 1px solid var(--tone-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.category-kpi-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.category-kpi-label {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6c5b48;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.category-kpi-percent {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 900;
+  color: #3b3128;
+}
+
+.category-kpi-bar {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(76, 65, 54, 0.1);
+  overflow: hidden;
+  border: 1px solid rgba(76, 65, 54, 0.12);
+}
+
+.category-kpi-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.category-kpi-fill-discovered {
+  background: var(--tone-dot);
+  opacity: 0.35;
+}
+
+.category-kpi-fill-done {
+  background: var(--tone-dot-border);
+  opacity: 0.95;
+}
+
+.category-kpi-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.category-kpi-stat {
+  margin: 0;
+  border: 1px solid rgba(76, 65, 54, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 6px 8px;
+  text-align: center;
+  display: grid;
+  gap: 2px;
+}
+
+.category-kpi-stat span {
+  font-size: 0.72rem;
+  color: #7b6246;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.category-kpi-stat strong {
+  font-size: 0.95rem;
+  color: #5f4323;
+  line-height: 1;
 }
 
 .allergen-focus-summary {
@@ -2009,17 +2099,12 @@ a {
   gap: 6px;
 }
 
-.category-list.collapsed {
+.category-list.open {
   max-height: calc((var(--collapsed-row-count) * var(--collapsed-row-height)) + ((var(--collapsed-row-count) - 1) * var(--collapsed-row-gap)));
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 2px;
   scrollbar-gutter: stable;
-}
-
-.category-list.expanded {
-  max-height: none;
-  overflow: visible;
 }
 
 .tone-vegetables {
@@ -2280,7 +2365,7 @@ a {
   }
 
   .category-card {
-    --collapsed-row-count: 3;
+    --collapsed-row-count: 10;
     --collapsed-row-height: 87px;
   }
 
@@ -2319,6 +2404,10 @@ a {
   }
 
   .allergen-focus-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .category-kpi-stats {
     grid-template-columns: 1fr;
   }
 

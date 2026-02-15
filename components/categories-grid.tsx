@@ -37,10 +37,14 @@ type FoodIndexEntry = {
 
 type FinalPreferenceValue = -1 | 0 | 1;
 type AllergenStage = 0 | 1 | 2 | 3;
-type AllergenSummary = {
-  toTestCount: number;
+type CategoryKpi = {
+  totalCount: number;
+  todoCount: number;
   inProgressCount: number;
-  consolidatedCount: number;
+  doneCount: number;
+  discoveredCount: number;
+  discoveredPercent: number;
+  donePercent: number;
 };
 
 const DIACRITICS_PATTERN = /[\u0300-\u036f]/g;
@@ -108,31 +112,42 @@ function getAllergenStage(tastingCount: number): AllergenStage {
   return 0;
 }
 
-function buildAllergenSummary(foods: DashboardFood[]): AllergenSummary {
-  let toTestCount = 0;
+function buildCategoryKpi(foods: DashboardFood[]): CategoryKpi {
+  const totalCount = foods.length;
+  let todoCount = 0;
   let inProgressCount = 0;
-  let consolidatedCount = 0;
+  let doneCount = 0;
+  let discoveredCount = 0;
 
   for (const food of foods) {
-    const stage = getAllergenStage(food.tastingCount);
+    const tastingCount = Math.max(0, Math.trunc(food.tastingCount));
 
-    if (stage === 0) {
-      toTestCount += 1;
+    if (tastingCount === 0) {
+      todoCount += 1;
       continue;
     }
 
-    if (stage === 3) {
-      consolidatedCount += 1;
+    discoveredCount += 1;
+
+    if (tastingCount >= 3) {
+      doneCount += 1;
       continue;
     }
 
     inProgressCount += 1;
   }
 
+  const discoveredPercent = totalCount > 0 ? (discoveredCount / totalCount) * 100 : 0;
+  const donePercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
+
   return {
-    toTestCount,
+    totalCount,
+    todoCount,
     inProgressCount,
-    consolidatedCount
+    doneCount,
+    discoveredCount,
+    discoveredPercent,
+    donePercent
   };
 }
 
@@ -165,9 +180,7 @@ export function CategoriesGrid({
   childFirstName = null,
   timelineEntries
 }: CategoriesGridProps) {
-  const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
-  const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({});
+  const [openByCategoryId, setOpenByCategoryId] = useState<Record<number, boolean>>({});
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
@@ -195,24 +208,15 @@ export function CategoriesGrid({
   const pendingFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const inFlightFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
 
-  function toggleCategory(rowIndex: number, categoryId: number) {
-    if (isMobileViewport) {
-      setExpandedCategories((current) => ({
-        ...current,
-        [categoryId]: !current[categoryId]
-      }));
-      return;
-    }
-
-    setExpandedRows((current) => ({
+  function toggleCategory(categoryId: number) {
+    setOpenByCategoryId((current) => ({
       ...current,
-      [rowIndex]: !current[rowIndex]
+      [categoryId]: !current[categoryId]
     }));
   }
 
-  function isCategoryExpanded(rowIndex: number, categoryId: number) {
-    if (isMobileViewport) return Boolean(expandedCategories[categoryId]);
-    return Boolean(expandedRows[rowIndex]);
+  function isCategoryOpen(categoryId: number) {
+    return Boolean(openByCategoryId[categoryId]);
   }
 
   function closeSearch() {
@@ -414,20 +418,6 @@ export function CategoriesGrid({
     },
     [flushPendingFinalPreference]
   );
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 768px)");
-    const updateViewportMode = () => setIsMobileViewport(mediaQuery.matches);
-
-    updateViewportMode();
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", updateViewportMode);
-      return () => mediaQuery.removeEventListener("change", updateViewportMode);
-    }
-
-    mediaQuery.addListener(updateViewportMode);
-    return () => mediaQuery.removeListener(updateViewportMode);
-  }, []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -773,11 +763,12 @@ export function CategoriesGrid({
         ) : null}
 
         {visibleCategories.map((category, categoryIndex) => {
-          const rowIndex = Math.floor(categoryIndex / 3);
-          const isRowExpanded = isCategoryExpanded(rowIndex, category.id);
           const isAllergenCategory = category.name === ALLERGEN_CATEGORY_NAME;
-          const allergenSummary = isAllergenCategory ? buildAllergenSummary(category.foods) : null;
           const categoryPictogram = getCategoryPictogram(category.name);
+          const isOpen = isCategoryOpen(category.id);
+          const categoryKpi = buildCategoryKpi(category.foods);
+          const roundedDiscoveredPercent = Math.round(categoryKpi.discoveredPercent);
+          const kpiBarAriaLabel = `${categoryKpi.discoveredCount}/${categoryKpi.totalCount} découverts (${roundedDiscoveredPercent}%), dont ${categoryKpi.doneCount}/${categoryKpi.totalCount} terminés.`;
 
           return (
             <article
@@ -788,57 +779,80 @@ export function CategoriesGrid({
                 <button
                   type="button"
                   className="category-pill category-toggle touch-manipulation min-h-[44px]"
-                  aria-expanded={isRowExpanded}
-                  title={isRowExpanded ? "Replier le tableau" : "Dérouler le tableau"}
-                  onClick={() => toggleCategory(rowIndex, category.id)}
+                  aria-expanded={isOpen}
+                  title={isOpen ? "Replier la catégorie" : "Dérouler la catégorie"}
+                  onClick={() => toggleCategory(category.id)}
                 >
                   <span className="inline-flex items-center gap-1.5">
                     <span aria-hidden="true">{categoryPictogram}</span>
                     <span>{category.name}</span>
                   </span>
                   <span className="category-toggle-icon" aria-hidden="true">
-                    {isRowExpanded ? "▾" : "▴"}
+                    {isOpen ? "▾" : "▴"}
                   </span>
                 </button>
               </h3>
 
-              {isAllergenCategory && allergenSummary ? (
-                <section className="allergen-focus-summary" aria-label="Résumé allergènes">
-                  <div className="allergen-focus-stats">
-                    <p className="allergen-focus-stat">
-                      <span>À tester</span>
-                      <strong>{allergenSummary.toTestCount}</strong>
+              {isOpen ? (
+                <ul className="category-list open">
+                  {category.foods.map((food) => (
+                    <VegetableRow
+                      key={food.id}
+                      foodId={food.id}
+                      name={food.name}
+                      tastings={food.tastings}
+                      tastingCount={food.tastingCount}
+                      finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
+                      note={food.note}
+                      onCycleFinalPreference={cycleFinalPreference}
+                      childFirstName={childFirstName}
+                      isAllergen={isAllergenCategory}
+                      allergenStage={isAllergenCategory ? getAllergenStage(food.tastingCount) : null}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <section className="category-kpi" aria-label={`Résumé ${category.name}`}>
+                  <div className="category-kpi-head">
+                    <p className="category-kpi-label">Progression</p>
+                    <p className="category-kpi-percent" aria-label={`${roundedDiscoveredPercent}% découverts`}>
+                      {roundedDiscoveredPercent}%
                     </p>
-                    <p className="allergen-focus-stat">
+                  </div>
+                  <div className="category-kpi-bar" role="img" aria-label={kpiBarAriaLabel}>
+                    <div
+                      className="category-kpi-fill category-kpi-fill-discovered"
+                      style={{ width: `${categoryKpi.discoveredPercent}%` }}
+                      aria-hidden="true"
+                    />
+                    <div
+                      className="category-kpi-fill category-kpi-fill-done"
+                      style={{ width: `${categoryKpi.donePercent}%` }}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <div className="category-kpi-stats">
+                    <p className="category-kpi-stat">
+                      <span>Terminés</span>
+                      <strong>
+                        {categoryKpi.doneCount}/{categoryKpi.totalCount}
+                      </strong>
+                    </p>
+                    <p className="category-kpi-stat">
                       <span>En cours</span>
-                      <strong>{allergenSummary.inProgressCount}</strong>
+                      <strong>
+                        {categoryKpi.inProgressCount}/{categoryKpi.totalCount}
+                      </strong>
                     </p>
-                    <p className="allergen-focus-stat">
-                      <span>Consolidés</span>
-                      <strong>{allergenSummary.consolidatedCount}</strong>
+                    <p className="category-kpi-stat">
+                      <span>À découvrir</span>
+                      <strong>
+                        {categoryKpi.todoCount}/{categoryKpi.totalCount}
+                      </strong>
                     </p>
                   </div>
                 </section>
-              ) : null}
-
-              <ul className={`category-list ${isRowExpanded ? "expanded" : "collapsed"}`}>
-                {category.foods.map((food) => (
-                  <VegetableRow
-                    key={food.id}
-                    foodId={food.id}
-                    name={food.name}
-                    tastings={food.tastings}
-                    tastingCount={food.tastingCount}
-                    finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
-                    note={food.note}
-                    onCycleFinalPreference={cycleFinalPreference}
-                    onOpenFoodSummary={openFoodSummary}
-                    childFirstName={childFirstName}
-                    isAllergen={isAllergenCategory}
-                    allergenStage={isAllergenCategory ? getAllergenStage(food.tastingCount) : null}
-                  />
-                ))}
-              </ul>
+              )}
             </article>
           );
         })}
