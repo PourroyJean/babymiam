@@ -2407,10 +2407,6 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .category-kpi-stats {
-    grid-template-columns: 1fr;
-  }
-
   .food-search-overlay {
     padding: 10px;
   }

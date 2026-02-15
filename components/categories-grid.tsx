@@ -833,6 +833,12 @@ export function CategoriesGrid({
                   </div>
                   <div className="category-kpi-stats">
                     <p className="category-kpi-stat">
+                      <span>À découvrir</span>
+                      <strong>
+                        {categoryKpi.todoCount}/{categoryKpi.totalCount}
+                      </strong>
+                    </p>
+                    <p className="category-kpi-stat">
                       <span>Terminés</span>
                       <strong>
                         {categoryKpi.doneCount}/{categoryKpi.totalCount}
@@ -842,12 +848,6 @@ export function CategoriesGrid({
                       <span>En cours</span>
                       <strong>
                         {categoryKpi.inProgressCount}/{categoryKpi.totalCount}
-                      </strong>
-                    </p>
-                    <p className="category-kpi-stat">
-                      <span>À découvrir</span>
-                      <strong>
-                        {categoryKpi.todoCount}/{categoryKpi.totalCount}
                       </strong>
                     </p>
                   </div>
