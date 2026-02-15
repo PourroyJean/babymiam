@@ -104,8 +104,8 @@ test.describe("db degraded mode", () => {
   test("keeps login responsive when DB is down", async ({ page }) => {
     await page.goto(`${DEGRADED_BASE_URL}/login`);
 
-    await page.getByLabel("Email").fill(AUTH_EMAIL);
-    await page.getByLabel("Mot de passe").fill(AUTH_PASSWORD);
+    await page.locator('input[name="email"]').fill(AUTH_EMAIL);
+    await page.locator('input[name="password"]').fill(AUTH_PASSWORD);
     await page.getByRole("button", { name: "Se connecter" }).click();
     await expect(page).toHaveURL(/\/login\?error=1$/);
   });

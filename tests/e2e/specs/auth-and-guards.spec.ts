@@ -13,8 +13,8 @@ test.describe("auth and guards", () => {
   test("shows error when credentials are invalid", async ({ page }) => {
     await page.goto("/login");
 
-    await page.getByLabel("Email").fill("wrong@example.com");
-    await page.getByLabel("Mot de passe").fill("wrong");
+    await page.locator('input[name="email"]').fill("wrong@example.com");
+    await page.locator('input[name="password"]').fill("wrong");
     await page.getByRole("button", { name: "Se connecter" }).click();
 
     await expect(page).toHaveURL(/\/login\?error=1$/);
@@ -24,8 +24,8 @@ test.describe("auth and guards", () => {
   test("logs in with valid credentials", async ({ page }) => {
     await page.goto("/login");
 
-    await page.getByLabel("Email").fill(AUTH_EMAIL);
-    await page.getByLabel("Mot de passe").fill(AUTH_PASSWORD);
+    await page.locator('input[name="email"]').fill(AUTH_EMAIL);
+    await page.locator('input[name="password"]').fill(AUTH_PASSWORD);
     await page.getByRole("button", { name: "Se connecter" }).click();
 
     await expect(page).toHaveURL(/\/$/);

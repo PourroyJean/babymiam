@@ -344,11 +344,11 @@ export function VegetableRow({
   return (
     <>
       <li className="w-full rounded-2xl bg-white/75 px-2.5 py-2 sm:px-3">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-3">
+          <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
-              className="touch-manipulation min-w-0 appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left text-[0.98rem] font-semibold leading-tight text-[#3b3128] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
+              className="touch-manipulation min-w-0 flex-1 truncate appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left text-[0.98rem] font-semibold leading-tight text-[#3b3128] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
               onClick={(event) => onOpenFoodSummary?.(foodId, event.currentTarget)}
               aria-label={`Ouvrir le résumé de ${name}`}
               title="Résumé"
@@ -358,7 +358,7 @@ export function VegetableRow({
 
             {isAllergen ? (
               <span
-                className={`allergen-stage-pill ${getAllergenStageClass(allergenStage)}`}
+                className={`allergen-stage-pill shrink-0 ${getAllergenStageClass(allergenStage)}`}
                 aria-label={`Statut allergène: ${allergenStageLabel}`}
                 title={`Statut allergène: ${allergenStageLabel}`}
               >
@@ -370,7 +370,7 @@ export function VegetableRow({
           <div
             role="group"
             aria-label={`Actions pour ${name}`}
-            className="flex flex-wrap items-center justify-start gap-1 sm:justify-end sm:gap-1.5"
+            className="flex flex-nowrap items-center justify-end gap-1 sm:gap-1.5"
           >
             {tastingCount === 0 ? (
               <>

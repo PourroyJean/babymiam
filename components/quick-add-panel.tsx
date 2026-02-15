@@ -64,16 +64,6 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
     if (isOpen) {
       wasOpenRef.current = true;
       return;
