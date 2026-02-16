@@ -36,7 +36,7 @@ async function openQuickAddPanel(page: Page) {
 
   const searchInput = dialog.getByRole("textbox", { name: "Rechercher un aliment" });
   const dateInput = dialog.getByLabel("Date");
-  const noteInput = dialog.getByLabel("Note");
+  const noteInput = dialog.getByLabel("Note du test");
   const addButton = dialog.getByRole("button", { name: "Ajouter" });
 
   return { dialog, searchInput, dateInput, noteInput, addButton };
@@ -467,7 +467,10 @@ test.describe("dashboard progression", () => {
       .toBe("2026-02-14");
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.note ?? "")
-      .toBe("ancienne note\nnouvelle note");
+      .toBe("ancienne note");
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings.find((entry) => entry.slot === 2)?.note ?? "")
+      .toBe("nouvelle note");
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.finalPreference ?? 999)
       .toBe(1);

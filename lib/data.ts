@@ -129,30 +129,18 @@ export async function appendQuickEntry(ownerId: number, payload: AppendQuickEntr
 
     await client.query(
       `
-        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on)
-        VALUES ($1, $2, $3, $4, $5::date);
+        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note)
+        VALUES ($1, $2, $3, $4, $5::date, $6);
       `,
-      [ownerId, payload.foodId, nextSlot, payload.liked, payload.tastedOn]
+      [ownerId, payload.foodId, nextSlot, payload.liked, payload.tastedOn, payload.note]
     );
 
     const nextExposureCount = Math.min(3, takenSlots.size + 1);
     const progressColumns = await getFoodProgressColumns(client);
     const updateParams: unknown[] = [ownerId, payload.foodId];
     const setClauses: string[] = [];
-    let noteRef: string | null = null;
     let exposureRef: string | null = null;
     let tastedOnRef: string | null = null;
-
-    if (progressColumns.hasNote) {
-      noteRef = `$${updateParams.push(payload.note)}`;
-      setClauses.push(`
-        note = CASE
-          WHEN ${noteRef} = '' THEN food_progress.note
-          WHEN food_progress.note = '' THEN ${noteRef}
-          ELSE food_progress.note || E'\\n' || ${noteRef}
-        END
-      `);
-    }
 
     if (progressColumns.hasExposureCount) {
       exposureRef = `$${updateParams.push(nextExposureCount)}`;
@@ -214,7 +202,8 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
             jsonb_build_object(
               'slot', slot,
               'liked', liked,
-              'tastedOn', tasted_on::text
+              'tastedOn', tasted_on::text,
+              'note', note
             )
             ORDER BY slot
           ) AS tastings,
@@ -268,6 +257,8 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
             const slot = Number((item as { slot?: unknown }).slot);
             const liked = (item as { liked?: unknown }).liked;
             const tastedOn = String((item as { tastedOn?: unknown }).tastedOn || "");
+            const noteValue = (item as { note?: unknown }).note;
+            const note = typeof noteValue === "string" ? noteValue : "";
 
             if (![1, 2, 3].includes(slot)) return null;
             if (typeof liked !== "boolean") return null;
@@ -276,7 +267,8 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
             return {
               slot: slot as 1 | 2 | 3,
               liked,
-              tastedOn
+              tastedOn,
+              note
             };
           })
           .filter((value): value is FoodTastingEntry => value !== null)
@@ -312,11 +304,9 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
     food_name: string;
     category_name: string;
     slot: number;
+    liked: boolean;
     tasted_on: string;
-    preference: number;
     note: string | null;
-    category_sort_order: number;
-    food_sort_order: number;
   }>(
     `
       SELECT
@@ -324,17 +314,12 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
         f.name AS food_name,
         c.name AS category_name,
         t.slot,
+        t.liked,
         t.tasted_on::text AS tasted_on,
-        COALESCE(p.final_preference, 0) AS preference,
-        COALESCE(p.note, '') AS note,
-        c.sort_order AS category_sort_order,
-        f.sort_order AS food_sort_order
+        COALESCE(t.note, '') AS note
       FROM food_tastings t
       INNER JOIN foods f ON f.id = t.food_id
       INNER JOIN categories c ON c.id = f.category_id
-      LEFT JOIN food_progress p
-        ON p.owner_id = t.owner_id
-       AND p.food_id = t.food_id
       WHERE t.owner_id = $1
       ORDER BY
         t.tasted_on DESC,
@@ -356,7 +341,7 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
         categoryName: row.category_name,
         slot: slot as 1 | 2 | 3,
         tastedOn: row.tasted_on,
-        preference: Number(row.preference || 0) as -1 | 0 | 1,
+        liked: Boolean(row.liked),
         note: row.note ?? ""
       };
     })
@@ -379,7 +364,8 @@ export async function upsertFoodTastingEntry(
   foodId: number,
   slot: 1 | 2 | 3,
   liked: boolean,
-  tastedOn: string
+  tastedOn: string,
+  note: string
 ) {
   const client = await getPool().connect();
   try {
@@ -396,15 +382,16 @@ export async function upsertFoodTastingEntry(
 
     await client.query(
       `
-        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (owner_id, food_id, slot)
         DO UPDATE SET
           liked = EXCLUDED.liked,
           tasted_on = EXCLUDED.tasted_on,
+          note = EXCLUDED.note,
           updated_at = NOW();
       `,
-      [ownerId, foodId, slot, liked, tastedOn]
+      [ownerId, foodId, slot, liked, tastedOn, note]
     );
 
     await client.query(

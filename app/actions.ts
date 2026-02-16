@@ -70,7 +70,6 @@ export async function saveTastingEntryAction(formData: FormData) {
   const tastedOnRaw = String(formData.get("tastedOn") || "").trim();
   const tastedOn = tastedOnRaw || getTodayIsoDate();
   const note = String(formData.get("note") || "").trim();
-  const hasNote = formData.has("note");
 
   if (!Number.isFinite(foodId) || ![1, 2, 3].includes(slot)) {
     return { ok: false, error: "Entrée invalide." };
@@ -88,10 +87,7 @@ export async function saveTastingEntryAction(formData: FormData) {
     return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
   }
 
-  await upsertFoodTastingEntry(user.id, foodId, slot as 1 | 2 | 3, likedRaw === "yes", tastedOn);
-  if (hasNote) {
-    await upsertNote(user.id, foodId, note);
-  }
+  await upsertFoodTastingEntry(user.id, foodId, slot as 1 | 2 | 3, likedRaw === "yes", tastedOn, note);
   revalidatePath("/");
   return { ok: true };
 }

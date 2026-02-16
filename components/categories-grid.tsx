@@ -97,9 +97,8 @@ function getFinalPreferenceLabel(preference: -1 | 0 | 1) {
   return "Neutre";
 }
 
-function getTimelineTigerIcon(preference: -1 | 0 | 1) {
-  if (preference === -1) return "/smiley_ko.png";
-  return "/smiley_ok.png";
+function getTimelineTigerIcon(liked: boolean) {
+  return liked ? "/smiley_ok.png" : "/smiley_ko.png";
 }
 
 function getFinalPreferenceImageSrc(preference: -1 | 0 | 1) {
@@ -817,7 +816,6 @@ export function CategoriesGrid({
                       tastings={food.tastings}
                       tastingCount={food.tastingCount}
                       finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
-                      note={food.note}
                       onCycleFinalPreference={cycleFinalPreference}
                       onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
@@ -846,12 +844,6 @@ export function CategoriesGrid({
                   </div>
                   <div className="category-kpi-stats">
                     <p className="category-kpi-stat">
-                      <span>À découvrir</span>
-                      <strong>
-                        {categoryKpi.todoCount}/{categoryKpi.totalCount}
-                      </strong>
-                    </p>
-                    <p className="category-kpi-stat">
                       <span>Terminés</span>
                       <strong>
                         {categoryKpi.doneCount}/{categoryKpi.totalCount}
@@ -861,6 +853,12 @@ export function CategoriesGrid({
                       <span>En cours</span>
                       <strong>
                         {categoryKpi.inProgressCount}/{categoryKpi.totalCount}
+                      </strong>
+                    </p>
+                    <p className="category-kpi-stat">
+                      <span>À découvrir</span>
+                      <strong>
+                        {categoryKpi.todoCount}/{categoryKpi.totalCount}
                       </strong>
                     </p>
                   </div>
@@ -913,7 +911,6 @@ export function CategoriesGrid({
                       tastings={food.tastings}
                       tastingCount={food.tastingCount}
                       finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
-                      note={food.note}
                       onCycleFinalPreference={cycleFinalPreference}
                       onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
@@ -1003,7 +1000,7 @@ export function CategoriesGrid({
 
                                       <span className={`food-timeline-slot-badge slot-${entry.slot}`}>
                                       <Image
-                                        src={getTimelineTigerIcon(entry.preference)}
+                                        src={getTimelineTigerIcon(entry.liked)}
                                         alt=""
                                         aria-hidden="true"
                                         width={20}
@@ -1062,6 +1059,7 @@ export function CategoriesGrid({
         tastingCount={summaryFood?.tastingCount ?? 0}
         finalPreference={summaryFinalPreference}
         initialNote={summaryFood?.note ?? ""}
+        onCycleFinalPreference={cycleFinalPreference}
       />
     </section>
   );

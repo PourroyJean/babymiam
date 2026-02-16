@@ -251,7 +251,7 @@ export type FoodProgressState = {
   ownerId: number;
   foodId: number;
   foodName: string;
-  tastings: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string }>;
+  tastings: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string; note: string }>;
   tastingCount: number;
   finalPreference: -1 | 0 | 1;
   // Compatibility aliases used by legacy tests.
@@ -285,7 +285,8 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
             jsonb_build_object(
               'slot', slot,
               'liked', liked,
-              'tastedOn', tasted_on::text
+              'tastedOn', tasted_on::text,
+              'note', note
             )
             ORDER BY slot
           ) AS tastings,
@@ -329,6 +330,8 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
           const slot = Number((item as { slot?: unknown }).slot);
           const liked = (item as { liked?: unknown }).liked;
           const tastedOn = String((item as { tastedOn?: unknown }).tastedOn || "");
+          const noteValue = (item as { note?: unknown }).note;
+          const note = typeof noteValue === "string" ? noteValue : "";
 
           if (![1, 2, 3].includes(slot)) return null;
           if (typeof liked !== "boolean") return null;
@@ -337,10 +340,11 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
           return {
             slot: slot as 1 | 2 | 3,
             liked,
-            tastedOn
+            tastedOn,
+            note
           };
         })
-        .filter((entry): entry is { slot: 1 | 2 | 3; liked: boolean; tastedOn: string } => entry !== null)
+        .filter((entry): entry is { slot: 1 | 2 | 3; liked: boolean; tastedOn: string; note: string } => entry !== null)
     : [];
 
   const tastingCount = Number(row.tasting_count ?? tastings.length);
@@ -382,7 +386,7 @@ export async function upsertFoodProgressByName(
   const existingBySlot = new Map(existing.tastings.map((entry) => [entry.slot, entry]));
   const targetCount = normalizeCount(data.exposureCount ?? existing.tastingCount);
 
-  const targetTastings: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string }> = [];
+  const targetTastings: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string; note: string }> = [];
   for (let slot = 1; slot <= targetCount; slot += 1) {
     const normalizedSlot = slot as 1 | 2 | 3;
     const current = existingBySlot.get(normalizedSlot);
@@ -390,7 +394,8 @@ export async function upsertFoodProgressByName(
       current || {
         slot: normalizedSlot,
         liked: false,
-        tastedOn: getTodayIsoDate()
+        tastedOn: getTodayIsoDate(),
+        note: ""
       }
     );
   }
@@ -435,10 +440,10 @@ export async function upsertFoodProgressByName(
     for (const entry of targetTastings) {
       await client.query(
         `
-          INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, updated_at)
-          VALUES ($1, $2, $3, $4, $5, NOW());
+          INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, NOW());
         `,
-        [resolvedOwnerId, existing.foodId, entry.slot, entry.liked, entry.tastedOn]
+        [resolvedOwnerId, existing.foodId, entry.slot, entry.liked, entry.tastedOn, entry.note]
       );
     }
 
@@ -453,7 +458,7 @@ export async function upsertFoodProgressByName(
 
 export async function setFoodTastingsByName(
   foodName: string,
-  tastings: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string }>,
+  tastings: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string; note?: string }>,
   options: {
     ownerId?: number;
     finalPreference?: -1 | 0 | 1;
@@ -473,7 +478,8 @@ export async function setFoodTastingsByName(
     .map((entry) => ({
       slot: entry.slot,
       liked: Boolean(entry.liked),
-      tastedOn: entry.tastedOn
+      tastedOn: entry.tastedOn,
+      note: entry.note ?? ""
     }));
 
   const finalPreference =
@@ -509,10 +515,10 @@ export async function setFoodTastingsByName(
     for (const entry of normalized) {
       await client.query(
         `
-          INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, updated_at)
-          VALUES ($1, $2, $3, $4, $5, NOW());
+          INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note, updated_at)
+          VALUES ($1, $2, $3, $4, $5, $6, NOW());
         `,
-        [resolvedOwnerId, existing.foodId, entry.slot, entry.liked, entry.tastedOn]
+        [resolvedOwnerId, existing.foodId, entry.slot, entry.liked, entry.tastedOn, entry.note]
       );
     }
 
@@ -547,7 +553,7 @@ export async function setFinalPreferenceByName(foodName: string, finalPreference
 
 export async function replaceFoodTastingsByName(
   foodName: string,
-  entries: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string }>,
+  entries: Array<{ slot: 1 | 2 | 3; liked: boolean; tastedOn: string; note?: string }>,
   ownerId?: number
 ) {
   const resolvedOwnerId = ownerId ?? (await getDefaultOwnerId());
@@ -564,10 +570,10 @@ export async function replaceFoodTastingsByName(
   for (const entry of entries) {
     await queryMany(
       `
-        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, updated_at)
-        VALUES ($1, $2, $3, $4, $5, NOW());
+        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW());
       `,
-      [resolvedOwnerId, existing.foodId, entry.slot, entry.liked, entry.tastedOn]
+      [resolvedOwnerId, existing.foodId, entry.slot, entry.liked, entry.tastedOn, entry.note ?? ""]
     );
   }
 }
@@ -593,8 +599,8 @@ export async function setIntroducedFoods(count: number, ownerId?: number) {
     );
     await client.query(
       `
-        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, updated_at)
-        SELECT $1, id, 1, false, CURRENT_DATE, NOW()
+        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note, updated_at)
+        SELECT $1, id, 1, false, CURRENT_DATE, '', NOW()
         FROM foods
         ORDER BY id
         LIMIT $2;

@@ -14,7 +14,6 @@ type VegetableRowProps = {
   tastings: FoodTastingEntry[];
   tastingCount: number;
   finalPreference: -1 | 0 | 1;
-  note: string;
   onCycleFinalPreference: (foodId: number) => void;
   onOpenFoodSummary?: (foodId: number, triggerEl: HTMLElement) => void;
   childFirstName?: string | null;
@@ -76,7 +75,6 @@ export function VegetableRow({
   tastings,
   tastingCount,
   finalPreference,
-  note,
   onCycleFinalPreference,
   onOpenFoodSummary,
   childFirstName = null,
@@ -161,7 +159,7 @@ export function VegetableRow({
     setEditorSlot(slot);
     setEditorLiked(existing ? (existing.liked ? "yes" : "no") : null);
     setEditorDate(existing?.tastedOn || getTodayIsoDate());
-    setEditorNote(note);
+    setEditorNote(existing?.note ?? "");
     setEditorError("");
     setIsEditorOpen(true);
   }
@@ -243,15 +241,18 @@ export function VegetableRow({
           <h2 id={`tasting-editor-title-${foodId}-${editorSlot}`} className="m-0 text-base font-bold text-[#3b3128]">
             {name} · Entrée {editorSlot}
           </h2>
-          {activeEditorEntry ? <p className="m-0 mt-1 text-sm text-[#6c5b48]">Modifier cette dégustation.</p> : null}
+          <p className="m-0 mt-1 text-sm text-[#6c5b48]">
+            {activeEditorEntry ? "Modifier cette dégustation." : "Ajouter une dégustation."}
+          </p>
         </header>
 
         <div className="grid gap-4">
           <div>
+            <p className="m-0 mb-2 text-sm font-semibold text-[#554a3f]">{childDisplayName} a aimé ?</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                aria-label={`${childDisplayName} a aimé`}
+                aria-label="Oui"
                 title={`${childDisplayName} a aimé`}
                 aria-pressed={editorLiked === "yes"}
                 className={`touch-manipulation inline-flex appearance-none border-0 bg-transparent p-0 min-h-[60px] items-center justify-center transition-all ${
@@ -294,7 +295,7 @@ export function VegetableRow({
               </button>
               <button
                 type="button"
-                aria-label={`${childDisplayName} n'a pas aimé`}
+                aria-label="Non"
                 title={`${childDisplayName} n'a pas aimé`}
                 aria-pressed={editorLiked === "no"}
                 className={`touch-manipulation inline-flex appearance-none border-0 bg-transparent p-0 min-h-[60px] items-center justify-center transition-all ${
@@ -353,13 +354,13 @@ export function VegetableRow({
 
           <div>
             <label htmlFor={`tasting-note-${foodId}-${editorSlot}`} className="mb-2 block text-sm font-semibold text-[#554a3f]">
-              Note
+              Note du test
             </label>
             <textarea
               id={`tasting-note-${foodId}-${editorSlot}`}
               value={editorNote}
               onChange={(event) => setEditorNote(event.currentTarget.value)}
-              placeholder="Écrire une note..."
+              placeholder="Écrire une note de test..."
               rows={3}
               className="w-full rounded-xl border border-[#ddcfbb] bg-white px-3 py-2 text-base text-[#40362c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
             />

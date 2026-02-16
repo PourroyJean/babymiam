@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import { setNoteAction } from "@/app/actions";
+import { saveTastingEntryAction, setNoteAction } from "@/app/actions";
 import type { FoodTastingEntry } from "@/lib/types";
 
 type FoodSummaryModalProps = {
@@ -19,21 +19,21 @@ type FoodSummaryModalProps = {
   tastingCount: number;
   finalPreference: -1 | 0 | 1;
   initialNote: string;
+  onCycleFinalPreference?: (foodId: number) => void;
 };
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-const FRENCH_SHORT_DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric",
-  month: "short",
-  year: "numeric"
-});
-
 function formatShortFrenchDate(value: string) {
   const parsed = new Date(`${value}T12:00:00.000Z`);
   if (Number.isNaN(parsed.getTime())) return value;
-  return FRENCH_SHORT_DATE_FORMATTER.format(parsed);
+
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const year = String(parsed.getFullYear()).slice(-2);
+
+  return `${day}/${month}/${year}`;
 }
 
 function getTastingIconSrc(liked: boolean) {
@@ -52,6 +52,18 @@ function getFinalPreferenceLabel(preference: -1 | 0 | 1) {
   return "Neutre";
 }
 
+function getNextFinalPreference(current: -1 | 0 | 1): -1 | 0 | 1 {
+  if (current === 0) return 1;
+  if (current === 1) return -1;
+  return 0;
+}
+
+function getFinalPreferenceVisualClass(preference: -1 | 0 | 1) {
+  if (preference === 1) return "border-emerald-500";
+  if (preference === -1) return "border-rose-500";
+  return "border-[#b9ac9b]";
+}
+
 export function FoodSummaryModal({
   isOpen,
   onClose,
@@ -62,12 +74,15 @@ export function FoodSummaryModal({
   tastings,
   tastingCount,
   finalPreference,
-  initialNote
+  initialNote,
+  onCycleFinalPreference
 }: FoodSummaryModalProps) {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [draftNote, setDraftNote] = useState(initialNote);
+  const [draftTastingNotes, setDraftTastingNotes] = useState<Record<number, string>>({});
+  const [saveError, setSaveError] = useState("");
   const modalRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -78,7 +93,9 @@ export function FoodSummaryModal({
   useEffect(() => {
     if (!isOpen) return;
     setDraftNote(initialNote);
-  }, [foodId, initialNote, isOpen]);
+    setDraftTastingNotes(Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.note])));
+    setSaveError("");
+  }, [foodId, initialNote, isOpen, tastings]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -144,18 +161,45 @@ export function FoodSummaryModal({
 
   function saveNote() {
     const trimmedNote = draftNote.trim();
-    const formData = new FormData();
-    formData.set("foodId", String(foodId));
-    formData.set("note", trimmedNote);
+    const foodNoteFormData = new FormData();
+    foodNoteFormData.set("foodId", String(foodId));
+    foodNoteFormData.set("note", trimmedNote);
 
     startTransition(async () => {
-      await setNoteAction(formData);
-      router.refresh();
-      onClose();
+      setSaveError("");
+      try {
+        for (const tasting of tastings) {
+          const updatedNote = draftTastingNotes[tasting.slot] ?? tasting.note;
+          if (updatedNote.trim() === tasting.note.trim()) {
+            continue;
+          }
+
+          const tastingFormData = new FormData();
+          tastingFormData.set("foodId", String(foodId));
+          tastingFormData.set("slot", String(tasting.slot));
+          tastingFormData.set("liked", tasting.liked ? "yes" : "no");
+          tastingFormData.set("tastedOn", tasting.tastedOn);
+          tastingFormData.set("note", updatedNote.trim());
+
+          const tastingResult = await saveTastingEntryAction(tastingFormData);
+          if (!tastingResult.ok) {
+            setSaveError(tastingResult.error || "Impossible d'enregistrer une note de test.");
+            return;
+          }
+        }
+
+        await setNoteAction(foodNoteFormData);
+        router.refresh();
+        onClose();
+      } catch {
+        setSaveError("Impossible d'enregistrer les notes pour le moment.");
+      }
     });
   }
 
   if (!isMounted || !isOpen) return null;
+  const nextFinalPreference = getNextFinalPreference(finalPreference);
+  const nextFinalPreferenceLabel = getFinalPreferenceLabel(nextFinalPreference);
 
   const modal = (
     <div
@@ -202,11 +246,11 @@ export function FoodSummaryModal({
           ) : (
             <ol className="m-0 grid list-none gap-2 p-0">
               {tastings.slice(0, 3).map((tasting) => (
-                  <li
-                    key={`${foodId}-${tasting.slot}-${tasting.tastedOn}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-[#e8dcc9] bg-white/80 px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2">
+                    <li
+                      key={`${foodId}-${tasting.slot}-${tasting.tastedOn}`}
+                      className="flex items-center justify-between gap-4 rounded-xl border border-[#e8dcc9] bg-white/80 px-3 py-2"
+                    >
+                    <div className="flex items-center gap-4">
                       <Image
                         src={getTastingIconSrc(tasting.liked)}
                         alt={tasting.liked ? "Tigre OK" : "Tigre KO"}
@@ -217,7 +261,26 @@ export function FoodSummaryModal({
                       />
                       <p className="m-0 text-sm font-extrabold text-[#3b3128]">Tigre {tasting.slot}/3</p>
                     </div>
-                    <p className="m-0 text-sm font-semibold text-[#6c5b48]">{formatShortFrenchDate(tasting.tastedOn)}</p>
+                    <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
+                      <p className="m-0 text-left text-sm font-semibold text-[#6c5b48]">
+                        {formatShortFrenchDate(tasting.tastedOn)}
+                      </p>
+                      <input
+                        type="text"
+                        value={draftTastingNotes[tasting.slot] ?? tasting.note}
+                        onChange={(event) => {
+                          const newValue = event.currentTarget.value;
+                          setDraftTastingNotes((current) => ({
+                            ...current,
+                            [tasting.slot]: newValue
+                          }));
+                        }}
+                        placeholder="Ajouter une note"
+                        disabled={isPending}
+                        className="m-0 inline-flex h-9 min-h-0 min-w-0 max-w-[60%] flex-1 items-center rounded-full border border-[#e6d7bf] bg-[#fff8ec] px-2.5 py-1 text-left text-sm font-semibold leading-snug text-[#6c5b48] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
+                        aria-label={`Note du ${tasting.slot}/3`}
+                      />
+                    </div>
                   </li>
                 ))}
             </ol>
@@ -227,18 +290,29 @@ export function FoodSummaryModal({
         {tastingCount === 3 ? (
           <section aria-label="Résultat final" className="mt-4 grid gap-2">
             <h3 className="m-0 text-base font-extrabold text-[#5f4323]">🏁 Résultat final</h3>
-            <div className="flex items-center gap-3 rounded-xl border border-[#e8dcc9] bg-white/80 px-3 py-2">
-              <Image
-                src={getFinalPreferenceImageSrc(finalPreference)}
-                alt=""
+            <button
+              type="button"
+              onClick={() => onCycleFinalPreference?.(foodId)}
+              aria-pressed={finalPreference !== 0}
+              aria-label={`Préférence finale pour ${foodName}: ${getFinalPreferenceLabel(finalPreference)}. Appuyer pour passer à ${nextFinalPreferenceLabel}.`}
+              title={`Préférence finale: ${getFinalPreferenceLabel(finalPreference)} (prochain état: ${nextFinalPreferenceLabel})`}
+              className="touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-0 bg-transparent p-0 text-[#4c4136] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]"
+            >
+              <span
                 aria-hidden="true"
-                width={32}
-                height={32}
-                unoptimized
-                className="h-8 w-8 object-contain"
-              />
-              <p className="m-0 text-sm font-extrabold text-[#3b3128]">{getFinalPreferenceLabel(finalPreference)}</p>
-            </div>
+                className={`pointer-events-none inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 bg-[#fcfbf9] ${getFinalPreferenceVisualClass(finalPreference)}`}
+              >
+                <Image
+                  src={getFinalPreferenceImageSrc(finalPreference)}
+                  alt=""
+                  aria-hidden="true"
+                  width={32}
+                  height={32}
+                  unoptimized
+                  className="h-full w-full object-contain"
+                />
+              </span>
+            </button>
           </section>
         ) : null}
 
@@ -274,6 +348,7 @@ export function FoodSummaryModal({
           </div>
 
           {isPending ? <p className="m-0 text-sm font-semibold text-[#7b6648]">Enregistrement…</p> : null}
+          {saveError ? <p className="m-0 text-sm font-semibold text-rose-700">{saveError}</p> : null}
         </section>
       </section>
     </div>

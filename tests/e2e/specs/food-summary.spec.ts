@@ -72,6 +72,26 @@ test.describe("food summary modal", () => {
     await expect(historyRegion.locator('img[src*="smiley_ko.png"]')).toHaveCount(1);
   });
 
+  test("shows tasting notes in history lines", async ({ appPage, db }) => {
+    const foodName = "Brocoli";
+    await db.setFoodTastingsByName(foodName, [
+      { slot: 1, liked: true, tastedOn: "2026-02-07", note: "note slot 1" },
+      { slot: 2, liked: false, tastedOn: "2026-02-08", note: "" },
+      { slot: 3, liked: true, tastedOn: "2026-02-09", note: "note slot 3" }
+    ]);
+
+    await appPage.reload();
+    await ensureCategoryExpanded(appPage, "Légumes");
+    await getFoodSummaryTrigger(appPage, foodName).click();
+
+    const dialog = getFoodSummaryDialog(appPage, foodName);
+    await expect(dialog).toBeVisible();
+
+    const historyRegion = dialog.getByRole("region", { name: /Historique des dégustations/i });
+    await expect(historyRegion.getByText("note slot 1")).toBeVisible();
+    await expect(historyRegion.getByText("note slot 3")).toBeVisible();
+  });
+
   test("edits notes directly from the summary modal (trimmed)", async ({ appPage, db }) => {
     const foodName = "Brocoli";
     await ensureCategoryExpanded(appPage, "Légumes");

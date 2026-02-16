@@ -2,6 +2,7 @@ export type FoodTastingEntry = {
   slot: 1 | 2 | 3;
   liked: boolean;
   tastedOn: string;
+  note: string;
 };
 
 export type DashboardFood = {
@@ -40,7 +41,7 @@ export type FoodTimelineEntry = {
   categoryName: string;
   slot: 1 | 2 | 3;
   tastedOn: string;
-  preference: -1 | 0 | 1;
+  liked: boolean;
   note: string;
 };
 

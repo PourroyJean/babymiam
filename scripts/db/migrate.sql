@@ -65,6 +65,7 @@ CREATE TABLE food_tastings (
   slot SMALLINT NOT NULL CHECK (slot BETWEEN 1 AND 3),
   liked BOOLEAN NOT NULL,
   tasted_on DATE NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY(owner_id, food_id, slot)

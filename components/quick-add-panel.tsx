@@ -275,7 +275,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
           </div>
 
           <div className="quick-add-field">
-            <label htmlFor="quick-add-note">Note</label>
+            <label htmlFor="quick-add-note">Note du test</label>
             <textarea
               id="quick-add-note"
               className="quick-add-input quick-add-note"
@@ -285,8 +285,8 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
                 setNote(event.currentTarget.value);
                 setErrorMessage("");
               }}
-              placeholder="Ajouter une note (optionnel)"
-              aria-label="Note"
+              placeholder="Ajouter une note de test (optionnel)"
+              aria-label="Note du test"
             />
           </div>
 
