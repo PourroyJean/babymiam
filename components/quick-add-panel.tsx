@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { addQuickEntryAction } from "@/app/actions";
+import { TastingEntryFormFields } from "@/components/tasting-entry-form-fields";
+import {
+  DEFAULT_REACTION_TYPE,
+  type ReactionType,
+  type TextureLevel
+} from "@/lib/tasting-metadata";
 
 type QuickAddFood = {
   id: number;
@@ -46,12 +52,19 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
   const [query, setQuery] = useState("");
   const [selectedFoodId, setSelectedFoodId] = useState<number | null>(null);
   const [tastedOn, setTastedOn] = useState(getTodayLocalIsoDate());
+  const [textureLevel, setTextureLevel] = useState<TextureLevel | null>(null);
+  const [reactionType, setReactionType] = useState<ReactionType>(DEFAULT_REACTION_TYPE);
+  const [showReactionLegend, setShowReactionLegend] = useState(false);
   const [tigerChoice, setTigerChoice] = useState<TigerChoice>(null);
   const [note, setNote] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isPending, startTransition] = useTransition();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const wasOpenRef = useRef(false);
+
+  function clearErrorMessage() {
+    setErrorMessage("");
+  }
 
   useEffect(() => {
     if (!isOpen) return;
@@ -74,9 +87,12 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     setQuery("");
     setSelectedFoodId(null);
     setTastedOn(getTodayLocalIsoDate());
+    setTextureLevel(null);
+    setReactionType(DEFAULT_REACTION_TYPE);
+    setShowReactionLegend(false);
     setTigerChoice(null);
     setNote("");
-    setErrorMessage("");
+    clearErrorMessage();
     wasOpenRef.current = false;
   }, [isOpen]);
 
@@ -122,9 +138,12 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     setQuery("");
     setSelectedFoodId(null);
     setTastedOn(getTodayLocalIsoDate());
+    setTextureLevel(null);
+    setReactionType(DEFAULT_REACTION_TYPE);
+    setShowReactionLegend(false);
     setTigerChoice(null);
     setNote("");
-    setErrorMessage("");
+    clearErrorMessage();
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -136,6 +155,10 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     formData.set("tastedOn", tastedOn);
     formData.set("liked", tigerChoice === "ok" ? "true" : "false");
     formData.set("note", note);
+    if (textureLevel !== null) {
+      formData.set("textureLevel", String(textureLevel));
+    }
+    formData.set("reactionType", String(reactionType));
 
     startTransition(async () => {
       const result = await addQuickEntryAction(formData);
@@ -146,6 +169,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
 
       resetForm();
       router.refresh();
+      onClose();
     });
   }
 
@@ -168,126 +192,91 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
         </header>
 
         <form className="quick-add-form" onSubmit={onSubmit}>
-          <div className="quick-add-field">
-            <label htmlFor="quick-add-food-search">Quel aliment ?</label>
-            <input
-              id="quick-add-food-search"
-              ref={searchInputRef}
-              type="text"
-              className="quick-add-input"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.currentTarget.value);
-                setErrorMessage("");
-              }}
-              placeholder="Tape un aliment (ex: brocoli)"
-              aria-label="Rechercher un aliment"
-              autoComplete="off"
-            />
-            <div className="quick-add-results" role="listbox" aria-label="Résultats aliments">
-              {searchResults.length > 0 ? (
-                <ul className="quick-add-results-list">
-                  {searchResults.map((food) => {
-                    const isSelected = food.id === selectedFoodId;
-                    return (
-                      <li key={`quick-add-food-${food.id}`}>
-                        <button
-                          type="button"
-                          className={`quick-add-food-option ${isSelected ? "selected" : ""}`}
-                          onClick={() => {
-                            setSelectedFoodId(food.id);
-                            setQuery(food.name);
-                            setErrorMessage("");
-                          }}
-                          aria-pressed={isSelected}
-                        >
-                          <span>{food.name}</span>
-                          <small>{food.categoryName}</small>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="quick-add-empty">Aucun aliment trouvé.</p>
-              )}
-            </div>
+          <div className="quick-add-food-and-taste">
+            <div className="quick-add-field">
+              <label htmlFor="quick-add-food-search">Quel aliment ?</label>
+              <input
+                id="quick-add-food-search"
+                ref={searchInputRef}
+                type="text"
+                className="quick-add-input"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.currentTarget.value);
+                  clearErrorMessage();
+                }}
+                placeholder="Tape un aliment (ex: brocoli)"
+                aria-label="Rechercher un aliment"
+                autoComplete="off"
+              />
+              <div className="quick-add-results" role="listbox" aria-label="Résultats aliments">
+                {searchResults.length > 0 ? (
+                  <ul className="quick-add-results-list">
+                    {searchResults.map((food) => {
+                      const isSelected = food.id === selectedFoodId;
+                      return (
+                        <li key={`quick-add-food-${food.id}`}>
+                          <button
+                            type="button"
+                            className={`quick-add-food-option ${isSelected ? "selected" : ""}`}
+                            onClick={() => {
+                              setSelectedFoodId(food.id);
+                              setQuery(food.name);
+                              clearErrorMessage();
+                            }}
+                            aria-pressed={isSelected}
+                          >
+                            <span>{food.name}</span>
+                            <small>{food.categoryName}</small>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="quick-add-empty">Aucun aliment trouvé.</p>
+                )}
+              </div>
             {selectedFood ? (
               <p className="quick-add-selected">
                 Sélectionné: <strong>{selectedFood.name}</strong> ({selectedFood.exposureCount}/3)
               </p>
-            ) : (
-              <p className="quick-add-selected">Sélectionne un aliment existant.</p>
-            )}
+            ) : null}
           </div>
 
-          <div className="quick-add-field">
-            <label htmlFor="quick-add-date">Quand ?</label>
-            <input
-              id="quick-add-date"
-              type="date"
-              className="quick-add-input"
-              value={tastedOn}
-              onChange={(event) => {
-                setTastedOn(event.currentTarget.value);
-                setErrorMessage("");
+          <div className="quick-add-right-column">
+            <TastingEntryFormFields
+              liked={tigerChoice}
+              onLikedChange={(value) => {
+                setTigerChoice(value);
+                clearErrorMessage();
               }}
-              aria-label="Date"
+              tastedOn={tastedOn}
+              onTastedOnChange={(value) => {
+                setTastedOn(value);
+                clearErrorMessage();
+              }}
+              textureLevel={textureLevel}
+              onTextureLevelChange={(value) => {
+                setTextureLevel(value);
+                clearErrorMessage();
+              }}
+              reactionType={reactionType}
+              onReactionTypeChange={(value) => {
+                setReactionType(value);
+                clearErrorMessage();
+              }}
+              note={note}
+              onNoteChange={(value) => {
+                setNote(value);
+                clearErrorMessage();
+              }}
+              onInteraction={clearErrorMessage}
+              reactionLegendVisible={showReactionLegend}
+              onToggleReactionLegend={() => setShowReactionLegend((current) => !current)}
+              idPrefix="quick-add"
             />
           </div>
-
-          <div className="quick-add-field">
-            <p className="quick-add-label">Comment c&apos;était ?</p>
-            <div className="quick-add-tiger-choice" role="group" aria-label="Choix tigre">
-              <button
-                type="button"
-                className={`quick-add-tiger-btn ${tigerChoice === "ok" ? "active-ok" : ""}`}
-                onClick={() => {
-                  setTigerChoice("ok");
-                  setErrorMessage("");
-                }}
-                aria-pressed={tigerChoice === "ok"}
-                aria-label="Tigre OK"
-              >
-                <img
-                  src="/smiley_ok.png"
-                  alt="Tigre OK"
-                  className="quick-add-tiger-img"
-                />
-              </button>
-              <button
-                type="button"
-                className={`quick-add-tiger-btn ${tigerChoice === "ko" ? "active-ko" : ""}`}
-                onClick={() => {
-                  setTigerChoice("ko");
-                  setErrorMessage("");
-                }}
-                aria-pressed={tigerChoice === "ko"}
-                aria-label="Tigre KO"
-              >
-                <img
-                  src="/smiley_ko.png"
-                  alt="Tigre KO"
-                  className="quick-add-tiger-img"
-                />
-              </button>
-            </div>
-          </div>
-
-          <div className="quick-add-field">
-            <label htmlFor="quick-add-note">Note du test</label>
-            <textarea
-              id="quick-add-note"
-              className="quick-add-input quick-add-note"
-              rows={3}
-              value={note}
-              onChange={(event) => {
-                setNote(event.currentTarget.value);
-                setErrorMessage("");
-              }}
-              placeholder="Ajouter une note de test (optionnel)"
-              aria-label="Note du test"
-            />
           </div>
 
           {errorMessage ? <p className="quick-add-feedback quick-add-feedback-error">{errorMessage}</p> : null}

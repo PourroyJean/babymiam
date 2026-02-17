@@ -7,6 +7,7 @@ import type {
   FoodTimelineEntry,
   PublicShareSnapshot
 } from "@/lib/types";
+import type { ReactionType, TextureLevel } from "@/lib/tasting-metadata";
 
 export type EventVisibility = "private" | "public";
 
@@ -34,6 +35,8 @@ type AppendQuickEntryInput = {
   tastedOn: string;
   liked: boolean;
   note: string;
+  textureLevel: TextureLevel | null;
+  reactionType: ReactionType | null;
 };
 
 export type AppendQuickEntryResult = {
@@ -129,10 +132,19 @@ export async function appendQuickEntry(ownerId: number, payload: AppendQuickEntr
 
     await client.query(
       `
-        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note)
-        VALUES ($1, $2, $3, $4, $5::date, $6);
+        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note, texture_level, reaction_type)
+        VALUES ($1, $2, $3, $4, $5::date, $6, $7, $8);
       `,
-      [ownerId, payload.foodId, nextSlot, payload.liked, payload.tastedOn, payload.note]
+      [
+        ownerId,
+        payload.foodId,
+        nextSlot,
+        payload.liked,
+        payload.tastedOn,
+        payload.note,
+        payload.textureLevel,
+        payload.reactionType
+      ]
     );
 
     const nextExposureCount = Math.min(3, takenSlots.size + 1);
@@ -203,7 +215,9 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
               'slot', slot,
               'liked', liked,
               'tastedOn', tasted_on::text,
-              'note', note
+              'note', note,
+              'textureLevel', texture_level,
+              'reactionType', reaction_type
             )
             ORDER BY slot
           ) AS tastings,
@@ -259,6 +273,16 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
             const tastedOn = String((item as { tastedOn?: unknown }).tastedOn || "");
             const noteValue = (item as { note?: unknown }).note;
             const note = typeof noteValue === "string" ? noteValue : "";
+            const rawTextureLevel = (item as { textureLevel?: unknown }).textureLevel;
+            const rawReactionType = (item as { reactionType?: unknown }).reactionType;
+            const textureLevel =
+              typeof rawTextureLevel === "number" && [1, 2, 3, 4].includes(rawTextureLevel)
+                ? (rawTextureLevel as TextureLevel)
+                : null;
+            const reactionType =
+              typeof rawReactionType === "number" && [0, 1, 2, 3, 4].includes(rawReactionType)
+                ? (rawReactionType as ReactionType)
+                : null;
 
             if (![1, 2, 3].includes(slot)) return null;
             if (typeof liked !== "boolean") return null;
@@ -268,7 +292,9 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
               slot: slot as 1 | 2 | 3,
               liked,
               tastedOn,
-              note
+              note,
+              textureLevel,
+              reactionType
             };
           })
           .filter((value): value is FoodTastingEntry => value !== null)
@@ -307,6 +333,8 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
     liked: boolean;
     tasted_on: string;
     note: string | null;
+    texture_level: number | null;
+    reaction_type: number | null;
   }>(
     `
       SELECT
@@ -316,7 +344,9 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
         t.slot,
         t.liked,
         t.tasted_on::text AS tasted_on,
-        COALESCE(t.note, '') AS note
+        COALESCE(t.note, '') AS note,
+        t.texture_level,
+        t.reaction_type
       FROM food_tastings t
       INNER JOIN foods f ON f.id = t.food_id
       INNER JOIN categories c ON c.id = f.category_id
@@ -342,7 +372,15 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
         slot: slot as 1 | 2 | 3,
         tastedOn: row.tasted_on,
         liked: Boolean(row.liked),
-        note: row.note ?? ""
+        note: row.note ?? "",
+        textureLevel:
+          typeof row.texture_level === "number" && [1, 2, 3, 4].includes(row.texture_level)
+            ? (row.texture_level as TextureLevel)
+            : null,
+        reactionType:
+          typeof row.reaction_type === "number" && [0, 1, 2, 3, 4].includes(row.reaction_type)
+            ? (row.reaction_type as ReactionType)
+            : null
       };
     })
     .filter((entry): entry is FoodTimelineEntry => entry !== null);
@@ -365,7 +403,9 @@ export async function upsertFoodTastingEntry(
   slot: 1 | 2 | 3,
   liked: boolean,
   tastedOn: string,
-  note: string
+  note: string,
+  textureLevel: TextureLevel | null,
+  reactionType: ReactionType | null
 ) {
   const client = await getPool().connect();
   try {
@@ -382,16 +422,18 @@ export async function upsertFoodTastingEntry(
 
     await client.query(
       `
-        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note, texture_level, reaction_type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         ON CONFLICT (owner_id, food_id, slot)
         DO UPDATE SET
           liked = EXCLUDED.liked,
           tasted_on = EXCLUDED.tasted_on,
           note = EXCLUDED.note,
+          texture_level = EXCLUDED.texture_level,
+          reaction_type = EXCLUDED.reaction_type,
           updated_at = NOW();
       `,
-      [ownerId, foodId, slot, liked, tastedOn, note]
+      [ownerId, foodId, slot, liked, tastedOn, note, textureLevel, reactionType]
     );
 
     await client.query(

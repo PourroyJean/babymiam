@@ -7,6 +7,13 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { saveTastingEntryAction, setNoteAction } from "@/app/actions";
 import type { FoodTastingEntry } from "@/lib/types";
+import {
+  DEFAULT_REACTION_TYPE,
+  REACTION_OPTIONS,
+  TEXTURE_OPTIONS,
+  type ReactionType,
+  type TextureLevel
+} from "@/lib/tasting-metadata";
 
 type FoodSummaryModalProps = {
   isOpen: boolean;
@@ -24,17 +31,6 @@ type FoodSummaryModalProps = {
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-function formatShortFrenchDate(value: string) {
-  const parsed = new Date(`${value}T12:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime())) return value;
-
-  const day = String(parsed.getDate()).padStart(2, "0");
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const year = String(parsed.getFullYear()).slice(-2);
-
-  return `${day}/${month}/${year}`;
-}
 
 function getTastingIconSrc(liked: boolean) {
   return liked ? "/smiley_ok.png" : "/smiley_ko.png";
@@ -81,7 +77,11 @@ export function FoodSummaryModal({
   const [isMounted, setIsMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [draftNote, setDraftNote] = useState(initialNote);
+  const [draftTastingLiked, setDraftTastingLiked] = useState<Record<number, boolean>>({});
   const [draftTastingNotes, setDraftTastingNotes] = useState<Record<number, string>>({});
+  const [draftTastingDates, setDraftTastingDates] = useState<Record<number, string>>({});
+  const [draftTastingTextures, setDraftTastingTextures] = useState<Record<number, TextureLevel | null>>({});
+  const [draftTastingReactions, setDraftTastingReactions] = useState<Record<number, ReactionType>>({});
   const [saveError, setSaveError] = useState("");
   const modalRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -93,7 +93,13 @@ export function FoodSummaryModal({
   useEffect(() => {
     if (!isOpen) return;
     setDraftNote(initialNote);
+    setDraftTastingLiked(Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.liked])));
+    setDraftTastingDates(Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.tastedOn])));
     setDraftTastingNotes(Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.note])));
+    setDraftTastingTextures(Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.textureLevel ?? null])));
+    setDraftTastingReactions(
+      Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.reactionType ?? DEFAULT_REACTION_TYPE]))
+    );
     setSaveError("");
   }, [foodId, initialNote, isOpen, tastings]);
 
@@ -169,17 +175,37 @@ export function FoodSummaryModal({
       setSaveError("");
       try {
         for (const tasting of tastings) {
+          const updatedLiked = draftTastingLiked[tasting.slot] ?? tasting.liked;
+          const updatedTastedOn = (draftTastingDates[tasting.slot] || tasting.tastedOn).trim();
           const updatedNote = draftTastingNotes[tasting.slot] ?? tasting.note;
-          if (updatedNote.trim() === tasting.note.trim()) {
+          const hasDraftTextureLevel = Object.prototype.hasOwnProperty.call(draftTastingTextures, tasting.slot);
+          const updatedTextureLevel = hasDraftTextureLevel
+            ? draftTastingTextures[tasting.slot]
+            : (tasting.textureLevel ?? null);
+          const updatedReactionType =
+            draftTastingReactions[tasting.slot] ?? tasting.reactionType ?? DEFAULT_REACTION_TYPE;
+          const normalizedExistingReaction = tasting.reactionType ?? DEFAULT_REACTION_TYPE;
+
+          if (
+            updatedLiked === tasting.liked &&
+            updatedTastedOn === tasting.tastedOn &&
+            updatedNote.trim() === tasting.note.trim() &&
+            updatedTextureLevel === (tasting.textureLevel ?? null) &&
+            updatedReactionType === normalizedExistingReaction
+          ) {
             continue;
           }
 
           const tastingFormData = new FormData();
           tastingFormData.set("foodId", String(foodId));
           tastingFormData.set("slot", String(tasting.slot));
-          tastingFormData.set("liked", tasting.liked ? "yes" : "no");
-          tastingFormData.set("tastedOn", tasting.tastedOn);
+          tastingFormData.set("liked", updatedLiked ? "yes" : "no");
+          tastingFormData.set("tastedOn", updatedTastedOn);
           tastingFormData.set("note", updatedNote.trim());
+          if (updatedTextureLevel !== null) {
+            tastingFormData.set("textureLevel", String(updatedTextureLevel));
+          }
+          tastingFormData.set("reactionType", String(updatedReactionType));
 
           const tastingResult = await saveTastingEntryAction(tastingFormData);
           if (!tastingResult.ok) {
@@ -245,44 +271,123 @@ export function FoodSummaryModal({
             </p>
           ) : (
             <ol className="m-0 grid list-none gap-2 p-0">
-              {tastings.slice(0, 3).map((tasting) => (
-                    <li
-                      key={`${foodId}-${tasting.slot}-${tasting.tastedOn}`}
-                      className="flex items-center justify-between gap-4 rounded-xl border border-[#e8dcc9] bg-white/80 px-3 py-2"
-                    >
-                    <div className="flex items-center gap-4">
-                      <Image
-                        src={getTastingIconSrc(tasting.liked)}
-                        alt={tasting.liked ? "Tigre OK" : "Tigre KO"}
-                        width={28}
-                        height={28}
-                        unoptimized
-                        className="h-7 w-7 object-contain"
-                      />
-                      <p className="m-0 text-sm font-extrabold text-[#3b3128]">Tigre {tasting.slot}/3</p>
-                    </div>
-                    <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
-                      <p className="m-0 text-left text-sm font-semibold text-[#6c5b48]">
-                        {formatShortFrenchDate(tasting.tastedOn)}
-                      </p>
+              {tastings.slice(0, 3).map((tasting) => {
+                const liked = draftTastingLiked[tasting.slot] ?? tasting.liked;
+                const hasDraftTextureLevel = Object.prototype.hasOwnProperty.call(draftTastingTextures, tasting.slot);
+                const textureLevel = hasDraftTextureLevel
+                  ? draftTastingTextures[tasting.slot]
+                  : (tasting.textureLevel ?? null);
+                const reactionType =
+                  draftTastingReactions[tasting.slot] ?? tasting.reactionType ?? DEFAULT_REACTION_TYPE;
+
+                return (
+                  <li
+                    key={`${foodId}-${tasting.slot}-${tasting.tastedOn}`}
+                    className="flex flex-col gap-2 rounded-lg border border-[#e1d8ca] bg-[#f5f4f1] px-3 py-2 shadow-[0_1px_2px_rgba(76,65,54,0.06)]"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDraftTastingLiked((current) => ({
+                              ...current,
+                              [tasting.slot]: !liked
+                            }));
+                          }}
+                          disabled={isPending}
+                          aria-label={`Basculer le résultat du tigre ${tasting.slot}/3`}
+                          title={`Passer à ${liked ? "pas aimé" : "aimé"}`}
+                          className="touch-manipulation inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#dacbb6] bg-[#fffbf4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 disabled:opacity-60"
+                        >
+                          <Image
+                            src={getTastingIconSrc(liked)}
+                            alt={liked ? "Tigre OK" : "Tigre KO"}
+                            width={28}
+                            height={28}
+                            unoptimized
+                            className="h-7 w-7 object-contain"
+                          />
+                        </button>
+                        <p className="m-0 text-sm font-extrabold text-[#3b3128]">Tigre {tasting.slot}/3</p>
+                      </div>
                       <input
-                        type="text"
-                        value={draftTastingNotes[tasting.slot] ?? tasting.note}
+                        type="date"
+                        value={draftTastingDates[tasting.slot] ?? tasting.tastedOn}
                         onChange={(event) => {
-                          const newValue = event.currentTarget.value;
-                          setDraftTastingNotes((current) => ({
+                          const nextValue = event.currentTarget.value;
+                          setDraftTastingDates((current) => ({
                             ...current,
-                            [tasting.slot]: newValue
+                            [tasting.slot]: nextValue
                           }));
                         }}
-                        placeholder="Ajouter une note"
                         disabled={isPending}
-                        className="m-0 inline-flex h-9 min-h-0 min-w-0 max-w-[60%] flex-1 items-center rounded-full border border-[#e6d7bf] bg-[#fff8ec] px-2.5 py-1 text-left text-sm font-semibold leading-snug text-[#6c5b48] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
-                        aria-label={`Note du ${tasting.slot}/3`}
+                        className="h-8 rounded-lg border border-[#dfd1ba] bg-[#fffbf4] px-2 text-[0.8rem] font-semibold text-[#6c5b48] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
+                        aria-label={`Date du ${tasting.slot}/3`}
                       />
                     </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={textureLevel === null ? "" : String(textureLevel)}
+                        onChange={(event) => {
+                          const raw = event.currentTarget.value.trim();
+                          setDraftTastingTextures((current) => ({
+                            ...current,
+                            [tasting.slot]: raw ? (Number(raw) as TextureLevel) : null
+                          }));
+                        }}
+                        disabled={isPending}
+                        className="h-8 rounded-lg border border-[#dfd1ba] bg-[#fffbf4] px-2 text-[0.8rem] font-semibold text-[#6c5b48] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
+                        aria-label={`Texture du ${tasting.slot}/3`}
+                      >
+                        <option value="">Texture non renseignée</option>
+                        {TEXTURE_OPTIONS.map((option) => (
+                          <option key={option.level} value={option.level}>
+                            {option.level} - {option.shortName}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={String(reactionType)}
+                        onChange={(event) => {
+                          const nextValue = Number(event.currentTarget.value) as ReactionType;
+                          setDraftTastingReactions((current) => ({
+                            ...current,
+                            [tasting.slot]: nextValue
+                          }));
+                        }}
+                        disabled={isPending}
+                        className="h-8 rounded-lg border border-[#dfd1ba] bg-[#fffbf4] px-2 text-[0.8rem] font-semibold text-[#6c5b48] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
+                        aria-label={`Réaction du ${tasting.slot}/3`}
+                      >
+                        {REACTION_OPTIONS.map((option) => (
+                          <option key={option.type} value={option.type}>
+                            {option.emoji} {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={draftTastingNotes[tasting.slot] ?? tasting.note}
+                      onChange={(event) => {
+                        const newValue = event.currentTarget.value;
+                        setDraftTastingNotes((current) => ({
+                          ...current,
+                          [tasting.slot]: newValue
+                        }));
+                      }}
+                      placeholder="Ajouter une note"
+                      disabled={isPending}
+                      className="m-0 inline-flex h-9 min-h-0 min-w-0 w-full items-center rounded-lg border border-[#dfd1ba] bg-[#fffbf4] px-2.5 py-1 text-left text-sm font-semibold leading-snug text-[#6c5b48] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
+                      aria-label={`Note du ${tasting.slot}/3`}
+                    />
                   </li>
-                ))}
+                );
+              })}
             </ol>
           )}
         </section>

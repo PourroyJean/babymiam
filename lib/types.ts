@@ -1,8 +1,12 @@
+import type { ReactionType, TextureLevel } from "@/lib/tasting-metadata";
+
 export type FoodTastingEntry = {
   slot: 1 | 2 | 3;
   liked: boolean;
   tastedOn: string;
   note: string;
+  textureLevel: TextureLevel | null;
+  reactionType: ReactionType | null;
 };
 
 export type DashboardFood = {
@@ -43,6 +47,8 @@ export type FoodTimelineEntry = {
   tastedOn: string;
   liked: boolean;
   note: string;
+  textureLevel: TextureLevel | null;
+  reactionType: ReactionType | null;
 };
 
 export type PublicShareSnapshot = {
@@ -56,4 +62,24 @@ export type PublicShareSnapshot = {
   recentFoods: string[];
   createdAt: string;
   expiresAt: string | null;
+};
+
+export type TextureCoachStatus = "no_data" | "aligned" | "watch" | "behind";
+
+export type TextureCoachSnapshot = {
+  ageMonths: number;
+  targetTextureMin: TextureLevel;
+  targetTextureMax: TextureLevel;
+  targetLabel: string;
+  observedTextureLevel: TextureLevel | null;
+  observedLabel: string;
+  goalTextureLevel: TextureLevel;
+  status: TextureCoachStatus;
+  statusLabel: string;
+  statusDescription: string;
+  actionLabel: string;
+  suggestedFoods: string[];
+  texturedEntriesCount: number;
+  totalEntriesCount: number;
+  coveragePercent: number;
 };

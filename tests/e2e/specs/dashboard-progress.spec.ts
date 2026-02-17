@@ -85,6 +85,8 @@ test.describe("dashboard progression", () => {
     const dateInput = editor.getByLabel("Date de dégustation");
     await expect(dateInput).toHaveValue(todayIsoDate);
 
+    await editor.getByRole("button", { name: /Fondant/i }).click();
+    await editor.getByLabel(/Réaction observée/i).selectOption("3");
     await editor.getByRole("button", { name: "Oui" }).click();
     await editor.getByRole("button", { name: "Enregistrer" }).click();
     await expect(editor).toBeHidden();
@@ -98,6 +100,12 @@ test.describe("dashboard progression", () => {
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.tastedOn ?? null)
       .toBe(todayIsoDate);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.textureLevel ?? null)
+      .toBe(3);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.reactionType ?? null)
+      .toBe(3);
   });
 
   test("uses child first name in tasting popup when profile exists", async ({ appPage, db }) => {
@@ -166,7 +174,9 @@ test.describe("dashboard progression", () => {
     const initialDate = "2025-01-10";
     const updatedDate = "2025-01-21";
 
-    await db.setFoodTastingsByName(foodName, [{ slot: 1, liked: true, tastedOn: initialDate }]);
+    await db.setFoodTastingsByName(foodName, [
+      { slot: 1, liked: true, tastedOn: initialDate, textureLevel: 1, reactionType: 0 }
+    ]);
     await appPage.reload();
 
     const { dialog, searchInput } = await openSearchOverlay(appPage);
@@ -178,6 +188,8 @@ test.describe("dashboard progression", () => {
 
     await editor.getByRole("button", { name: "Non" }).click();
     await editor.getByLabel("Date de dégustation").fill(updatedDate);
+    await editor.getByRole("button", { name: /À mâcher/i }).click();
+    await editor.getByLabel(/Réaction observée/i).selectOption("1");
     await editor.getByRole("button", { name: "Enregistrer" }).click();
     await expect(editor).toBeHidden();
 
@@ -187,6 +199,12 @@ test.describe("dashboard progression", () => {
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.tastedOn ?? null)
       .toBe(updatedDate);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.textureLevel ?? null)
+      .toBe(4);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.reactionType ?? null)
+      .toBe(1);
 
     const filledSlotButton = getSlotButton(dialog, foodName, 1);
     await expect(filledSlotButton).toHaveAttribute(
@@ -444,6 +462,8 @@ test.describe("dashboard progression", () => {
     await searchInput.fill("brocoli");
     await dialog.locator(".quick-add-food-option", { hasText: foodName }).first().click();
     await dateInput.fill("2026-02-14");
+    await dialog.getByRole("button", { name: /Fondant/i }).click();
+    await dialog.getByLabel(/Réaction observée/i).selectOption("2");
     await dialog.getByRole("button", { name: "Tigre KO" }).click();
     await noteInput.fill("nouvelle note");
     await addButton.click();
@@ -471,6 +491,12 @@ test.describe("dashboard progression", () => {
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings.find((entry) => entry.slot === 2)?.note ?? "")
       .toBe("nouvelle note");
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings.find((entry) => entry.slot === 2)?.textureLevel ?? null)
+      .toBe(3);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings.find((entry) => entry.slot === 2)?.reactionType ?? null)
+      .toBe(2);
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.finalPreference ?? 999)
       .toBe(1);

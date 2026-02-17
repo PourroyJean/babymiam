@@ -13,6 +13,13 @@ import {
   upsertNote,
   upsertShareSnapshot
 } from "@/lib/data";
+import {
+  DEFAULT_REACTION_TYPE,
+  isReactionType,
+  isTextureLevel,
+  type ReactionType,
+  type TextureLevel
+} from "@/lib/tasting-metadata";
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const SHARE_EVENT_NAMES = new Set([
@@ -56,6 +63,29 @@ function getRecentFoods(formData: FormData, key: string) {
     .slice(0, 3);
 }
 
+function parseNullableInteger(formData: FormData, key: string) {
+  const raw = formData.get(key);
+  if (raw === null) return null;
+  const value = String(raw).trim();
+  if (!value) return null;
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.trunc(parsed);
+}
+
+function parseTextureLevel(formData: FormData): TextureLevel | null {
+  const parsed = parseNullableInteger(formData, "textureLevel");
+  if (parsed === null) return null;
+  return isTextureLevel(parsed) ? parsed : null;
+}
+
+function parseReactionType(formData: FormData): ReactionType | null {
+  const parsed = parseNullableInteger(formData, "reactionType");
+  if (parsed === null) return null;
+  return isReactionType(parsed) ? parsed : null;
+}
+
 export async function logoutAction() {
   await clearSession();
   redirect("/login");
@@ -70,6 +100,8 @@ export async function saveTastingEntryAction(formData: FormData) {
   const tastedOnRaw = String(formData.get("tastedOn") || "").trim();
   const tastedOn = tastedOnRaw || getTodayIsoDate();
   const note = String(formData.get("note") || "").trim();
+  const textureLevel = parseTextureLevel(formData);
+  const reactionType = parseReactionType(formData) ?? DEFAULT_REACTION_TYPE;
 
   if (!Number.isFinite(foodId) || ![1, 2, 3].includes(slot)) {
     return { ok: false, error: "Entrée invalide." };
@@ -87,7 +119,16 @@ export async function saveTastingEntryAction(formData: FormData) {
     return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
   }
 
-  await upsertFoodTastingEntry(user.id, foodId, slot as 1 | 2 | 3, likedRaw === "yes", tastedOn, note);
+  await upsertFoodTastingEntry(
+    user.id,
+    foodId,
+    slot as 1 | 2 | 3,
+    likedRaw === "yes",
+    tastedOn,
+    note,
+    textureLevel,
+    reactionType
+  );
   revalidatePath("/");
   return { ok: true };
 }
@@ -145,6 +186,8 @@ export async function addQuickEntryAction(formData: FormData) {
   const tastedOn = String(formData.get("tastedOn") || "").trim();
   const likedRaw = String(formData.get("liked") || "").trim().toLowerCase();
   const note = String(formData.get("note") || "").trim();
+  const textureLevel = parseTextureLevel(formData);
+  const reactionType = parseReactionType(formData) ?? DEFAULT_REACTION_TYPE;
 
   if (!Number.isFinite(foodId)) {
     return { ok: false, error: "Aliment invalide." };
@@ -166,7 +209,9 @@ export async function addQuickEntryAction(formData: FormData) {
     foodId,
     tastedOn,
     liked: likedRaw === "true",
-    note
+    note,
+    textureLevel,
+    reactionType
   });
 
   if (result.status === "food_not_found") {

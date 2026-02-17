@@ -88,8 +88,8 @@ test.describe("food summary modal", () => {
     await expect(dialog).toBeVisible();
 
     const historyRegion = dialog.getByRole("region", { name: /Historique des dégustations/i });
-    await expect(historyRegion.getByText("note slot 1")).toBeVisible();
-    await expect(historyRegion.getByText("note slot 3")).toBeVisible();
+    await expect(historyRegion.getByLabel("Note du 1/3")).toHaveValue("note slot 1");
+    await expect(historyRegion.getByLabel("Note du 3/3")).toHaveValue("note slot 3");
   });
 
   test("edits notes directly from the summary modal (trimmed)", async ({ appPage, db }) => {
@@ -107,6 +107,58 @@ test.describe("food summary modal", () => {
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.note ?? "")
       .toBe("Première note");
+  });
+
+  test("edits texture and reaction from the summary modal", async ({ appPage, db }) => {
+    const foodName = "Brocoli";
+    await db.setFoodTastingsByName(foodName, [
+      { slot: 1, liked: true, tastedOn: "2026-02-07", textureLevel: 1, reactionType: 0 }
+    ]);
+
+    await appPage.reload();
+    await ensureCategoryExpanded(appPage, "Légumes");
+    await getFoodSummaryTrigger(appPage, foodName).click();
+
+    const dialog = getFoodSummaryDialog(appPage, foodName);
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByLabel("Texture du 1/3").selectOption("4");
+    await dialog.getByLabel("Réaction du 1/3").selectOption("1");
+    await dialog.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(dialog).toBeHidden();
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.textureLevel ?? null)
+      .toBe(4);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.reactionType ?? null)
+      .toBe(1);
+  });
+
+  test("updates the main view after toggling tiger state from summary", async ({ appPage, db }) => {
+    const foodName = "Brocoli";
+    await db.setFoodTastingsByName(foodName, [{ slot: 1, liked: true, tastedOn: "2026-02-07" }]);
+
+    await appPage.reload();
+    await ensureCategoryExpanded(appPage, "Légumes");
+    await getFoodSummaryTrigger(appPage, foodName).click();
+
+    const dialog = getFoodSummaryDialog(appPage, foodName);
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByRole("button", { name: /Basculer le résultat du tigre 1\/3/i }).click();
+    await dialog.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(dialog).toBeHidden();
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.liked ?? null)
+      .toBe(false);
+
+    await expect(
+      appPage.getByRole("button", {
+        name: new RegExp(`^${escapeRegExp(foodName)} - entrée 1 \\(pas aimé`, "i")
+      })
+    ).toBeVisible();
   });
 
   test("stacks on top of Timeline and Escape closes only the summary", async ({ appPage, db }) => {

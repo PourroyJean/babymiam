@@ -7,6 +7,12 @@ import { useRouter } from "next/navigation";
 import { deleteTastingEntryAction, saveTastingEntryAction } from "@/app/actions";
 import { Pencil } from "lucide-react";
 import type { FoodTastingEntry } from "@/lib/types";
+import { TastingEntryFormFields } from "@/components/tasting-entry-form-fields";
+import {
+  DEFAULT_REACTION_TYPE,
+  type ReactionType,
+  type TextureLevel
+} from "@/lib/tasting-metadata";
 
 type VegetableRowProps = {
   foodId: number;
@@ -86,6 +92,8 @@ export function VegetableRow({
   const [editorSlot, setEditorSlot] = useState<1 | 2 | 3 | null>(null);
   const [editorLiked, setEditorLiked] = useState<"yes" | "no" | null>(null);
   const [editorDate, setEditorDate] = useState("");
+  const [editorTextureLevel, setEditorTextureLevel] = useState<TextureLevel | null>(null);
+  const [editorReactionType, setEditorReactionType] = useState<ReactionType>(DEFAULT_REACTION_TYPE);
   const [editorNote, setEditorNote] = useState("");
   const [editorError, setEditorError] = useState("");
   const [isEditorPending, startEditorTransition] = useTransition();
@@ -114,6 +122,8 @@ export function VegetableRow({
     setEditorSlot(null);
     setEditorLiked(null);
     setEditorDate("");
+    setEditorTextureLevel(null);
+    setEditorReactionType(DEFAULT_REACTION_TYPE);
     setEditorNote("");
     setEditorError("");
   }, []);
@@ -151,7 +161,6 @@ export function VegetableRow({
   const nextFinalPreferenceLabel = getFinalPreferenceLabel(nextFinalPreference);
   const canShowFinalPreference = tastingCount === 3;
   const childLabel = childFirstName?.trim() || "bébé";
-  const childDisplayName = childFirstName?.trim() || "Bébé";
 
   function openEditor(slot: 1 | 2 | 3) {
     const existing = tastingsBySlot.get(slot);
@@ -159,6 +168,8 @@ export function VegetableRow({
     setEditorSlot(slot);
     setEditorLiked(existing ? (existing.liked ? "yes" : "no") : null);
     setEditorDate(existing?.tastedOn || getTodayIsoDate());
+    setEditorTextureLevel(existing?.textureLevel ?? null);
+    setEditorReactionType(existing?.reactionType ?? DEFAULT_REACTION_TYPE);
     setEditorNote(existing?.note ?? "");
     setEditorError("");
     setIsEditorOpen(true);
@@ -188,6 +199,10 @@ export function VegetableRow({
     formData.set("liked", editorLiked);
     formData.set("tastedOn", editorDate || getTodayIsoDate());
     formData.set("note", editorNote.trim());
+    if (editorTextureLevel !== null) {
+      formData.set("textureLevel", String(editorTextureLevel));
+    }
+    formData.set("reactionType", String(editorReactionType));
 
     startEditorTransition(async () => {
       const result = await saveTastingEntryAction(formData);
@@ -234,7 +249,7 @@ export function VegetableRow({
         role="dialog"
         aria-modal="true"
         aria-labelledby={`tasting-editor-title-${foodId}-${editorSlot}`}
-        className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-3xl border border-[#e1d2bc] bg-[#fffdf8] p-4 shadow-2xl sm:relative sm:inset-auto sm:w-[min(100%,30rem)] sm:rounded-2xl"
+        className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-3xl border border-[#e1d2bc] bg-[#fffdf8] p-4 shadow-2xl sm:relative sm:inset-auto sm:w-[min(100%,34.5rem)] sm:rounded-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="mb-3">
@@ -247,122 +262,22 @@ export function VegetableRow({
         </header>
 
         <div className="grid gap-4">
-          <div>
-            <p className="m-0 mb-2 text-sm font-semibold text-[#554a3f]">{childDisplayName} a aimé ?</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                aria-label="Oui"
-                title={`${childDisplayName} a aimé`}
-                aria-pressed={editorLiked === "yes"}
-                className={`touch-manipulation inline-flex appearance-none border-0 bg-transparent p-0 min-h-[60px] items-center justify-center transition-all ${
-                  editorLiked === "yes" ? "scale-110" : editorLiked === "no" ? "scale-95" : "scale-100"
-                }`}
-                onClick={() => setEditorLiked("yes")}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`inline-flex h-[100px] w-[100px] items-center justify-center transition-all ${
-                    editorLiked === "yes" || editorLiked === null ? "opacity-100" : "opacity-85 grayscale"
-                  }`}
-                >
-                  <Image
-                    src="/smiley_ok.png"
-                    alt="Oui"
-                    aria-hidden="true"
-                    width={100}
-                    height={100}
-                    unoptimized
-                    className={`h-24 w-24 object-contain transition-all ${editorLiked === "yes" ? "h-[100px] w-[100px]" : ""}`}
-                  />
-                </span>
-                <span
-                  style={{
-                    position: "absolute",
-                    width: "1px",
-                    height: "1px",
-                    padding: 0,
-                    margin: "-1px",
-                    overflow: "hidden",
-                    clip: "rect(0, 0, 0, 0)",
-                    whiteSpace: "nowrap",
-                    border: "0",
-                    lineHeight: "0"
-                  }}
-                >
-                  Oui
-                </span>
-              </button>
-              <button
-                type="button"
-                aria-label="Non"
-                title={`${childDisplayName} n'a pas aimé`}
-                aria-pressed={editorLiked === "no"}
-                className={`touch-manipulation inline-flex appearance-none border-0 bg-transparent p-0 min-h-[60px] items-center justify-center transition-all ${
-                  editorLiked === "no" ? "scale-110" : editorLiked === "yes" ? "scale-95" : "scale-100"
-                }`}
-                onClick={() => setEditorLiked("no")}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`inline-flex h-[100px] w-[100px] items-center justify-center transition-all ${
-                    editorLiked === "no" || editorLiked === null ? "opacity-100" : "opacity-85 grayscale"
-                  }`}
-                >
-                  <Image
-                    src="/smiley_ko.png"
-                    alt="Non"
-                    aria-hidden="true"
-                    width={100}
-                    height={100}
-                    unoptimized
-                    className={`h-24 w-24 object-contain transition-all ${editorLiked === "no" ? "h-[100px] w-[100px]" : ""}`}
-                  />
-                </span>
-                <span
-                  style={{
-                    position: "absolute",
-                    width: "1px",
-                    height: "1px",
-                    padding: 0,
-                    margin: "-1px",
-                    overflow: "hidden",
-                    clip: "rect(0, 0, 0, 0)",
-                    whiteSpace: "nowrap",
-                    border: "0",
-                    lineHeight: "0"
-                  }}
-                >
-                  Non
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor={`tasting-date-${foodId}-${editorSlot}`} className="mb-2 block text-sm font-semibold text-[#554a3f]">
-              Date de dégustation
-            </label>
-            <input
-              id={`tasting-date-${foodId}-${editorSlot}`}
-              type="date"
-              value={editorDate}
-              onChange={(event) => setEditorDate(event.currentTarget.value)}
-              className="h-12 w-full rounded-xl border border-[#ddcfbb] bg-white px-3 text-base text-[#40362c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
-            />
-          </div>
-
-          <div>
-            <label htmlFor={`tasting-note-${foodId}-${editorSlot}`} className="mb-2 block text-sm font-semibold text-[#554a3f]">
-              Note du test
-            </label>
-            <textarea
-              id={`tasting-note-${foodId}-${editorSlot}`}
-              value={editorNote}
-              onChange={(event) => setEditorNote(event.currentTarget.value)}
-              placeholder="Écrire une note de test..."
-              rows={3}
-              className="w-full rounded-xl border border-[#ddcfbb] bg-white px-3 py-2 text-base text-[#40362c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
+          <div className="quick-add-right-column">
+            <TastingEntryFormFields
+              liked={editorLiked === "yes" ? "ok" : editorLiked === "no" ? "ko" : null}
+              onLikedChange={(value) => {
+                setEditorLiked(value === "ok" ? "yes" : "no");
+              }}
+              tastedOn={editorDate}
+              onTastedOnChange={setEditorDate}
+              textureLevel={editorTextureLevel}
+              onTextureLevelChange={setEditorTextureLevel}
+              reactionType={editorReactionType}
+              onReactionTypeChange={(value) => setEditorReactionType(value)}
+              note={editorNote}
+              onNoteChange={setEditorNote}
+              disabled={isEditorPending}
+              idPrefix={`tasting-editor-${foodId}-${editorSlot}`}
             />
           </div>
 
