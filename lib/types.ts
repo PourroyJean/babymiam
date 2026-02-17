@@ -63,23 +63,3 @@ export type PublicShareSnapshot = {
   createdAt: string;
   expiresAt: string | null;
 };
-
-export type TextureCoachStatus = "no_data" | "aligned" | "watch" | "behind";
-
-export type TextureCoachSnapshot = {
-  ageMonths: number;
-  targetTextureMin: TextureLevel;
-  targetTextureMax: TextureLevel;
-  targetLabel: string;
-  observedTextureLevel: TextureLevel | null;
-  observedLabel: string;
-  goalTextureLevel: TextureLevel;
-  status: TextureCoachStatus;
-  statusLabel: string;
-  statusDescription: string;
-  actionLabel: string;
-  suggestedFoods: string[];
-  texturedEntriesCount: number;
-  totalEntriesCount: number;
-  coveragePercent: number;
-};

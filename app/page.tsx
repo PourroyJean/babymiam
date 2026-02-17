@@ -1,7 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { CATEGORY_TONE_BY_NAME } from "@/lib/category-ui";
 import { getChildProfile, getDashboardData, getFoodTimeline } from "@/lib/data";
-import { buildTextureCoachSnapshot } from "@/lib/texture-coach";
 import { CategoriesGrid } from "@/components/categories-grid";
 import { SiteNav } from "@/components/site-nav";
 import type { DashboardCategory, FoodTimelineEntry, ProgressSummary } from "@/lib/types";
@@ -48,10 +47,6 @@ export default async function DashboardPage() {
   }
 
   const progressSummary = buildProgressSummary(categories);
-  const textureCoach = buildTextureCoachSnapshot({
-    birthDate: childProfile?.birthDate,
-    timelineEntries
-  });
   const dashboardTitle = `Les premiers aliments de ${childProfile?.firstName ?? "bébé"}`;
 
   return (
@@ -81,7 +76,6 @@ export default async function DashboardPage() {
         toneByCategory={CATEGORY_TONE_BY_NAME}
         childFirstName={childProfile?.firstName ?? null}
         timelineEntries={timelineEntries}
-        textureCoach={textureCoach}
       />
     </main>
   );

@@ -7,20 +7,13 @@ import { FoodSummaryModal } from "@/components/food-summary-modal";
 import { QuickAddPanel } from "@/components/quick-add-panel";
 import { VegetableRow } from "@/components/vegetable-row";
 import { getCategoryUi } from "@/lib/category-ui";
-import type {
-  DashboardCategory,
-  DashboardFood,
-  FoodTimelineEntry,
-  TextureCoachSnapshot,
-  TextureCoachStatus
-} from "@/lib/types";
+import type { DashboardCategory, DashboardFood, FoodTimelineEntry } from "@/lib/types";
 
 type CategoriesGridProps = {
   categories: DashboardCategory[];
   toneByCategory: Record<string, string>;
   childFirstName?: string | null;
   timelineEntries: FoodTimelineEntry[];
-  textureCoach: TextureCoachSnapshot | null;
 };
 
 type SearchFood = DashboardFood & {
@@ -182,19 +175,11 @@ function getCategoryPictogram(categoryName: string) {
   return getCategoryUi(categoryName).pictogram;
 }
 
-function getTextureCoachStatusClassName(status: TextureCoachStatus) {
-  if (status === "aligned") return "texture-coach-card--aligned";
-  if (status === "watch") return "texture-coach-card--watch";
-  if (status === "behind") return "texture-coach-card--behind";
-  return "texture-coach-card--no-data";
-}
-
 export function CategoriesGrid({
   categories,
   toneByCategory,
   childFirstName = null,
-  timelineEntries,
-  textureCoach
+  timelineEntries
 }: CategoriesGridProps) {
   const [openByCategoryId, setOpenByCategoryId] = useState<Record<number, boolean>>({});
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -740,54 +725,11 @@ export function CategoriesGrid({
   const summaryToneClass = toneByCategory[summaryCategoryName] || "tone-other";
   const summaryFinalPreference =
     summaryFoodId !== null ? (finalPreferenceOverridesByFoodId[summaryFoodId] ?? summaryFood?.finalPreference ?? 0) : 0;
-  const suggestedFoodsText =
-    textureCoach && textureCoach.suggestedFoods.length > 0 ? textureCoach.suggestedFoods.join(", ") : "";
 
   return (
     <section className="categories-section">
       <div className="categories-toolbar">
         <section className="toolbox-card">
-          {textureCoach ? (
-            <section
-              className={`texture-coach-card ${getTextureCoachStatusClassName(textureCoach.status)}`}
-              aria-label="Coach textures Premium"
-            >
-              <header className="texture-coach-head">
-                <p className="texture-coach-kicker">Premium · Coach textures</p>
-                <p className="texture-coach-status">{textureCoach.statusLabel}</p>
-              </header>
-              <p className="texture-coach-summary">
-                Niveau observe: <strong>{textureCoach.observedLabel}</strong> · Cible age:{" "}
-                <strong>{textureCoach.targetLabel}</strong>
-              </p>
-              <p className="texture-coach-description">{textureCoach.statusDescription}</p>
-              <p className="texture-coach-action">{textureCoach.actionLabel}</p>
-              {suggestedFoodsText ? (
-                <p className="texture-coach-suggestions">
-                  Aliments prets pour monter d&apos;un cran: <strong>{suggestedFoodsText}</strong>
-                </p>
-              ) : null}
-              <p className="texture-coach-meta">
-                {textureCoach.ageMonths} mois · {textureCoach.coveragePercent}% des repas ont une texture renseignee (
-                {textureCoach.texturedEntriesCount}/{textureCoach.totalEntriesCount})
-              </p>
-            </section>
-          ) : (
-            <section
-              className="texture-coach-card texture-coach-card--setup"
-              aria-label="Coach textures Premium indisponible"
-            >
-              <header className="texture-coach-head">
-                <p className="texture-coach-kicker">Premium · Coach textures</p>
-                <p className="texture-coach-status">A activer</p>
-              </header>
-              <p className="texture-coach-description">
-                Ajoute d&apos;abord la date de naissance dans le profil pour debloquer le diagnostic texture
-                personnalise.
-              </p>
-            </section>
-          )}
-
           <div className="categories-toolbar-actions">
             <button
               ref={searchTriggerRef}
