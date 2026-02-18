@@ -14,6 +14,12 @@ import {
   type ReactionType,
   type TextureLevel
 } from "@/lib/tasting-metadata";
+import {
+  getFinalPreferenceImageSrc,
+  getFinalPreferenceLabel,
+  getFinalPreferenceVisualClass,
+  getNextFinalPreference
+} from "@/lib/ui-utils";
 
 type FoodSummaryModalProps = {
   isOpen: boolean;
@@ -33,31 +39,7 @@ const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 function getTastingIconSrc(liked: boolean) {
-  return liked ? "/smiley_ok.png" : "/smiley_ko.png";
-}
-
-function getFinalPreferenceImageSrc(preference: -1 | 0 | 1) {
-  if (preference === 1) return "/pouce_YES.png";
-  if (preference === -1) return "/pouce_NO.png";
-  return "/pouce_NEUTRE.png";
-}
-
-function getFinalPreferenceLabel(preference: -1 | 0 | 1) {
-  if (preference === 1) return "Adoré";
-  if (preference === -1) return "Pas aimé";
-  return "Neutre";
-}
-
-function getNextFinalPreference(current: -1 | 0 | 1): -1 | 0 | 1 {
-  if (current === 0) return 1;
-  if (current === 1) return -1;
-  return 0;
-}
-
-function getFinalPreferenceVisualClass(preference: -1 | 0 | 1) {
-  if (preference === 1) return "border-emerald-500";
-  if (preference === -1) return "border-rose-500";
-  return "border-[#b9ac9b]";
+  return liked ? "/images/reactions/smiley-ok.webp" : "/images/reactions/smiley-ko.webp";
 }
 
 export function FoodSummaryModal({
@@ -305,7 +287,6 @@ export function FoodSummaryModal({
                             alt={liked ? "Tigre OK" : "Tigre KO"}
                             width={28}
                             height={28}
-                            unoptimized
                             className="h-7 w-7 object-contain"
                           />
                         </button>
@@ -413,7 +394,6 @@ export function FoodSummaryModal({
                   aria-hidden="true"
                   width={32}
                   height={32}
-                  unoptimized
                   className="h-full w-full object-contain"
                 />
               </span>

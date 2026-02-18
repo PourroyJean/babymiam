@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { TextureSegmentedControl } from "@/components/texture-segmented-control";
 import {
   REACTION_OPTIONS,
@@ -12,8 +13,16 @@ export type TigerLikedChoice = "ok" | "ko";
 type TastingEntryFormFieldsProps = {
   liked: TigerLikedChoice | null;
   onLikedChange: (liked: TigerLikedChoice) => void;
+  tigerAriaLabels?: {
+    ok: string;
+    ko: string;
+  };
+  likedQuestionLabel?: string;
+  likedGroupAriaLabel?: string;
   tastedOn: string;
   onTastedOnChange: (value: string) => void;
+  tastedOnLabel?: string;
+  tastedOnAriaLabel?: string;
   textureLevel: TextureLevel | null;
   onTextureLevelChange: (value: TextureLevel | null) => void;
   reactionType: ReactionType;
@@ -31,21 +40,18 @@ const TIGER_CHOICES: Array<{
   value: TigerLikedChoice;
   image: string;
   alt: string;
-  label: string;
   screenReaderText: string;
 }> = [
   {
     value: "ok",
-    image: "/smiley_ok.png",
+    image: "/images/reactions/smiley-ok.webp",
     alt: "Tigre OK",
-    label: "Tigre OK",
     screenReaderText: "Oui"
   },
   {
     value: "ko",
-    image: "/smiley_ko.png",
+    image: "/images/reactions/smiley-ko.webp",
     alt: "Tigre KO",
-    label: "Tigre KO",
     screenReaderText: "Non"
   }
 ];
@@ -53,8 +59,16 @@ const TIGER_CHOICES: Array<{
 export function TastingEntryFormFields({
   liked,
   onLikedChange,
+  tigerAriaLabels = {
+    ok: "Tigre OK",
+    ko: "Tigre KO"
+  },
+  likedQuestionLabel = "Comment c'était ?",
+  likedGroupAriaLabel = "Choix tigre",
   tastedOn,
   onTastedOnChange,
+  tastedOnLabel = "Date de dégustation",
+  tastedOnAriaLabel = "Date de dégustation",
   textureLevel,
   onTextureLevelChange,
   reactionType,
@@ -78,8 +92,8 @@ export function TastingEntryFormFields({
   return (
     <>
       <div className="quick-add-field">
-        <p className="quick-add-label">Comment c&apos;était ?</p>
-        <div className="quick-add-tiger-choice" role="group" aria-label="Choix tigre">
+        <p className="quick-add-label">{likedQuestionLabel}</p>
+        <div className="quick-add-tiger-choice" role="group" aria-label={likedGroupAriaLabel}>
           {TIGER_CHOICES.map((choice) => {
             const isSelected = liked === choice.value;
             const isOtherSelected = liked !== null && !isSelected;
@@ -87,7 +101,7 @@ export function TastingEntryFormFields({
               <button
                 key={choice.value}
                 type="button"
-                aria-label={choice.label}
+                aria-label={choice.value === "ok" ? tigerAriaLabels.ok : tigerAriaLabels.ko}
                 aria-pressed={isSelected}
                 className={`touch-manipulation inline-flex appearance-none border-0 bg-transparent p-0 min-h-[60px] items-center justify-center transition-all ${
                   isSelected ? "scale-110" : isOtherSelected ? "scale-95" : "scale-100"
@@ -103,7 +117,7 @@ export function TastingEntryFormFields({
                     isSelected || liked === null ? "opacity-100" : "opacity-85 grayscale"
                   }`}
                 >
-                  <img
+                  <Image
                     src={choice.image}
                     alt={choice.alt}
                     width={100}
@@ -119,7 +133,7 @@ export function TastingEntryFormFields({
       </div>
 
       <div className="quick-add-field">
-        <label htmlFor={`${idPrefix}-date`}>Quand ?</label>
+        <label htmlFor={`${idPrefix}-date`}>{tastedOnLabel}</label>
         <input
           id={`${idPrefix}-date`}
           type="date"
@@ -130,7 +144,7 @@ export function TastingEntryFormFields({
             reportInteraction();
           }}
           disabled={Boolean(disabled)}
-          aria-label="Date"
+          aria-label={tastedOnAriaLabel}
         />
       </div>
 

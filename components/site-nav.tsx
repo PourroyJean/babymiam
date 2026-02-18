@@ -28,11 +28,10 @@ export function SiteNav({
           <Link href="/" className="site-logo-link" aria-label="Aller à l'accueil Grrrignote">
             <span className="site-logo" aria-hidden="true">
               <Image
-                src="/grrrignote_logo.png"
+                src="/images/brand/grrrignote-logo.webp"
                 alt=""
                 width={46}
                 height={46}
-                unoptimized
                 className="site-logo-image"
               />
             </span>
@@ -70,12 +69,11 @@ export function SiteNav({
             title="Déconnexion"
           >
             <Image
-              src="/logout-grrrignote.png?v=1"
+              src="/images/brand/logout-grrrignote.webp"
               alt=""
               aria-hidden="true"
               width={40}
               height={40}
-              unoptimized
               className="logout-icon"
             />
           </button>

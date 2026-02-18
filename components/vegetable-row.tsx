@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { deleteTastingEntryAction, saveTastingEntryAction } from "@/app/actions";
@@ -13,6 +13,14 @@ import {
   type ReactionType,
   type TextureLevel
 } from "@/lib/tasting-metadata";
+import {
+  formatDate,
+  getFinalPreferenceImageSrc,
+  getFinalPreferenceLabel,
+  getFinalPreferenceVisualClass,
+  getNextFinalPreference,
+  getTodayIsoDate
+} from "@/lib/ui-utils";
 
 type VegetableRowProps = {
   foodId: number;
@@ -41,41 +49,7 @@ const META_BUTTON_BASE_CLASS =
 const META_VISUAL_BASE_CLASS =
   "pointer-events-none inline-flex h-9 w-9 items-center justify-center rounded-full border-2 bg-[#fcfbf9]";
 
-function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function formatDate(value: string) {
-  const [year, month, day] = value.split("-");
-  if (!year || !month || !day) return value;
-  return `${day}/${month}/${year}`;
-}
-
-function getNextFinalPreference(current: -1 | 0 | 1): -1 | 0 | 1 {
-  if (current === 0) return 1;
-  if (current === 1) return -1;
-  return 0;
-}
-
-function getFinalPreferenceLabel(preference: -1 | 0 | 1) {
-  if (preference === 1) return "aimé";
-  if (preference === -1) return "pas aimé";
-  return "neutre";
-}
-
-function getFinalPreferenceImageSrc(preference: -1 | 0 | 1) {
-  if (preference === 1) return "/pouce_YES.png";
-  if (preference === -1) return "/pouce_NO.png";
-  return "/pouce_NEUTRE.png";
-}
-
-function getFinalPreferenceVisualClass(preference: -1 | 0 | 1) {
-  if (preference === 1) return "border-emerald-500";
-  if (preference === -1) return "border-rose-500";
-  return "border-[#b9ac9b]";
-}
-
-export function VegetableRow({
+export const VegetableRow = memo(function VegetableRow({
   foodId,
   name,
   tastings,
@@ -268,8 +242,13 @@ export function VegetableRow({
               onLikedChange={(value) => {
                 setEditorLiked(value === "ok" ? "yes" : "no");
               }}
+              tigerAriaLabels={{ ok: "Oui", ko: "Non" }}
+              likedQuestionLabel={`${childLabel} a aimé ?`}
+              likedGroupAriaLabel={`Choix de réaction pour ${childLabel}`}
               tastedOn={editorDate}
               onTastedOnChange={setEditorDate}
+              tastedOnLabel="Date de dégustation"
+              tastedOnAriaLabel="Date de dégustation"
               textureLevel={editorTextureLevel}
               onTextureLevelChange={setEditorTextureLevel}
               reactionType={editorReactionType}
@@ -364,13 +343,17 @@ export function VegetableRow({
                   const slot = slotValue as 1 | 2 | 3;
                   const tasting = tastingsBySlot.get(slot);
                   const isLockedNeutral = !tasting && nextCreatableSlot !== null && slot !== nextCreatableSlot;
-                  const iconSrc = tasting ? (tasting.liked ? "/smiley_ok.png" : "/smiley_ko.png") : "/smiley_neutre.png";
+                  const iconSrc = tasting
+                    ? tasting.liked
+                      ? "/images/reactions/smiley-ok.webp"
+                      : "/images/reactions/smiley-ko.webp"
+                    : "/images/reactions/smiley-neutral.webp";
                   const iconAlt = tasting ? (tasting.liked ? "Aimé" : "Pas aimé") : "À remplir";
 
                   const ariaLabel = tasting
                     ? `${name} - entrée ${slot} (${tasting.liked ? "aimé" : "pas aimé"} le ${formatDate(
-                        tasting.tastedOn
-                      )}). Modifier`
+                      tasting.tastedOn
+                    )}). Modifier`
                     : `${name} - ajouter l'entrée ${slot}`;
 
                   return (
@@ -388,7 +371,6 @@ export function VegetableRow({
                           alt={iconAlt}
                           width={36}
                           height={36}
-                          unoptimized
                           className="h-full w-full object-contain"
                         />
                       </span>
@@ -407,9 +389,9 @@ export function VegetableRow({
                   >
                     <span
                       aria-hidden="true"
-                      className={`${SLOT_VISUAL_BASE_CLASS} ${getFinalPreferenceVisualClass(finalPreference)} ${
-                        isFinalPreferenceSaving ? "opacity-80" : ""
-                      }`}
+                      className={`${SLOT_VISUAL_BASE_CLASS} ${getFinalPreferenceVisualClass(
+                        finalPreference
+                      )} ${isFinalPreferenceSaving ? "opacity-80" : ""}`}
                     >
                       <Image
                         src={getFinalPreferenceImageSrc(finalPreference)}
@@ -417,7 +399,6 @@ export function VegetableRow({
                         aria-hidden="true"
                         width={36}
                         height={36}
-                        unoptimized
                         className="h-full w-full object-contain"
                       />
                     </span>
@@ -448,4 +429,6 @@ export function VegetableRow({
       {isMounted && editor ? createPortal(editor, document.body) : null}
     </>
   );
-}
+});
+
+VegetableRow.displayName = "VegetableRow";

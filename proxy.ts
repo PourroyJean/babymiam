@@ -11,6 +11,13 @@ const PUBLIC_PATHS = [
   "/maintenance"
 ];
 
+const PUBLIC_STATIC_PATHS = new Set([
+  "/robots.txt",
+  "/sitemap.xml",
+  "/manifest.webmanifest",
+  "/site.webmanifest"
+]);
+
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
@@ -23,6 +30,10 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/images/") || PUBLIC_STATIC_PATHS.has(pathname)) {
     return NextResponse.next();
   }
 

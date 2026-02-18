@@ -1,13 +1,15 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setFinalPreferenceAction } from "@/app/actions";
 import { FoodSummaryModal } from "@/components/food-summary-modal";
 import { QuickAddPanel } from "@/components/quick-add-panel";
+import { SearchPanel } from "@/components/search-panel";
+import { TimelinePanel } from "@/components/timeline-panel";
 import { VegetableRow } from "@/components/vegetable-row";
 import { getCategoryUi } from "@/lib/category-ui";
-import type { DashboardCategory, DashboardFood, FoodTimelineEntry } from "@/lib/types";
+import type { DashboardCategory, DashboardFood, FinalPreferenceValue, FoodTimelineEntry } from "@/lib/types";
+import { getNextFinalPreference, normalizeSearchValue } from "@/lib/ui-utils";
 
 type CategoriesGridProps = {
   categories: DashboardCategory[];
@@ -35,7 +37,6 @@ type FoodIndexEntry = {
   categoryName: string;
 };
 
-type FinalPreferenceValue = -1 | 0 | 1;
 type CategoryKpi = {
   totalCount: number;
   todoCount: number;
@@ -46,72 +47,7 @@ type CategoryKpi = {
   donePercent: number;
 };
 
-const DIACRITICS_PATTERN = /[\u0300-\u036f]/g;
-const FRENCH_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
-const FRENCH_DAY_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric"
-});
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-const RECENT_FOODS_LIMIT = 15;
 const FINAL_PREFERENCE_DEBOUNCE_MS = 2000;
-
-function normalizeSearchValue(value: string) {
-  return value.normalize("NFD").replace(DIACRITICS_PATTERN, "").toLowerCase().trim();
-}
-
-function getSearchRank(normalizedName: string, normalizedQuery: string) {
-  if (normalizedName.startsWith(normalizedQuery)) return 0;
-  if (normalizedName.split(/\s+/).some((word) => word.startsWith(normalizedQuery))) return 1;
-  if (normalizedName.includes(normalizedQuery)) return 2;
-  return Number.POSITIVE_INFINITY;
-}
-
-function getUpdatedTimestamp(updatedAt: string | null) {
-  if (!updatedAt) return 0;
-  const parsed = Date.parse(updatedAt);
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function getTimelineDateTimestamp(value: string) {
-  const parsed = Date.parse(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(parsed)) return 0;
-  return parsed;
-}
-
-function formatTimelineDayLabel(value: string) {
-  const parsed = new Date(`${value}T12:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime())) return value;
-
-  const formatted = FRENCH_DAY_FORMATTER.format(parsed);
-  const firstChar = formatted.charAt(0);
-  return firstChar ? `${firstChar.toUpperCase()}${formatted.slice(1)}` : formatted;
-}
-
-function getFinalPreferenceLabel(preference: -1 | 0 | 1) {
-  if (preference === 1) return "Adoré";
-  if (preference === -1) return "Pas aimé";
-  return "Neutre";
-}
-
-function getTimelineTigerIcon(liked: boolean) {
-  return liked ? "/smiley_ok.png" : "/smiley_ko.png";
-}
-
-function getFinalPreferenceImageSrc(preference: -1 | 0 | 1) {
-  if (preference === 1) return "/pouce_YES.png";
-  if (preference === -1) return "/pouce_NO.png";
-  return "/pouce_NEUTRE.png";
-}
-
-function getFinalTimelineToneClass(preference: -1 | 0 | 1) {
-  if (preference === 1) return "food-timeline-result-positive";
-  if (preference === -1) return "food-timeline-result-negative";
-  return "food-timeline-result-neutral";
-}
 
 function buildCategoryKpi(foods: DashboardFood[]): CategoryKpi {
   const totalCount = foods.length;
@@ -152,12 +88,6 @@ function buildCategoryKpi(foods: DashboardFood[]): CategoryKpi {
   };
 }
 
-function getNextFinalPreference(current: FinalPreferenceValue): FinalPreferenceValue {
-  if (current === 0) return 1;
-  if (current === 1) return -1;
-  return 0;
-}
-
 function getRedirectUrlFromError(error: unknown) {
   if (typeof error !== "object" || error === null || !("digest" in error)) return null;
 
@@ -186,17 +116,13 @@ export function CategoriesGrid({
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [summaryFoodId, setSummaryFoodId] = useState<number | null>(null);
-  const [query, setQuery] = useState("");
   const [showTestedOnly, setShowTestedOnly] = useState(false);
   const [finalPreferenceOverridesByFoodId, setFinalPreferenceOverridesByFoodId] = useState<
     Record<number, FinalPreferenceValue>
   >({});
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineTriggerRef = useRef<HTMLButtonElement>(null);
   const quickAddTriggerRef = useRef<HTMLButtonElement>(null);
-  const timelineModalRef = useRef<HTMLElement>(null);
-  const timelineCloseRef = useRef<HTMLButtonElement>(null);
   const summaryTriggerRef = useRef<HTMLElement | null>(null);
   const wasSearchOpenRef = useRef(false);
   const wasSummaryOpenRef = useRef(false);
@@ -222,7 +148,6 @@ export function CategoriesGrid({
 
   function closeSearch() {
     setIsSearchOpen(false);
-    setQuery("");
   }
 
   function openSearch() {
@@ -237,7 +162,6 @@ export function CategoriesGrid({
 
   function openTimeline() {
     setIsSearchOpen(false);
-    setQuery("");
     setIsQuickAddOpen(false);
     setIsTimelineOpen(true);
   }
@@ -248,7 +172,6 @@ export function CategoriesGrid({
 
   function openQuickAdd() {
     setIsSearchOpen(false);
-    setQuery("");
     setIsTimelineOpen(false);
     setIsQuickAddOpen(true);
   }
@@ -438,7 +361,6 @@ export function CategoriesGrid({
         }
 
         setIsSearchOpen(false);
-        setQuery("");
         setIsTimelineOpen(false);
         setIsQuickAddOpen(false);
       }
@@ -476,14 +398,7 @@ export function CategoriesGrid({
     };
   }, [flushAllPendingFinalPreferences]);
 
-  useEffect(() => {
-    if (!isSearchOpen) return;
 
-    const animationFrame = window.requestAnimationFrame(() => {
-      searchInputRef.current?.focus();
-    });
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [isSearchOpen]);
 
   useEffect(() => {
     if (isTimelineOpen) {
@@ -496,53 +411,6 @@ export function CategoriesGrid({
       wasTimelineOpenRef.current = false;
     }
   }, [isTimelineOpen]);
-
-  useEffect(() => {
-    if (!isTimelineOpen) return;
-
-    const animationFrame = window.requestAnimationFrame(() => {
-      timelineCloseRef.current?.focus();
-    });
-
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [isTimelineOpen]);
-
-  useEffect(() => {
-    if (!isTimelineOpen || isSummaryOpen) return;
-
-    function trapTimelineFocus(event: KeyboardEvent) {
-      if (event.key !== "Tab") return;
-
-      const modal = timelineModalRef.current;
-      if (!modal) return;
-
-      const focusableElements = Array.from(modal.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
-      if (focusableElements.length === 0) {
-        event.preventDefault();
-        return;
-      }
-
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-      const activeElement = document.activeElement as HTMLElement | null;
-
-      if (event.shiftKey) {
-        if (activeElement === firstElement || !modal.contains(activeElement)) {
-          event.preventDefault();
-          lastElement.focus();
-        }
-        return;
-      }
-
-      if (activeElement === lastElement) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener("keydown", trapTimelineFocus);
-    return () => document.removeEventListener("keydown", trapTimelineFocus);
-  }, [isTimelineOpen, isSummaryOpen]);
 
   useEffect(() => {
     if (isQuickAddOpen) {
@@ -580,7 +448,7 @@ export function CategoriesGrid({
     }
   }, [isSearchOpen]);
 
-  const normalizedQuery = useMemo(() => normalizeSearchValue(query), [query]);
+
 
   const visibleCategories = useMemo(() => {
     if (!showTestedOnly) return categories;
@@ -624,35 +492,6 @@ export function CategoriesGrid({
     [visibleCategories]
   );
 
-  const recentFoods = useMemo(
-    () =>
-      searchableFoods
-        .filter((food) => food.updatedAt)
-        .sort((a, b) => {
-          const updatedDiff = getUpdatedTimestamp(b.updatedAt) - getUpdatedTimestamp(a.updatedAt);
-          if (updatedDiff !== 0) return updatedDiff;
-          return FRENCH_COLLATOR.compare(a.name, b.name);
-        })
-        .slice(0, RECENT_FOODS_LIMIT),
-    [searchableFoods]
-  );
-
-  const searchResults = useMemo(() => {
-    if (!normalizedQuery) return recentFoods;
-
-    return searchableFoods
-      .map((food) => ({
-        food,
-        rank: getSearchRank(food.normalizedName, normalizedQuery)
-      }))
-      .filter((entry) => Number.isFinite(entry.rank))
-      .sort((a, b) => {
-        if (a.rank !== b.rank) return a.rank - b.rank;
-        return FRENCH_COLLATOR.compare(a.food.name, b.food.name);
-      })
-      .map((entry) => entry.food);
-  }, [normalizedQuery, recentFoods, searchableFoods]);
-
   const quickAddEligibleFoods = useMemo<QuickAddFood[]>(
     () =>
       categories.flatMap((category) =>
@@ -669,7 +508,7 @@ export function CategoriesGrid({
     [categories]
   );
 
-  const isQueryEmpty = normalizedQuery.length === 0;
+
 
   const finalPreferenceByFoodId = useMemo(() => {
     const preferenceMap = new Map<number, -1 | 0 | 1>();
@@ -683,41 +522,7 @@ export function CategoriesGrid({
     return preferenceMap;
   }, [categories, finalPreferenceOverridesByFoodId]);
 
-  const sortedTimelineEntries = useMemo(
-    () =>
-      [...timelineEntries].sort((a, b) => {
-        const dateDiff = getTimelineDateTimestamp(b.tastedOn) - getTimelineDateTimestamp(a.tastedOn);
-        if (dateDiff !== 0) return dateDiff;
-        if (a.slot !== b.slot) return b.slot - a.slot;
-        return FRENCH_COLLATOR.compare(a.foodName, b.foodName);
-      }),
-    [timelineEntries]
-  );
 
-  const timelineGroups = useMemo(() => {
-    const groups: Array<{ day: string; label: string; entries: FoodTimelineEntry[] }> = [];
-    const groupIndexByDay = new Map<string, number>();
-
-    for (const entry of sortedTimelineEntries) {
-      const existingIndex = groupIndexByDay.get(entry.tastedOn);
-      if (existingIndex !== undefined) {
-        groups[existingIndex].entries.push(entry);
-        continue;
-      }
-
-      groupIndexByDay.set(entry.tastedOn, groups.length);
-      groups.push({
-        day: entry.tastedOn,
-        label: formatTimelineDayLabel(entry.tastedOn),
-        entries: [entry]
-      });
-    }
-
-    return groups;
-  }, [sortedTimelineEntries]);
-
-  const normalizedFirstName = childFirstName?.trim() || "";
-  const timelineTitle = normalizedFirstName ? `Carnets de bords de ${normalizedFirstName}` : "Carnets de bords";
 
   const summaryEntry = summaryFoodId !== null ? foodIndexById.get(summaryFoodId) ?? null : null;
   const summaryFood = summaryEntry?.food ?? null;
@@ -776,7 +581,7 @@ export function CategoriesGrid({
           </section>
         ) : null}
 
-        {visibleCategories.map((category, categoryIndex) => {
+        {visibleCategories.map((category) => {
           const categoryPictogram = getCategoryPictogram(category.name);
           const isOpen = isCategoryOpen(category.id);
           const categoryKpi = buildCategoryKpi(category.foods);
@@ -869,183 +674,26 @@ export function CategoriesGrid({
         })}
       </section>
 
-      {isSearchOpen ? (
-        <div className="food-search-overlay" onClick={closeSearch} role="presentation">
-          <section
-            className="food-search-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="food-search-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className="food-search-header">
-              <h2 id="food-search-title">Recherche globale</h2>
-              <button
-                type="button"
-                className="food-search-close"
-                aria-label="Fermer la recherche"
-                onClick={closeSearch}
-              >
-                Fermer
-              </button>
-            </header>
+      <SearchPanel
+        isOpen={isSearchOpen}
+        onClose={closeSearch}
+        searchableFoods={searchableFoods}
+        finalPreferenceOverridesByFoodId={finalPreferenceOverridesByFoodId}
+        cycleFinalPreference={cycleFinalPreference}
+        openFoodSummary={openFoodSummary}
+        childFirstName={childFirstName}
+      />
 
-            <input
-              ref={searchInputRef}
-              type="text"
-              className="food-search-input"
-              value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              placeholder="Tape un aliment (ex: brocoli)"
-              aria-label="Recherche d'aliment"
-            />
-
-            <div className="food-search-results">
-              {searchResults.length > 0 ? (
-                <ul className="food-search-list">
-                  {searchResults.map((food) => (
-                    <VegetableRow
-                      key={`search-${food.id}`}
-                      foodId={food.id}
-                      name={food.name}
-                      tastings={food.tastings}
-                      tastingCount={food.tastingCount}
-                      finalPreference={finalPreferenceOverridesByFoodId[food.id] ?? food.finalPreference}
-                      onCycleFinalPreference={cycleFinalPreference}
-                      onOpenFoodSummary={openFoodSummary}
-                      childFirstName={childFirstName}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <p className="food-search-empty">
-                  {isQueryEmpty ? "Aucune modification récente, tape un aliment." : "Aucun aliment trouvé."}
-                </p>
-              )}
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {isTimelineOpen ? (
-        <div className="food-timeline-overlay" onClick={closeTimeline} role="presentation">
-          <section
-            ref={timelineModalRef}
-            className="food-timeline-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="food-timeline-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className="food-timeline-header">
-              <h2 id="food-timeline-title">{timelineTitle}</h2>
-              <button
-                ref={timelineCloseRef}
-                type="button"
-                className="food-search-close"
-                aria-label="Fermer le carnet de bord"
-                onClick={closeTimeline}
-              >
-                Fermer
-              </button>
-            </header>
-
-            <div className="food-timeline-content">
-              {timelineGroups.length === 0 ? (
-                <p className="food-search-empty">
-                  Aucune dégustation enregistrée pour le moment. Utilise les tigres 1/2/3 pour démarrer le carnet.
-                </p>
-              ) : (
-                <ol className="food-timeline-day-list">
-                  {timelineGroups.map((group) => (
-                    <li key={group.day} className="food-timeline-day-item">
-                      <h3 className="food-timeline-day-title">{group.label}</h3>
-                      <ol className="food-timeline-entry-list">
-                        {group.entries.map((entry) => (
-                          <li
-                            key={`${entry.foodId}-${entry.slot}-${entry.tastedOn}`}
-                            className="food-timeline-entry"
-                          >
-                            <div className="food-timeline-rail-dot" aria-hidden="true" />
-                            {(() => {
-                              const entryFinalPreference = finalPreferenceByFoodId.get(entry.foodId) ?? 0;
-
-                              return (
-                                <article
-                                  className={`food-timeline-card ${
-                                    entry.slot === 3
-                                      ? `food-timeline-card--final ${getFinalTimelineToneClass(entryFinalPreference)}`
-                                      : ""
-                                  }`}
-                                >
-                                  <header className="food-timeline-card-header food-timeline-card-header--line">
-                                    <div className="food-timeline-one-liner food-timeline-one-liner--compact">
-                                      <span
-                                        className={`food-timeline-category-pill food-timeline-category-inline food-timeline-category-emoji-pill ${toneByCategory[entry.categoryName] || "tone-other"}`}
-                                        title={entry.categoryName}
-                                        aria-label={entry.categoryName}
-                                        role="img"
-                                      >
-                                        {getCategoryPictogram(entry.categoryName)}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        className="food-timeline-food-name food-timeline-food-name-inline touch-manipulation appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
-                                        onClick={(event) => openFoodSummary(entry.foodId, event.currentTarget)}
-                                        aria-label={`Ouvrir le résumé de ${entry.foodName}`}
-                                        title="Résumé"
-                                      >
-                                        {entry.foodName}
-                                      </button>
-
-                                      <span className={`food-timeline-slot-badge slot-${entry.slot}`}>
-                                      <Image
-                                        src={getTimelineTigerIcon(entry.liked)}
-                                        alt=""
-                                        aria-hidden="true"
-                                        width={20}
-                                        height={20}
-                                        unoptimized
-                                        className="food-timeline-slot-icon"
-                                      />
-                                      <span>{entry.slot}/3</span>
-                                    </span>
-
-                                    {entry.slot === 3 ? (
-                                      <span
-                                        className="food-timeline-result-inline"
-                                        aria-label={`Résultat final : ${getFinalPreferenceLabel(entryFinalPreference)}`}
-                                      >
-                                        <Image
-                                          src={getFinalPreferenceImageSrc(entryFinalPreference)}
-                                          alt=""
-                                          aria-hidden="true"
-                                          width={31}
-                                          height={31}
-                                          unoptimized
-                                          className="food-timeline-result-inline-icon"
-                                        />
-                                      </span>
-                                    ) : null}
-
-                                      {entry.note.trim() ? <span className="food-timeline-note-inline" title={entry.note}>{entry.note}</span> : null}
-                                    </div>
-
-                                  </header>
-                                </article>
-                              );
-                            })()}
-                          </li>
-                        ))}
-                      </ol>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </div>
-          </section>
-        </div>
-      ) : null}
+      <TimelinePanel
+        isOpen={isTimelineOpen}
+        isSummaryOpen={isSummaryOpen}
+        onClose={closeTimeline}
+        timelineEntries={timelineEntries}
+        finalPreferenceByFoodId={finalPreferenceByFoodId}
+        openFoodSummary={openFoodSummary}
+        toneByCategory={toneByCategory}
+        childFirstName={childFirstName}
+      />
 
       <QuickAddPanel isOpen={isQuickAddOpen} foods={quickAddEligibleFoods} onClose={closeQuickAdd} />
       <FoodSummaryModal

@@ -9,6 +9,7 @@ import {
   type ReactionType,
   type TextureLevel
 } from "@/lib/tasting-metadata";
+import { FRENCH_COLLATOR, getSearchRank, normalizeSearchValue } from "@/lib/ui-utils";
 
 type QuickAddFood = {
   id: number;
@@ -26,20 +27,7 @@ type QuickAddPanelProps = {
 
 type TigerChoice = "ok" | "ko" | null;
 
-const DIACRITICS_PATTERN = /[\u0300-\u036f]/g;
-const FRENCH_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
 const MAX_VISIBLE_RESULTS = 16;
-
-function normalizeSearchValue(value: string) {
-  return value.normalize("NFD").replace(DIACRITICS_PATTERN, "").toLowerCase().trim();
-}
-
-function getSearchRank(normalizedName: string, normalizedQuery: string) {
-  if (normalizedName.startsWith(normalizedQuery)) return 0;
-  if (normalizedName.split(/\s+/).some((word) => word.startsWith(normalizedQuery))) return 1;
-  if (normalizedName.includes(normalizedQuery)) return 2;
-  return Number.POSITIVE_INFINITY;
-}
 
 function getTodayLocalIsoDate() {
   const now = new Date();
@@ -114,11 +102,11 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     if (!normalizedQuery) return sortedFoods.slice(0, MAX_VISIBLE_RESULTS);
 
     return sortedFoods
-      .map((food) => ({
-        food,
-        rank: getSearchRank(food.normalizedName, normalizedQuery)
-      }))
-      .filter((entry) => Number.isFinite(entry.rank))
+      .flatMap((food) => {
+        const rank = getSearchRank(food.normalizedName, normalizedQuery);
+        if (rank === null) return [];
+        return [{ food, rank }];
+      })
       .sort((a, b) => {
         if (a.rank !== b.rank) return a.rank - b.rank;
         return FRENCH_COLLATOR.compare(a.food.name, b.food.name);
@@ -169,7 +157,10 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
 
       resetForm();
       router.refresh();
-      onClose();
+
+      window.requestAnimationFrame(() => {
+        searchInputRef.current?.focus();
+      });
     });
   }
 
@@ -241,7 +232,9 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
               <p className="quick-add-selected">
                 Sélectionné: <strong>{selectedFood.name}</strong> ({selectedFood.exposureCount}/3)
               </p>
-            ) : null}
+            ) : (
+              <p className="quick-add-selected">Sélectionne un aliment existant.</p>
+            )}
           </div>
 
           <div className="quick-add-right-column">
@@ -251,11 +244,14 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
                 setTigerChoice(value);
                 clearErrorMessage();
               }}
+              likedGroupAriaLabel="Choix oui/non"
               tastedOn={tastedOn}
               onTastedOnChange={(value) => {
                 setTastedOn(value);
                 clearErrorMessage();
               }}
+              tastedOnLabel="Date"
+              tastedOnAriaLabel="Date"
               textureLevel={textureLevel}
               onTextureLevelChange={(value) => {
                 setTextureLevel(value);

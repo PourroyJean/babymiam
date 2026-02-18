@@ -92,7 +92,6 @@ export function TextureSegmentedControl({
                     alt={option.shortName}
                     width={77}
                     height={77}
-                    unoptimized
                     className="texture-segmented-icon"
                   />
                   <span className="texture-segmented-level-label">{option.level}</span>

@@ -68,8 +68,8 @@ test.describe("food summary modal", () => {
 
     const historyRegion = dialog.getByRole("region", { name: /Historique des dégustations/i });
     await expect(historyRegion.getByRole("listitem")).toHaveCount(3);
-    await expect(historyRegion.locator('img[src*="smiley_ok.png"]')).toHaveCount(2);
-    await expect(historyRegion.locator('img[src*="smiley_ko.png"]')).toHaveCount(1);
+    await expect(historyRegion.locator('img[src*="smiley-ok.webp"]')).toHaveCount(2);
+    await expect(historyRegion.locator('img[src*="smiley-ko.webp"]')).toHaveCount(1);
   });
 
   test("shows tasting notes in history lines", async ({ appPage, db }) => {

@@ -1,5 +1,7 @@
 import type { ReactionType, TextureLevel } from "@/lib/tasting-metadata";
 
+export type FinalPreferenceValue = -1 | 0 | 1;
+
 export type FoodTastingEntry = {
   slot: 1 | 2 | 3;
   liked: boolean;

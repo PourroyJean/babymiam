@@ -22,28 +22,28 @@ export const TEXTURE_OPTIONS: TextureOption[] = [
     shortName: "Lisse",
     description: "Tout mixé, homogène, liquide épais.",
     examples: "Purée fine, compote, yaourt.",
-    iconSrc: "/texture_1_lisse.png"
+    iconSrc: "/images/textures/texture-1-lisse.webp"
   },
   {
     level: 2,
     shortName: "Mouliné / Écrasé",
     description: "Plus dense, granuleux mais sans vrais morceaux à mâcher.",
     examples: "Purée à la fourchette, semoule fine.",
-    iconSrc: "/texture_2_ecrase.png"
+    iconSrc: "/images/textures/texture-2-ecrase.webp"
   },
   {
     level: 3,
     shortName: "Fondant",
     description: "Morceaux tendres, s’écrasent avec la langue ou les gencives.",
     examples: "Légumes vapeur bien cuits, banane mûre.",
-    iconSrc: "/texture_3_fondant.png"
+    iconSrc: "/images/textures/texture-3-fondant.webp"
   },
   {
     level: 4,
     shortName: "À mâcher",
     description: "Morceaux nécessitant une mastication active.",
     examples: "Viande hachée, pâtes, petits dés plus fermes, croûton de pain.",
-    iconSrc: "/texture_4_mache.png"
+    iconSrc: "/images/textures/texture-4-mache.webp"
   }
 ];
 
