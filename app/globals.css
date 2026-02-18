@@ -1648,16 +1648,13 @@ a {
 }
 
 .food-timeline-one-liner {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: nowrap;
   flex: 1;
   min-width: 0;
-}
-
-.food-timeline-one-liner--compact {
-  display: inline-flex;
 }
 
 .food-timeline-food-name {
@@ -1666,16 +1663,19 @@ a {
   font-weight: 800;
   color: #1f2533;
   min-width: 0;
-  width: 30ch;
-  max-width: 30ch;
-  display: inline-block;
+  width: 100%;
+  max-width: 100%;
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .food-timeline-food-name-inline {
-  flex: 0 0 auto;
+  flex: 0 1 30ch;
+  min-width: 0;
+  width: 30ch;
+  max-width: 30ch;
 }
 
 .food-timeline-slot-badge {
@@ -1683,17 +1683,18 @@ a {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-width: 92px;
   border-radius: 999px;
   border: 1px solid transparent;
   padding: 3px 9px;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .food-timeline-slot-icon {
-  width: 20px;
-  height: 20px;
+  width: 23px;
+  height: 23px;
   object-fit: contain;
 }
 
@@ -1742,19 +1743,20 @@ a {
 }
 
 .food-timeline-category-emoji-pill {
-  width: 3ch;
-  max-width: 3ch;
-  min-width: 3ch;
-  height: 3ch;
+  width: 2.88ch;
+  max-width: 2.88ch;
+  min-width: 2.88ch;
+  height: 2.88ch;
   display: inline-grid;
   place-items: center;
   padding: 0;
-  font-size: 0.95rem;
+  font-size: 1.14rem;
   line-height: 1;
   vertical-align: middle;
 }
 
 .food-timeline-category-inline {
+  grid-column: 1;
   width: auto;
   max-width: 20ch;
   min-width: 0;
@@ -1767,10 +1769,10 @@ a {
 }
 
 .food-timeline-category-inline.food-timeline-category-emoji-pill {
-  width: 3ch;
-  max-width: 3ch;
-  min-width: 3ch;
-  height: 3ch;
+  width: 2.88ch;
+  max-width: 2.88ch;
+  min-width: 2.88ch;
+  height: 2.88ch;
 }
 
 .food-timeline-preference-text {
@@ -1786,7 +1788,7 @@ a {
   background: #fffbe8;
   padding: 2px 8px;
   min-width: 0;
-  max-width: 4ch;
+  max-width: 36ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1810,6 +1812,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
   font-size: 0.84rem;
   font-weight: 700;
   color: #3f3f3f;
@@ -2686,11 +2689,11 @@ a {
 
   .food-timeline-one-liner--compact {
     width: 100%;
-    flex: 1;
     display: flex;
+    flex-wrap: wrap;
+    row-gap: 6px;
     align-items: center;
-    gap: 6px;
-    flex-wrap: nowrap;
+    column-gap: 8px;
     min-width: 0;
     overflow: hidden;
   }
@@ -2703,27 +2706,39 @@ a {
   }
 
   .food-timeline-food-name {
-    width: 20ch;
-    max-width: 20ch;
+    width: auto;
+    max-width: none;
+  }
+
+  .food-timeline-food-name-inline {
+    flex: 1 1 14ch;
+    width: auto;
+    max-width: none;
   }
 
   .food-timeline-note-inline {
-    max-width: 4ch;
+    flex-basis: 100%;
+    width: fit-content;
+    margin-left: 0;
+    max-width: min(100%, 24ch);
+    white-space: normal;
   }
 
   .food-timeline-slot-badge {
+    min-width: 86px;
     padding: 2px 6px;
-    font-size: 0.72rem;
+    font-size: 0.83rem;
     gap: 4px;
   }
 
   .food-timeline-slot-icon {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
   }
 
   .food-timeline-result-inline {
     gap: 4px;
+    margin-left: auto;
     font-size: 0.74rem;
   }
 
@@ -2733,20 +2748,21 @@ a {
   }
 
   .food-timeline-category-emoji-pill {
-    width: 3ch;
-    max-width: 3ch;
-    min-width: 3ch;
-    height: 3ch;
+    width: 2.88ch;
+    max-width: 2.88ch;
+    min-width: 2.88ch;
+    height: 2.88ch;
     display: inline-grid;
     place-items: center;
+    font-size: 1.14rem;
     line-height: 1;
   }
 
   .food-timeline-category-inline.food-timeline-category-emoji-pill {
-    width: 3ch;
-    max-width: 3ch;
-    min-width: 3ch;
-    height: 3ch;
+    width: 2.88ch;
+    max-width: 2.88ch;
+    min-width: 2.88ch;
+    height: 2.88ch;
     justify-content: center;
     align-items: center;
     text-align: center;
