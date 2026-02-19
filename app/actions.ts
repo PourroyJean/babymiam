@@ -7,6 +7,7 @@ import {
   appendQuickEntry,
   createGrowthEvent,
   deleteFoodTastingEntry,
+  revokeShareSnapshot,
   upsertChildProfile,
   upsertFinalPreference,
   upsertFoodTastingEntry,
@@ -274,7 +275,7 @@ export async function createShareSnapshotAction(formData: FormData) {
   const milestone = milestoneRaw !== null && milestoneRaw > 0 ? milestoneRaw : null;
 
   try {
-    await upsertShareSnapshot(user.id, {
+    const snapshot = await upsertShareSnapshot(user.id, {
       shareId,
       firstName,
       introducedCount,
@@ -285,9 +286,29 @@ export async function createShareSnapshotAction(formData: FormData) {
       visibility: "public"
     });
 
-    return { ok: true };
+    return { ok: true, expiresAt: snapshot.expiresAt };
   } catch {
     return { ok: false, error: "Impossible de générer le lien de partage." };
+  }
+}
+
+export async function revokeShareSnapshotAction(formData: FormData) {
+  const user = await requireAuth();
+
+  const shareId = String(formData.get("shareId") || "").trim();
+  if (!SHARE_ID_PATTERN.test(shareId)) {
+    return { ok: false, error: "Lien de partage invalide." };
+  }
+
+  try {
+    const revoked = await revokeShareSnapshot(user.id, shareId);
+    if (!revoked) {
+      return { ok: false, error: "Lien introuvable ou déjà révoqué." };
+    }
+
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Impossible de révoquer le lien de partage." };
   }
 }
 

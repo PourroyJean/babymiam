@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createShareSnapshotAction, saveChildProfileAction, trackShareEventAction } from "@/app/actions";
+import {
+  createShareSnapshotAction,
+  revokeShareSnapshotAction,
+  saveChildProfileAction,
+  trackShareEventAction
+} from "@/app/actions";
 import {
   changePasswordAction,
   getAccountOverviewAction,
@@ -26,6 +31,12 @@ type GetAccountOverviewOkResult = Extract<
 >;
 
 type AccountOverviewDTO = NonNullable<GetAccountOverviewOkResult["overview"]>;
+
+type ActiveShareLink = {
+  shareId: string;
+  shareUrl: string;
+  expiresAt: string | null;
+};
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MILESTONE_THRESHOLDS = [10, 25, 50, 100];
@@ -139,6 +150,8 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     tone: ShareFeedbackTone;
     message: string;
   } | null>(null);
+  const [activeShareLink, setActiveShareLink] = useState<ActiveShareLink | null>(null);
+  const [isRevokingShare, setIsRevokingShare] = useState(false);
   const shareFeedbackTimeoutRef = useRef<number | null>(null);
   const [activeTab, setActiveTab] = useState<"child" | "account">("child");
 
@@ -164,7 +177,9 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
       setBirthDate(initialBirthDate);
       setProfileErrorMessage("");
       setShareFeedback(null);
+      setActiveShareLink(null);
       setIsSharePending(false);
+      setIsRevokingShare(false);
       setActiveMilestone(null);
       setActiveTab("child");
       setAccountLoadError("");
@@ -261,6 +276,13 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     if (!value) return null;
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+  }
+
+  function formatShareExpiryDate(value: string | null) {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
     return parsed.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
   }
 
@@ -424,6 +446,11 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     }
 
     const snapshotUrl = buildSnapshotUrl(origin, shareId);
+    setActiveShareLink({
+      shareId,
+      shareUrl: snapshotUrl,
+      expiresAt: snapshotResult.expiresAt ?? null
+    });
 
     trackShareEvent("snapshot_link_created", "snapshot", shareId);
     trackShareEvent("share_clicked", "button", shareId);
@@ -490,6 +517,11 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     }
 
     const snapshotUrl = buildSnapshotUrl(origin, shareId);
+    setActiveShareLink({
+      shareId,
+      shareUrl: snapshotUrl,
+      expiresAt: snapshotResult.expiresAt ?? null
+    });
 
     trackShareEvent("snapshot_link_created", "snapshot", shareId, milestone);
     trackShareEvent("milestone_share_clicked", "milestone", shareId, milestone);
@@ -535,6 +567,30 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
       }
     } finally {
       setActiveMilestone(null);
+    }
+  }
+
+  async function onRevokeActiveShareLink() {
+    if (!activeShareLink || isRevokingShare) return;
+
+    setIsRevokingShare(true);
+
+    try {
+      const formData = new FormData();
+      formData.set("shareId", activeShareLink.shareId);
+
+      const result = await revokeShareSnapshotAction(formData);
+      if (!result.ok) {
+        showShareFeedback("error", result.error || "Impossible de révoquer ce lien.");
+        return;
+      }
+
+      setActiveShareLink(null);
+      showShareFeedback("success", "Lien de partage révoqué.");
+    } catch {
+      showShareFeedback("error", "Impossible de révoquer ce lien.");
+    } finally {
+      setIsRevokingShare(false);
     }
   }
 
@@ -653,6 +709,30 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
                 >
                   {isSharePending ? "Partage..." : "Partager les progrès"}
                 </button>
+
+                {activeShareLink ? (
+                  <section className="profile-progress-note" aria-live="polite">
+                    <p>
+                      Lien actif créé.
+                      {formatShareExpiryDate(activeShareLink.expiresAt)
+                        ? ` Expire le ${formatShareExpiryDate(activeShareLink.expiresAt)}.`
+                        : ""}
+                    </p>
+                    <p>
+                      <a href={activeShareLink.shareUrl} target="_blank" rel="noreferrer">
+                        Ouvrir le lien de partage
+                      </a>
+                    </p>
+                    <button
+                      type="button"
+                      className="profile-share-btn"
+                      onClick={onRevokeActiveShareLink}
+                      disabled={isRevokingShare || isSharePending}
+                    >
+                      {isRevokingShare ? "Révocation..." : "Révoquer ce lien"}
+                    </button>
+                  </section>
+                ) : null}
 
                 <div className="profile-milestone-badges" aria-label="Paliers de progression">
                   {MILESTONE_THRESHOLDS.map((milestone) => {

@@ -151,9 +151,16 @@ test.describe("profile and share", () => {
         const shareId = String(latest?.metadata?.shareId || "");
         if (!shareId) return null;
 
-        const snapshot = await db.queryOne<{ introduced_count: number; liked_count: number }>(
+        const snapshot = await db.queryOne<{
+          introduced_count: number;
+          liked_count: number;
+          expires_at: string | null;
+        }>(
           `
-            SELECT introduced_count, liked_count
+            SELECT
+              introduced_count,
+              liked_count,
+              CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at::text END AS expires_at
             FROM share_snapshots
             WHERE share_id = $1
             LIMIT 1;
@@ -162,9 +169,9 @@ test.describe("profile and share", () => {
         );
 
         if (!snapshot) return null;
-        return `${snapshot.introduced_count}|${snapshot.liked_count}`;
+        return `${snapshot.introduced_count}|${snapshot.liked_count}|${snapshot.expires_at ? "1" : "0"}`;
       })
-      .toBe("3|2");
+      .toBe("3|2|1");
   });
 
   test("shares unlocked milestone and tracks dedicated milestone events", async ({ appPage, db }) => {
@@ -200,5 +207,54 @@ test.describe("profile and share", () => {
         return String(latest?.metadata?.milestone || "");
       })
       .toBe("10");
+  });
+
+  test("revokes the latest generated share link and blocks public access", async ({ appPage, db }) => {
+    await db.setIntroducedFoods(8);
+
+    await setupClipboardMock(appPage);
+    await appPage.reload();
+
+    await appPage.getByRole("button", { name: "Profil" }).click();
+    const dialog = appPage.getByRole("dialog", { name: "Profil" });
+
+    await dialog.getByRole("button", { name: "Partager les progrès" }).click();
+    await expect(dialog.getByText("Récap copié.")).toBeVisible();
+
+    await expect
+      .poll(async () => {
+        const events = await db.getGrowthEvents("share_success");
+        const latest = events[events.length - 1];
+        return String(latest?.metadata?.shareId || "");
+      })
+      .toMatch(/^[a-zA-Z0-9_-]{8,80}$/);
+
+    const shareSuccessEvents = await db.getGrowthEvents("share_success");
+    const shareId = String(shareSuccessEvents[shareSuccessEvents.length - 1]?.metadata?.shareId || "");
+    expect(shareId).toMatch(/^[a-zA-Z0-9_-]{8,80}$/);
+
+    await dialog.getByRole("button", { name: "Révoquer ce lien" }).click();
+    await expect(dialog.getByText("Lien de partage révoqué.")).toBeVisible();
+
+    await expect
+      .poll(async () => {
+        const snapshot = await db.queryOne<{ visibility: string; expires_at: string | null }>(
+          `
+            SELECT
+              visibility::text AS visibility,
+              CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at::text END AS expires_at
+            FROM share_snapshots
+            WHERE share_id = $1
+            LIMIT 1;
+          `,
+          [shareId]
+        );
+        if (!snapshot) return null;
+        return `${snapshot.visibility}|${snapshot.expires_at ? "1" : "0"}`;
+      })
+      .toBe("private|1");
+
+    await appPage.goto(`/share?sid=${shareId}`);
+    await expect(appPage.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
   });
 });

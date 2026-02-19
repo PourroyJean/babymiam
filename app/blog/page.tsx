@@ -12,7 +12,8 @@ export default async function BlogPage() {
   try {
     childProfile = await getChildProfile(user.id);
   } catch (error) {
-    dbError = error instanceof Error ? error.message : "Erreur inconnue de connexion à la base.";
+    console.error("[blog] Failed to load child profile.", error);
+    dbError = "Le profil enfant ne peut pas être chargé pour le moment.";
   }
 
   return (
@@ -27,8 +28,7 @@ export default async function BlogPage() {
       {dbError ? (
         <section className="db-warning">
           <h2>Profil enfant non disponible</h2>
-          <p>La page reste consultable, mais le profil ne peut pas être chargé pour le moment.</p>
-          <pre>{dbError}</pre>
+          <p>{dbError}</p>
         </section>
       ) : null}
 

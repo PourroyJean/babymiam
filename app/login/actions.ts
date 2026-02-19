@@ -10,21 +10,12 @@ import {
   recordLoginAttempt,
   verifyPasswordHash
 } from "@/lib/auth";
-
-async function getClientIpFromHeaders() {
-  const requestHeaders = await headers();
-  const forwarded = requestHeaders.get("x-forwarded-for") || "";
-  const firstIp = forwarded.split(",")[0]?.trim();
-  if (firstIp) return firstIp;
-
-  const realIp = requestHeaders.get("x-real-ip") || "";
-  return realIp.trim() || null;
-}
+import { getTrustedClientIpFromHeaders } from "@/lib/request-ip";
 
 export async function loginAction(formData: FormData) {
   const email = normalizeEmail(String(formData.get("email") || ""));
   const password = String(formData.get("password") || "");
-  const clientIp = await getClientIpFromHeaders();
+  const clientIp = getTrustedClientIpFromHeaders(await headers());
 
   if (!email || !password) {
     redirect("/login?error=1");

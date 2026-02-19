@@ -15,16 +15,7 @@ import {
 } from "@/lib/auth";
 import { resolveAppBaseUrl } from "@/lib/app-url";
 import { sendEmailVerificationEmail } from "@/lib/email";
-
-async function getClientIpFromHeaders() {
-  const requestHeaders = await headers();
-  const forwarded = requestHeaders.get("x-forwarded-for") || "";
-  const firstIp = forwarded.split(",")[0]?.trim();
-  if (firstIp) return firstIp;
-
-  const realIp = requestHeaders.get("x-real-ip") || "";
-  return realIp.trim() || null;
-}
+import { getTrustedClientIpFromHeaders } from "@/lib/request-ip";
 
 function getSignupErrorRedirect(reason: string) {
   const query = new URLSearchParams();
@@ -45,7 +36,7 @@ export async function signupAction(formData: FormData) {
   const email = normalizeEmail(String(formData.get("email") || ""));
   const password = String(formData.get("password") || "");
   const confirmPassword = String(formData.get("confirmPassword") || "");
-  const clientIp = await getClientIpFromHeaders();
+  const clientIp = getTrustedClientIpFromHeaders(await headers());
 
   const emailError = validateEmail(email);
   if (emailError) {

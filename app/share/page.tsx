@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createGrowthEvent, getPublicShareSnapshotById } from "@/lib/data";
+import { createPublicShareOpenEvent, getPublicShareSnapshotById } from "@/lib/data";
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 
@@ -17,6 +17,13 @@ function getSafeShareId(searchParams: RawSearchParams) {
   const shareId = getSingleParam(searchParams, "sid");
   if (!SHARE_ID_PATTERN.test(shareId)) return null;
   return shareId;
+}
+
+function formatExpiryDate(value: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
 }
 
 export default async function SharedSnapshotPage({
@@ -38,20 +45,19 @@ export default async function SharedSnapshotPage({
 
   if (snapshot && shareId) {
     try {
-      await createGrowthEvent(
+      await createPublicShareOpenEvent(
         snapshot.ownerId,
-        "snapshot_link_opened",
-        "public_page",
+        shareId,
         {
           shareId,
           introducedCount: snapshot.introducedCount,
           totalFoods: snapshot.totalFoods,
           likedCount: snapshot.likedCount,
           milestone: snapshot.milestone
-        },
-        "public"
+        }
       );
-    } catch {
+    } catch (error) {
+      console.error("[share] Failed to track public share open.", error);
       // Public share pages should remain accessible even if tracking fails.
     }
   }
@@ -81,6 +87,7 @@ export default async function SharedSnapshotPage({
   const normalizedTotalFoods = Math.max(snapshot.totalFoods, snapshot.introducedCount);
   const completionRate =
     normalizedTotalFoods > 0 ? Math.round((snapshot.introducedCount / normalizedTotalFoods) * 100) : 0;
+  const expiresAtLabel = formatExpiryDate(snapshot.expiresAt);
 
   return (
     <main className="share-public-page">
@@ -90,6 +97,7 @@ export default async function SharedSnapshotPage({
         <p className="share-public-subtitle">
           Un parent a partage ce suivi alimentaire. Tu peux lancer le tien en quelques minutes.
         </p>
+        {expiresAtLabel ? <p className="share-public-subtitle">Lien valide jusqu&apos;au {expiresAtLabel}.</p> : null}
 
         {snapshot.milestone && snapshot.milestone > 0 ? (
           <p className="share-public-milestone">Nouveau palier atteint: {snapshot.milestone} aliments</p>

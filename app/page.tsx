@@ -37,11 +37,14 @@ export default async function DashboardPage() {
   let timelineEntries: FoodTimelineEntry[] = [];
   let dbError: string | null = null;
   try {
-    childProfile = await getChildProfile(user.id);
-    categories = await getDashboardData(user.id);
-    timelineEntries = await getFoodTimeline(user.id);
+    [childProfile, categories, timelineEntries] = await Promise.all([
+      getChildProfile(user.id),
+      getDashboardData(user.id),
+      getFoodTimeline(user.id)
+    ]);
   } catch (error) {
-    dbError = error instanceof Error ? error.message : "Erreur inconnue de connexion à la base.";
+    console.error("[dashboard] Failed to load data.", error);
+    dbError = "Impossible de charger les données pour le moment.";
     categories = [];
     timelineEntries = [];
   }
@@ -60,14 +63,8 @@ export default async function DashboardPage() {
 
       {dbError ? (
         <section className="db-warning">
-          <h2>Base locale non disponible</h2>
-          <p>
-            Lance Postgres en local avec <code>docker compose up -d</code>, puis recharge la page.
-          </p>
-          <p>
-            Vérifie aussi <code>POSTGRES_URL</code> dans <code>.env.local</code>.
-          </p>
-          <pre>{dbError}</pre>
+          <h2>Données temporairement indisponibles</h2>
+          <p>{dbError}</p>
         </section>
       ) : null}
 

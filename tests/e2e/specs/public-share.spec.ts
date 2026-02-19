@@ -41,6 +41,24 @@ test.describe("public share page", () => {
         return Number(row?.total ?? 0);
       })
       .toBe(1);
+
+    await page.goto(`/share?sid=${shareId}`);
+
+    await expect
+      .poll(async () => {
+        const row = await db.queryOne<{ total: number }>(
+          `
+            SELECT COUNT(*)::int AS total
+            FROM growth_events
+            WHERE event_name = 'snapshot_link_opened'
+              AND visibility = 'public'
+              AND metadata->>'shareId' = $1;
+          `,
+          [shareId]
+        );
+        return Number(row?.total ?? 0);
+      })
+      .toBe(1);
   });
 
   test("returns unavailable state for invalid share id", async ({ page, db }) => {

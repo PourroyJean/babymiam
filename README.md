@@ -75,7 +75,9 @@ Nous utilisons `node-pg-migrate` pour versionner le schéma.
 - `RESEND_API_KEY`
 - `MAIL_FROM`
 - `PASSWORD_RESET_TTL_MINUTES` (défaut `60`)
+- `SHARE_SNAPSHOT_TTL_DAYS` (défaut `30`, durée de validité des nouveaux liens publics)
 - `MAINTENANCE_MODE` (`true|false`)
+- `TRUST_PROXY_IP_HEADERS` (`0` par défaut, `1` uniquement derrière un proxy de confiance)
 - `ALLOW_MIGRATE_SKIP` (`1` pour autoriser explicitement un skip manuel de migration en local)
 - `E2E_ALLOW_REMOTE_DB_RESET` (`1` pour autoriser un reset destructif E2E sur host non local)
 

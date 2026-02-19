@@ -30,6 +30,11 @@ type ShareSnapshotInput = {
   expiresAt?: string | null;
 };
 
+export type UpsertShareSnapshotResult = {
+  shareId: string;
+  expiresAt: string | null;
+};
+
 type AppendQuickEntryInput = {
   foodId: number;
   tastedOn: string;
@@ -49,6 +54,27 @@ type FoodProgressColumns = {
   hasNote: boolean;
   hasUpdatedAt: boolean;
 };
+
+const DEFAULT_SHARE_SNAPSHOT_TTL_DAYS = 30;
+const MAX_SHARE_SNAPSHOT_TTL_DAYS = 365;
+const SHARE_OPEN_DEDUPE_MINUTES = 5;
+
+function getShareSnapshotTtlDays() {
+  const parsed = Number(process.env.SHARE_SNAPSHOT_TTL_DAYS || DEFAULT_SHARE_SNAPSHOT_TTL_DAYS);
+  if (!Number.isFinite(parsed)) return DEFAULT_SHARE_SNAPSHOT_TTL_DAYS;
+
+  const normalized = Math.trunc(parsed);
+  if (normalized < 1) return DEFAULT_SHARE_SNAPSHOT_TTL_DAYS;
+  return Math.min(normalized, MAX_SHARE_SNAPSHOT_TTL_DAYS);
+}
+
+function resolveShareSnapshotExpiresAt(expiresAt: string | null | undefined) {
+  const normalized = String(expiresAt || "").trim();
+  if (normalized) return normalized;
+
+  const ttlDays = getShareSnapshotTtlDays();
+  return new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
+}
 
 async function getFoodProgressColumns(client: PoolClient): Promise<FoodProgressColumns> {
   const result = await client.query<{ column_name: string }>(
@@ -667,10 +693,58 @@ export async function createGrowthEvent(
   );
 }
 
-export async function upsertShareSnapshot(ownerId: number, payload: ShareSnapshotInput) {
-  const recentFoods = payload.recentFoods.slice(0, 3);
+export async function createPublicShareOpenEvent(
+  ownerId: number,
+  shareId: string,
+  metadata: Record<string, unknown>
+) {
+  const existingResult = await query(
+    `
+      SELECT 1
+      FROM growth_events
+      WHERE owner_id = $1
+        AND event_name = 'snapshot_link_opened'
+        AND channel = 'public_page'
+        AND visibility = 'public'
+        AND metadata->>'shareId' = $2
+        AND created_at > NOW() - INTERVAL '${SHARE_OPEN_DEDUPE_MINUTES} minutes'
+      LIMIT 1;
+    `,
+    [ownerId, shareId]
+  );
 
-  const result = await query(
+  if (Number(existingResult.rowCount || 0) > 0) return false;
+
+  await createGrowthEvent(ownerId, "snapshot_link_opened", "public_page", metadata, "public");
+  return true;
+}
+
+export async function revokeShareSnapshot(ownerId: number, shareId: string) {
+  const result = await query<{ share_id: string }>(
+    `
+      UPDATE share_snapshots
+      SET
+        visibility = 'private',
+        expires_at = NOW()
+      WHERE owner_id = $1
+        AND share_id = $2
+        AND visibility = 'public'
+      RETURNING share_id;
+    `,
+    [ownerId, shareId]
+  );
+
+  return result.rowCount === 1;
+}
+
+export async function upsertShareSnapshot(
+  ownerId: number,
+  payload: ShareSnapshotInput
+): Promise<UpsertShareSnapshotResult> {
+  const recentFoods = payload.recentFoods.slice(0, 3);
+  const resolvedExpiresAt = resolveShareSnapshotExpiresAt(payload.expiresAt);
+
+  const result = await query<{ share_id: string; expires_at: string | null }>(
     `
       INSERT INTO share_snapshots (
         share_id,
@@ -697,7 +771,9 @@ export async function upsertShareSnapshot(ownerId: number, payload: ShareSnapsho
         recent_foods = EXCLUDED.recent_foods,
         expires_at = EXCLUDED.expires_at
       WHERE share_snapshots.owner_id = EXCLUDED.owner_id
-      RETURNING share_id;
+      RETURNING
+        share_id,
+        CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at::text END AS expires_at;
     `,
     [
       payload.shareId,
@@ -709,13 +785,19 @@ export async function upsertShareSnapshot(ownerId: number, payload: ShareSnapsho
       payload.likedCount,
       payload.milestone,
       JSON.stringify(recentFoods),
-      payload.expiresAt || null
+      resolvedExpiresAt
     ]
   );
 
-  if (result.rowCount !== 1) {
+  const row = result.rows[0];
+  if (result.rowCount !== 1 || !row) {
     throw new Error("Share ID already exists for another user.");
   }
+
+  return {
+    shareId: row.share_id,
+    expiresAt: row.expires_at
+  };
 }
 
 export async function getPublicShareSnapshotById(shareId: string): Promise<PublicShareSnapshot | null> {

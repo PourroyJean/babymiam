@@ -5,6 +5,18 @@ const AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 const BASE_URL = process.env.E2E_BASE_URL || "http://127.0.0.1:3005";
 
 test.describe("auth and guards", () => {
+  test("applies baseline security headers on login page", async ({ request }) => {
+    const response = await request.get("/login");
+    expect(response.ok()).toBeTruthy();
+
+    const headers = response.headers();
+    expect(headers["content-security-policy"]).toContain("default-src 'self'");
+    expect(headers["x-frame-options"]).toBe("DENY");
+    expect(headers["x-content-type-options"]).toBe("nosniff");
+    expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+    expect(headers["permissions-policy"]).toBe("camera=(), microphone=(), geolocation=()");
+  });
+
   test("redirects guest to /login when opening a protected page", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveURL(/\/login$/);
