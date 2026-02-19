@@ -8,12 +8,13 @@ import {
   createGrowthEvent,
   deleteFoodTastingEntry,
   revokeShareSnapshot,
+  saveFoodSummary,
   upsertChildProfile,
   upsertFinalPreference,
   upsertFoodTastingEntry,
-  upsertNote,
   upsertShareSnapshot
 } from "@/lib/data";
+import { getIsoDateForTimezoneOffset, normalizeTimezoneOffsetMinutes } from "@/lib/date-utils";
 import {
   DEFAULT_REACTION_TYPE,
   isReactionType,
@@ -33,6 +34,15 @@ const SHARE_EVENT_NAMES = new Set([
 const SHARE_CHANNELS = new Set(["button", "native", "clipboard", "fallback", "snapshot", "milestone"]);
 const SHARE_ID_PATTERN = /^[a-zA-Z0-9_-]{8,80}$/;
 
+type FoodSummaryDraftEntry = {
+  slot: 1 | 2 | 3;
+  liked: boolean;
+  tastedOn: string;
+  note: string;
+  textureLevel: TextureLevel | null;
+  reactionType: ReactionType;
+};
+
 function isValidIsoDate(value: string) {
   if (!ISO_DATE_PATTERN.test(value)) return false;
   const parsed = new Date(`${value}T00:00:00.000Z`);
@@ -40,11 +50,9 @@ function isValidIsoDate(value: string) {
   return parsed.toISOString().slice(0, 10) === value;
 }
 
-function getTodayIsoDate() {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
+function getTodayIsoDate(formData: FormData) {
+  const timezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(formData.get("tzOffsetMinutes"), 0);
+  return getIsoDateForTimezoneOffset(timezoneOffsetMinutes);
 }
 
 function getNonNegativeInteger(formData: FormData, key: string) {
@@ -95,11 +103,12 @@ export async function logoutAction() {
 export async function saveTastingEntryAction(formData: FormData) {
   const user = await requireAuth();
 
+  const todayIsoDate = getTodayIsoDate(formData);
   const foodId = Number(formData.get("foodId"));
   const slot = Number(formData.get("slot"));
   const likedRaw = String(formData.get("liked") || "").trim().toLowerCase();
   const tastedOnRaw = String(formData.get("tastedOn") || "").trim();
-  const tastedOn = tastedOnRaw || getTodayIsoDate();
+  const tastedOn = tastedOnRaw || todayIsoDate;
   const note = String(formData.get("note") || "").trim();
   const textureLevel = parseTextureLevel(formData);
   const reactionType = parseReactionType(formData) ?? DEFAULT_REACTION_TYPE;
@@ -116,7 +125,7 @@ export async function saveTastingEntryAction(formData: FormData) {
     return { ok: false, error: "La date de dégustation est invalide." };
   }
 
-  if (tastedOn > getTodayIsoDate()) {
+  if (tastedOn > todayIsoDate) {
     return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
   }
 
@@ -168,21 +177,10 @@ export async function setFinalPreferenceAction(formData: FormData) {
   return { ok: true, appliedPreference };
 }
 
-export async function setNoteAction(formData: FormData) {
-  const user = await requireAuth();
-
-  const foodId = Number(formData.get("foodId"));
-  const note = String(formData.get("note") || "").trim();
-
-  if (!Number.isFinite(foodId)) return;
-
-  await upsertNote(user.id, foodId, note);
-  revalidatePath("/");
-}
-
 export async function addQuickEntryAction(formData: FormData) {
   const user = await requireAuth();
 
+  const todayIsoDate = getTodayIsoDate(formData);
   const foodId = Number(formData.get("foodId"));
   const tastedOn = String(formData.get("tastedOn") || "").trim();
   const likedRaw = String(formData.get("liked") || "").trim().toLowerCase();
@@ -198,7 +196,7 @@ export async function addQuickEntryAction(formData: FormData) {
     return { ok: false, error: "Date invalide." };
   }
 
-  if (tastedOn > getTodayIsoDate()) {
+  if (tastedOn > todayIsoDate) {
     return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
   }
 
@@ -234,6 +232,7 @@ export async function addQuickEntryAction(formData: FormData) {
 export async function saveChildProfileAction(formData: FormData) {
   const user = await requireAuth();
 
+  const todayIsoDate = getTodayIsoDate(formData);
   const firstName = String(formData.get("firstName") || "").trim();
   const birthDate = String(formData.get("birthDate") || "").trim();
 
@@ -245,11 +244,107 @@ export async function saveChildProfileAction(formData: FormData) {
     return { ok: false, error: "La date de naissance est invalide." };
   }
 
-  if (birthDate > getTodayIsoDate()) {
+  if (birthDate > todayIsoDate) {
     return { ok: false, error: "La date de naissance ne peut pas être dans le futur." };
   }
 
   await upsertChildProfile(user.id, firstName, birthDate);
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function saveFoodSummaryAction(formData: FormData) {
+  const user = await requireAuth();
+  const todayIsoDate = getTodayIsoDate(formData);
+
+  const foodId = Number(formData.get("foodId"));
+  const note = String(formData.get("note") || "").trim();
+  const rawTastings = String(formData.get("tastings") || "").trim();
+
+  if (!Number.isFinite(foodId)) {
+    return { ok: false, error: "Aliment invalide." };
+  }
+
+  let parsedTastings: unknown = [];
+  if (rawTastings) {
+    try {
+      parsedTastings = JSON.parse(rawTastings);
+    } catch {
+      return { ok: false, error: "Historique invalide." };
+    }
+  }
+
+  if (!Array.isArray(parsedTastings) || parsedTastings.length > 3) {
+    return { ok: false, error: "Historique invalide." };
+  }
+
+  const slots = new Set<number>();
+  const tastings: FoodSummaryDraftEntry[] = [];
+
+  for (const entry of parsedTastings) {
+    if (!entry || typeof entry !== "object") {
+      return { ok: false, error: "Historique invalide." };
+    }
+
+    const raw = entry as Record<string, unknown>;
+    const slot = Number(raw.slot);
+    const liked = raw.liked;
+    const tastedOn = String(raw.tastedOn || "").trim();
+    const tastingNote = String(raw.note || "").trim();
+    const textureLevelRaw = raw.textureLevel;
+    const reactionTypeRaw = raw.reactionType;
+
+    if (![1, 2, 3].includes(slot)) {
+      return { ok: false, error: "Historique invalide." };
+    }
+
+    if (slots.has(slot)) {
+      return { ok: false, error: "Historique invalide." };
+    }
+    slots.add(slot);
+
+    if (typeof liked !== "boolean") {
+      return { ok: false, error: "Historique invalide." };
+    }
+
+    if (!isValidIsoDate(tastedOn)) {
+      return { ok: false, error: "La date de dégustation est invalide." };
+    }
+
+    if (tastedOn > todayIsoDate) {
+      return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
+    }
+
+    let textureLevel: TextureLevel | null = null;
+    if (textureLevelRaw !== null && textureLevelRaw !== undefined && textureLevelRaw !== "") {
+      const parsedTextureLevel = Number(textureLevelRaw);
+      if (!isTextureLevel(parsedTextureLevel)) {
+        return { ok: false, error: "Texture invalide." };
+      }
+      textureLevel = parsedTextureLevel;
+    }
+
+    const parsedReactionType = Number(reactionTypeRaw);
+    if (!isReactionType(parsedReactionType)) {
+      return { ok: false, error: "Réaction invalide." };
+    }
+
+    tastings.push({
+      slot: slot as 1 | 2 | 3,
+      liked,
+      tastedOn,
+      note: tastingNote,
+      textureLevel,
+      reactionType: parsedReactionType
+    });
+  }
+
+  try {
+    await saveFoodSummary(user.id, foodId, note, tastings);
+  } catch {
+    return { ok: false, error: "Impossible d'enregistrer les notes pour le moment." };
+  }
+
   revalidatePath("/");
   return { ok: true };
 }

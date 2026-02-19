@@ -44,6 +44,15 @@ type AppendQuickEntryInput = {
   reactionType: ReactionType | null;
 };
 
+export type SaveFoodSummaryInput = {
+  slot: 1 | 2 | 3;
+  liked: boolean;
+  tastedOn: string;
+  note: string;
+  textureLevel: TextureLevel | null;
+  reactionType: ReactionType;
+};
+
 export type AppendQuickEntryResult = {
   status: "ok" | "maxed" | "food_not_found" | "unavailable";
 };
@@ -639,6 +648,102 @@ export async function upsertNote(ownerId: number, foodId: number, note: string) 
     `,
     [ownerId, foodId, note]
   );
+}
+
+export async function saveFoodSummary(
+  ownerId: number,
+  foodId: number,
+  note: string,
+  tastings: SaveFoodSummaryInput[]
+) {
+  const client = await getPool().connect();
+
+  try {
+    await client.query("BEGIN");
+
+    await client.query(
+      `
+        INSERT INTO food_progress (owner_id, food_id)
+        VALUES ($1, $2)
+        ON CONFLICT (owner_id, food_id) DO NOTHING;
+      `,
+      [ownerId, foodId]
+    );
+
+    await client.query("SELECT 1 FROM food_progress WHERE owner_id = $1 AND food_id = $2 FOR UPDATE;", [
+      ownerId,
+      foodId
+    ]);
+
+    const existingSlotsResult = await client.query<{ slot: number }>(
+      `
+        SELECT slot
+        FROM food_tastings
+        WHERE owner_id = $1
+          AND food_id = $2
+        FOR UPDATE;
+      `,
+      [ownerId, foodId]
+    );
+    const existingSlots = new Set(existingSlotsResult.rows.map((row) => Number(row.slot)));
+
+    for (const tasting of tastings) {
+      if (!existingSlots.has(tasting.slot)) {
+        throw new Error("Summary update contains an unknown tasting slot.");
+      }
+    }
+
+    for (const tasting of tastings) {
+      const result = await client.query(
+        `
+          UPDATE food_tastings
+          SET
+            liked = $4,
+            tasted_on = $5::date,
+            note = $6,
+            texture_level = $7,
+            reaction_type = $8,
+            updated_at = NOW()
+          WHERE owner_id = $1
+            AND food_id = $2
+            AND slot = $3;
+        `,
+        [
+          ownerId,
+          foodId,
+          tasting.slot,
+          tasting.liked,
+          tasting.tastedOn,
+          tasting.note,
+          tasting.textureLevel,
+          tasting.reactionType
+        ]
+      );
+
+      if (result.rowCount !== 1) {
+        throw new Error("Failed to update tasting in summary save.");
+      }
+    }
+
+    await client.query(
+      `
+        UPDATE food_progress
+        SET
+          note = $3,
+          updated_at = NOW()
+        WHERE owner_id = $1
+          AND food_id = $2;
+      `,
+      [ownerId, foodId, note]
+    );
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getChildProfile(ownerId: number): Promise<ChildProfile | null> {

@@ -12,6 +12,9 @@ const SESSION_ROTATE_THRESHOLD_SECONDS = 15 * 24 * 60 * 60;
 const LOGIN_RATE_LIMIT_WINDOW_MINUTES = 15;
 const LOGIN_RATE_LIMIT_MAX_FAILURES = 5;
 const PASSWORD_RESET_DEFAULT_TTL_MINUTES = 60;
+const PASSWORD_RESET_RATE_LIMIT_DEFAULT_WINDOW_MINUTES = 30;
+const PASSWORD_RESET_RATE_LIMIT_DEFAULT_MAX_ATTEMPTS = 5;
+const PASSWORD_RESET_RATE_LIMIT_LOCK_NAMESPACE = 21731;
 const SIGNUP_RATE_LIMIT_WINDOW_MINUTES = 30;
 const SIGNUP_RATE_LIMIT_MAX_FAILURES = 5;
 const EMAIL_VERIFICATION_DEFAULT_TTL_MINUTES = 3 * 24 * 60;
@@ -37,6 +40,48 @@ export type AccountOverview = {
   createdAt: string;
 };
 
+function getBooleanEnv(name: string) {
+  return String(process.env[name] || "").trim() === "1";
+}
+
+function isStrictRuntime() {
+  const nodeEnv = String(process.env.NODE_ENV || "").toLowerCase();
+  const ci = String(process.env.CI || "").toLowerCase();
+  return nodeEnv === "production" || ci === "true" || ci === "1";
+}
+
+function getPositiveIntegerEnv(name: string, fallback: number, min: number, max: number) {
+  const parsed = Number(process.env[name] || fallback);
+  if (!Number.isFinite(parsed)) return fallback;
+  const normalized = Math.trunc(parsed);
+  if (normalized < min || normalized > max) return fallback;
+  return normalized;
+}
+
+function getPasswordResetRateLimitWindowMinutes() {
+  return getPositiveIntegerEnv(
+    "PASSWORD_RESET_RATE_LIMIT_WINDOW_MINUTES",
+    PASSWORD_RESET_RATE_LIMIT_DEFAULT_WINDOW_MINUTES,
+    1,
+    24 * 60
+  );
+}
+
+function getPasswordResetRateLimitMaxAttempts() {
+  return getPositiveIntegerEnv(
+    "PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS",
+    PASSWORD_RESET_RATE_LIMIT_DEFAULT_MAX_ATTEMPTS,
+    1,
+    100
+  );
+}
+
+function getPasswordResetRateLimitIdentity(emailNorm: string, ip: string | null) {
+  const normalizedIp = String(ip || "").trim();
+  if (!normalizedIp) return emailNorm;
+  return `${emailNorm}|${normalizedIp}`;
+}
+
 function getSessionSecrets() {
   const fromList = (process.env.AUTH_SECRETS || "")
     .split(",")
@@ -48,8 +93,11 @@ function getSessionSecrets() {
   const single = process.env.AUTH_SECRET?.trim();
   if (single) return [single];
 
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("AUTH_SECRET or AUTH_SECRETS must be set in production.");
+  const allowInsecureDevAuth = getBooleanEnv("ALLOW_INSECURE_DEV_AUTH");
+  if (isStrictRuntime() || !allowInsecureDevAuth) {
+    throw new Error(
+      "AUTH_SECRET or AUTH_SECRETS must be set. For local-only fallback, set ALLOW_INSECURE_DEV_AUTH=1."
+    );
   }
 
   return [DEV_FALLBACK_SECRET];
@@ -450,6 +498,53 @@ export async function isSignupRateLimited(emailNorm: string, ip: string | null) 
   );
 
   return Number(result.rows[0]?.failed_attempts || 0) >= SIGNUP_RATE_LIMIT_MAX_FAILURES;
+}
+
+export async function recordAndCheckPasswordResetRateLimit(emailNorm: string, ip: string | null) {
+  const windowMinutes = getPasswordResetRateLimitWindowMinutes();
+  const maxAttempts = getPasswordResetRateLimitMaxAttempts();
+  const identity = getPasswordResetRateLimitIdentity(emailNorm, ip);
+  const client = await getPool().connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `
+        SELECT pg_advisory_xact_lock($1::int, hashtext($2));
+      `,
+      [PASSWORD_RESET_RATE_LIMIT_LOCK_NAMESPACE, identity]
+    );
+
+    await client.query(
+      `
+        INSERT INTO auth_password_reset_attempts (email_norm, ip)
+        VALUES ($1, NULLIF($2, '')::inet);
+      `,
+      [emailNorm, ip || null]
+    );
+
+    const result = await client.query<{ attempt_count: number }>(
+      `
+        SELECT COUNT(*)::int AS attempt_count
+        FROM auth_password_reset_attempts
+        WHERE created_at > NOW() - ($3::text || ' minutes')::interval
+          AND (
+            email_norm = $1
+            OR (NULLIF($2, '')::inet IS NOT NULL AND ip = NULLIF($2, '')::inet)
+          );
+      `,
+      [emailNorm, ip || null, windowMinutes]
+    );
+
+    const attemptCount = Number(result.rows[0]?.attempt_count || 0);
+    await client.query("COMMIT");
+    return attemptCount > maxAttempts;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function createPasswordResetToken(userId: number) {
