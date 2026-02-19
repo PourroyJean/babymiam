@@ -24,11 +24,11 @@ Créer `/Users/jean/Documents/CODE/babymiam/migrations/<timestamp>_init_schema.s
 Supprimer de l’init:
 - les blocs `DO $$` de compatibilité `owner_key`
 - les `DROP TABLE` destructifs de l’ancien script
-- le besoin de `/Users/jean/Documents/CODE/babymiam/scripts/users/migrate-legacy.js` pour le run standard
+- le besoin d’un script de migration legacy pour le run standard
 
 4. **Décommissionner l’ancien monolithe SQL**
-- Retirer l’usage de `/Users/jean/Documents/CODE/babymiam/scripts/db/migrate.sql`
-- Retirer ou simplifier `/Users/jean/Documents/CODE/babymiam/scripts/db/migrate.js` (idéalement plus utilisé)
+- Retirer l’usage de l’ancien script SQL monolithique
+- Utiliser uniquement le runner `node-pg-migrate` pour appliquer les migrations
 
 5. **Garder seed/sync séparés (bon choix)**
 - Conserver `/Users/jean/Documents/CODE/babymiam/scripts/db/seed.js`
@@ -36,7 +36,7 @@ Supprimer de l’init:
 - Workflow: `db:migrate` puis `db:sync-allergens` puis `db:seed`
 
 6. **Adapter les tests E2E**
-Dans `/Users/jean/Documents/CODE/babymiam/tests/e2e/helpers/db.ts`, remplacer la lecture directe de `migrate.sql` par l’exécution de `node-pg-migrate up` sur `E2E_POSTGRES_URL`.
+Dans `/Users/jean/Documents/CODE/babymiam/tests/e2e/helpers/db.ts`, exécuter le runner de migration sur `E2E_POSTGRES_URL`.
 
 7. **Runbook prod “clean start”**
 - Créer une DB prod neuve

@@ -3,12 +3,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { Pool } = require("pg");
-
-const LOCAL_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam";
-
-function getConnectionString() {
-  return process.env.POSTGRES_URL || process.env.DATABASE_URL || LOCAL_POSTGRES_URL;
-}
+const { resolveDatabaseUrl } = require("./_db-url");
 
 async function readSourceCategories() {
   const sourcePath = path.join(process.cwd(), "aliments_categories.json");
@@ -23,9 +18,10 @@ async function runSeed() {
     return;
   }
 
+  const { databaseUrl } = resolveDatabaseUrl({ scriptName: "db:seed" });
   const sourceCategories = await readSourceCategories();
   const pool = new Pool({
-    connectionString: getConnectionString()
+    connectionString: databaseUrl
   });
   const client = await pool.connect();
 

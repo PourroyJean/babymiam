@@ -2,12 +2,7 @@
 
 const { Pool } = require("pg");
 const argon2 = require("argon2");
-
-const LOCAL_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam";
-
-function getConnectionString() {
-  return process.env.POSTGRES_URL || process.env.DATABASE_URL || LOCAL_POSTGRES_URL;
-}
+const { resolveDatabaseUrl } = require("../db/_db-url");
 
 function parseArgs(argv) {
   const parsed = {
@@ -66,7 +61,8 @@ async function run() {
     parallelism: 1
   });
 
-  const pool = new Pool({ connectionString: getConnectionString() });
+  const { databaseUrl } = resolveDatabaseUrl({ scriptName: "users:create" });
+  const pool = new Pool({ connectionString: databaseUrl });
 
   try {
     const result = await pool.query(

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import type { FoodTimelineEntry, FinalPreferenceValue } from "@/lib/types";
+import { DEFAULT_REACTION_TYPE, getReactionOption, getTextureOption } from "@/lib/tasting-metadata";
 import {
   FRENCH_COLLATOR,
   formatTimelineDayLabel,
@@ -166,6 +167,14 @@ export function TimelinePanel({
                   <ol className="food-timeline-entry-list">
                     {group.entries.map((entry) => {
                       const entryFinalPreference = finalPreferenceByFoodId.get(entry.foodId) ?? 0;
+                      const textureOption = getTextureOption(entry.textureLevel);
+                      const reactionOption = getReactionOption(entry.reactionType ?? DEFAULT_REACTION_TYPE);
+                      const textureLabel = textureOption
+                        ? `Texture: ${textureOption.shortName}. ${textureOption.description}`
+                        : "Texture: Aucune texture";
+                      const reactionLabel = reactionOption
+                        ? `Réaction observée: ${reactionOption.label}. ${reactionOption.description}`
+                        : "Réaction observée: Aucun symptôme";
 
                       return (
                         <li
@@ -190,16 +199,6 @@ export function TimelinePanel({
                                 >
                                   {getCategoryPictogram(entry.categoryName)}
                                 </span>
-                                <button
-                                  type="button"
-                                  className="food-timeline-food-name food-timeline-food-name-inline touch-manipulation appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
-                                  onClick={(event) => openFoodSummary(entry.foodId, event.currentTarget)}
-                                  aria-label={`Ouvrir le résumé de ${entry.foodName}`}
-                                  title="Résumé"
-                                >
-                                  {entry.foodName}
-                                </button>
-
                                 <span className={`food-timeline-slot-badge slot-${entry.slot}`}>
                                   <Image
                                     src={getTimelineTigerIcon(entry.liked)}
@@ -211,6 +210,56 @@ export function TimelinePanel({
                                   />
                                   <span>{entry.slot}/3</span>
                                 </span>
+                                <span
+                                  className="food-timeline-meta-chip food-timeline-meta-chip--texture"
+                                  role="img"
+                                  aria-label={textureLabel}
+                                  title={textureLabel}
+                                  data-tooltip={textureLabel}
+                                >
+                                  {textureOption ? (
+                                    <Image
+                                      src={textureOption.iconSrc}
+                                      alt=""
+                                      aria-hidden="true"
+                                      width={22}
+                                      height={22}
+                                      className="food-timeline-meta-chip-icon"
+                                    />
+                                  ) : (
+                                      <span className="food-timeline-meta-chip-empty" aria-hidden="true">
+                                        ø
+                                      </span>
+                                    )}
+                                </span>
+
+                                <span
+                                  className="food-timeline-meta-chip food-timeline-meta-chip--reaction"
+                                  role="img"
+                                  aria-label={reactionLabel}
+                                  title={reactionLabel}
+                                  data-tooltip={reactionLabel}
+                                >
+                                  <span className="food-timeline-meta-chip-emoji" aria-hidden="true">
+                                    {reactionOption?.emoji ?? "✅"}
+                                  </span>
+                                </span>
+
+                                <button
+                                  type="button"
+                                  className="food-timeline-food-name food-timeline-food-name-inline touch-manipulation appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
+                                  onClick={(event) => openFoodSummary(entry.foodId, event.currentTarget)}
+                                  aria-label={`Ouvrir le résumé de ${entry.foodName}`}
+                                  title="Résumé"
+                                >
+                                  {entry.foodName}
+                                </button>
+
+                                {entry.note.trim() ? (
+                                  <span className="food-timeline-note-inline" title={entry.note}>
+                                    {entry.note}
+                                  </span>
+                                ) : null}
 
                                 {entry.slot === 3 ? (
                                   <span
@@ -225,12 +274,6 @@ export function TimelinePanel({
                                       height={31}
                                       className="food-timeline-result-inline-icon"
                                     />
-                                  </span>
-                                ) : null}
-
-                                {entry.note.trim() ? (
-                                  <span className="food-timeline-note-inline" title={entry.note}>
-                                    {entry.note}
                                   </span>
                                 ) : null}
                               </div>

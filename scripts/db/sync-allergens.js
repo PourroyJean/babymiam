@@ -3,14 +3,9 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { Pool } = require("pg");
-
-const LOCAL_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam";
+const { resolveDatabaseUrl } = require("./_db-url");
 const ALLERGEN_CATEGORY_NAME = "Allergènes majeurs";
 const EXPECTED_ALLERGEN_COUNT = 14;
-
-function getConnectionString() {
-  return process.env.POSTGRES_URL || process.env.DATABASE_URL || LOCAL_POSTGRES_URL;
-}
 
 async function readAllergenSource() {
   const sourcePath = path.join(process.cwd(), "aliments_categories.json");
@@ -56,10 +51,11 @@ async function runSync() {
     return;
   }
 
+  const { databaseUrl } = resolveDatabaseUrl({ scriptName: "db:sync-allergens" });
   const { categorySortOrder, allergenFoods } = await readAllergenSource();
 
   const pool = new Pool({
-    connectionString: getConnectionString()
+    connectionString: databaseUrl
   });
 
   const client = await pool.connect();

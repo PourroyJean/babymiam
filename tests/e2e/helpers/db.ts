@@ -1,11 +1,27 @@
+import { execFileSync } from "node:child_process";
 import argon2 from "argon2";
-import fs from "node:fs/promises";
 import path from "node:path";
-import { Pool, type QueryResultRow } from "pg";
+import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 const DEFAULT_E2E_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam_e2e";
 const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "parent@example.com").toLowerCase();
 const DEFAULT_E2E_AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
+const SAFE_E2E_DB_SUFFIX = /(_e2e|_test)$/i;
+const LOCAL_RESET_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+const E2E_RESETTABLE_TABLES = [
+  "food_tastings",
+  "food_progress",
+  "child_profiles",
+  "growth_events",
+  "share_snapshots",
+  "password_reset_tokens",
+  "email_verification_tokens",
+  "auth_login_attempts",
+  "auth_signup_attempts",
+  "foods",
+  "categories",
+  "users"
+];
 
 function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -65,6 +81,91 @@ function escapeIdentifier(value: string) {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
+function getErrorCode(error: unknown) {
+  if (typeof error !== "object" || !error || !("code" in error)) return "";
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? code : "";
+}
+
+function formatError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function assertSafeE2EResetTarget(targetUrl: URL) {
+  const dbName = targetUrl.pathname.replace(/^\//, "");
+  if (!dbName) {
+    throw new Error("E2E_POSTGRES_URL doit inclure un nom de base de données.");
+  }
+
+  if (!SAFE_E2E_DB_SUFFIX.test(dbName)) {
+    throw new Error(
+      `Refus de reset destructif: la base "${dbName}" doit finir par _e2e ou _test (E2E_POSTGRES_URL).`
+    );
+  }
+
+  const allowRemoteReset = process.env.E2E_ALLOW_REMOTE_DB_RESET === "1";
+  if (!allowRemoteReset && !LOCAL_RESET_HOSTS.has(targetUrl.hostname)) {
+    throw new Error(
+      `Refus de reset destructif: hôte "${targetUrl.hostname}" non local. Définir E2E_ALLOW_REMOTE_DB_RESET=1 pour forcer.`
+    );
+  }
+
+  return dbName;
+}
+
+async function truncateTableIfExists(client: PoolClient, tableName: string) {
+  try {
+    await client.query(`TRUNCATE TABLE ${escapeIdentifier(tableName)} RESTART IDENTITY CASCADE;`);
+  } catch (error) {
+    if (getErrorCode(error) === "42P01") return;
+    throw error;
+  }
+}
+
+async function resetDatabaseByTruncate(connectionString: string) {
+  const fallbackPool = new Pool({ connectionString });
+  const client = await fallbackPool.connect();
+
+  try {
+    await client.query("BEGIN");
+    for (const tableName of E2E_RESETTABLE_TABLES) {
+      await truncateTableIfExists(client, tableName);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+    await fallbackPool.end();
+  }
+}
+
+async function resetDatabaseByDropCreate(targetUrl: URL, dbName: string) {
+  const adminUrl = new URL(targetUrl.toString());
+  adminUrl.pathname = "/postgres";
+
+  const adminPool = new Pool({ connectionString: adminUrl.toString() });
+
+  try {
+    await adminPool.query(
+      `
+        SELECT pg_terminate_backend(pid)
+        FROM pg_stat_activity
+        WHERE datname = $1
+          AND pid <> pg_backend_pid();
+      `,
+      [dbName]
+    );
+
+    await adminPool.query(`DROP DATABASE IF EXISTS ${escapeIdentifier(dbName)}`);
+    await adminPool.query(`CREATE DATABASE ${escapeIdentifier(dbName)}`);
+  } finally {
+    await adminPool.end();
+  }
+}
+
 export function getPool() {
   if (!pool) {
     pool = new Pool({ connectionString: getConnectionString() });
@@ -81,59 +182,44 @@ export async function closePool() {
 }
 
 export async function ensureTestDatabaseReady() {
+  await closePool();
+
   const targetUrl = new URL(getConnectionString());
-  const dbName = targetUrl.pathname.replace(/^\//, "");
-
-  if (!dbName) {
-    throw new Error("E2E_POSTGRES_URL doit inclure un nom de base de données.");
-  }
-
-  const adminUrl = new URL(targetUrl.toString());
-  adminUrl.pathname = "/postgres";
-
-  const adminPool = new Pool({ connectionString: adminUrl.toString() });
+  const dbName = assertSafeE2EResetTarget(targetUrl);
 
   try {
-    const exists = await adminPool.query<{ present: number }>(
-      "SELECT 1 AS present FROM pg_database WHERE datname = $1",
-      [dbName]
+    await resetDatabaseByDropCreate(targetUrl, dbName);
+  } catch (error) {
+    console.warn(
+      `[e2e:db] Reset DROP/CREATE indisponible (${formatError(error)}). Fallback en TRUNCATE.`
     );
 
-    if (exists.rowCount && exists.rowCount > 0) return;
-
     try {
-      await adminPool.query(`CREATE DATABASE ${escapeIdentifier(dbName)}`);
-    } catch (error) {
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        (error as { code?: string }).code === "42P04"
-      ) {
-        return;
-      }
-
-      throw error;
+      await resetDatabaseByTruncate(targetUrl.toString());
+    } catch (fallbackError) {
+      throw new Error(
+        `[e2e:db] Impossible de reset la DB E2E. Primary=${formatError(error)}. Fallback=${formatError(fallbackError)}`
+      );
     }
-  } finally {
-    await adminPool.end();
   }
 }
 
 export async function applyMigrations() {
-  const migrationPath = path.join(process.cwd(), "scripts", "db", "migrate.sql");
-  const migrationSql = await fs.readFile(migrationPath, "utf8");
+  const runnerPath = path.join(process.cwd(), "scripts", "db", "migrate-runner.js");
+  const connectionString = getConnectionString();
 
-  const client = await getPool().connect();
   try {
-    await client.query("BEGIN");
-    await client.query(migrationSql);
-    await client.query("COMMIT");
+    execFileSync(process.execPath, [runnerPath, "up"], {
+      env: {
+        ...process.env,
+        DATABASE_URL: connectionString,
+        POSTGRES_URL: connectionString
+      },
+      stdio: "inherit"
+    });
   } catch (error) {
-    await client.query("ROLLBACK");
+    console.error("Failed to apply migrations in E2E setup:", error);
     throw error;
-  } finally {
-    client.release();
   }
 }
 
@@ -334,49 +420,49 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
 
   const tastings = Array.isArray(row.tastings)
     ? row.tastings
-        .map((item) => {
-          if (!item || typeof item !== "object") return null;
-          const slot = Number((item as { slot?: unknown }).slot);
-          const liked = (item as { liked?: unknown }).liked;
-          const tastedOn = String((item as { tastedOn?: unknown }).tastedOn || "");
-          const noteValue = (item as { note?: unknown }).note;
-          const note = typeof noteValue === "string" ? noteValue : "";
-          const textureLevelValue = (item as { textureLevel?: unknown }).textureLevel;
-          const reactionTypeValue = (item as { reactionType?: unknown }).reactionType;
-          const textureLevel =
-            typeof textureLevelValue === "number" && [1, 2, 3, 4].includes(textureLevelValue)
-              ? (textureLevelValue as 1 | 2 | 3 | 4)
-              : null;
-          const reactionType =
-            typeof reactionTypeValue === "number" && [0, 1, 2, 3, 4].includes(reactionTypeValue)
-              ? (reactionTypeValue as 0 | 1 | 2 | 3 | 4)
-              : null;
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const slot = Number((item as { slot?: unknown }).slot);
+        const liked = (item as { liked?: unknown }).liked;
+        const tastedOn = String((item as { tastedOn?: unknown }).tastedOn || "");
+        const noteValue = (item as { note?: unknown }).note;
+        const note = typeof noteValue === "string" ? noteValue : "";
+        const textureLevelValue = (item as { textureLevel?: unknown }).textureLevel;
+        const reactionTypeValue = (item as { reactionType?: unknown }).reactionType;
+        const textureLevel =
+          typeof textureLevelValue === "number" && [1, 2, 3, 4].includes(textureLevelValue)
+            ? (textureLevelValue as 1 | 2 | 3 | 4)
+            : null;
+        const reactionType =
+          typeof reactionTypeValue === "number" && [0, 1, 2, 3, 4].includes(reactionTypeValue)
+            ? (reactionTypeValue as 0 | 1 | 2 | 3 | 4)
+            : null;
 
-          if (![1, 2, 3].includes(slot)) return null;
-          if (typeof liked !== "boolean") return null;
-          if (!tastedOn) return null;
+        if (![1, 2, 3].includes(slot)) return null;
+        if (typeof liked !== "boolean") return null;
+        if (!tastedOn) return null;
 
-          return {
-            slot: slot as 1 | 2 | 3,
-            liked,
-            tastedOn,
-            note,
-            textureLevel,
-            reactionType
-          };
-        })
-        .filter(
-          (
-            entry
-          ): entry is {
-            slot: 1 | 2 | 3;
-            liked: boolean;
-            tastedOn: string;
-            note: string;
-            textureLevel: 1 | 2 | 3 | 4 | null;
-            reactionType: 0 | 1 | 2 | 3 | 4 | null;
-          } => entry !== null
-        )
+        return {
+          slot: slot as 1 | 2 | 3,
+          liked,
+          tastedOn,
+          note,
+          textureLevel,
+          reactionType
+        };
+      })
+      .filter(
+        (
+          entry
+        ): entry is {
+          slot: 1 | 2 | 3;
+          liked: boolean;
+          tastedOn: string;
+          note: string;
+          textureLevel: 1 | 2 | 3 | 4 | null;
+          reactionType: 0 | 1 | 2 | 3 | 4 | null;
+        } => entry !== null
+      )
     : [];
 
   const tastingCount = Number(row.tasting_count ?? tastings.length);
@@ -763,37 +849,37 @@ export type GrowthEventState = {
 export async function getGrowthEvents(eventName?: string): Promise<GrowthEventState[]> {
   const rows = eventName
     ? await queryMany<{
-        id: number;
-        owner_id: number;
-        event_name: string;
-        channel: string | null;
-        visibility: "private" | "public";
-        metadata: Record<string, unknown>;
-        created_at: string;
-      }>(
-        `
+      id: number;
+      owner_id: number;
+      event_name: string;
+      channel: string | null;
+      visibility: "private" | "public";
+      metadata: Record<string, unknown>;
+      created_at: string;
+    }>(
+      `
           SELECT id, owner_id, event_name, channel, visibility, metadata, created_at::text AS created_at
           FROM growth_events
           WHERE event_name = $1
           ORDER BY id ASC;
         `,
-        [eventName]
-      )
+      [eventName]
+    )
     : await queryMany<{
-        id: number;
-        owner_id: number;
-        event_name: string;
-        channel: string | null;
-        visibility: "private" | "public";
-        metadata: Record<string, unknown>;
-        created_at: string;
-      }>(
-        `
+      id: number;
+      owner_id: number;
+      event_name: string;
+      channel: string | null;
+      visibility: "private" | "public";
+      metadata: Record<string, unknown>;
+      created_at: string;
+    }>(
+      `
           SELECT id, owner_id, event_name, channel, visibility, metadata, created_at::text AS created_at
           FROM growth_events
           ORDER BY id ASC;
         `
-      );
+    );
 
   return rows.map((row) => ({
     id: Number(row.id),

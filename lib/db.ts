@@ -2,6 +2,16 @@ import { Pool } from "pg";
 
 const LOCAL_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam";
 
+function getEnvValue(name: string) {
+  return String(process.env[name] || "").trim();
+}
+
+function isStrictRuntime() {
+  const nodeEnv = getEnvValue("NODE_ENV").toLowerCase();
+  const ci = getEnvValue("CI").toLowerCase();
+  return nodeEnv === "production" || ci === "true" || ci === "1";
+}
+
 function normalizeConnectionString(value: string) {
   try {
     const parsed = new URL(value);
@@ -27,7 +37,17 @@ declare global {
 }
 
 function getConnectionString() {
-  const raw = process.env.POSTGRES_URL || process.env.DATABASE_URL || LOCAL_POSTGRES_URL;
+  const postgresUrl = getEnvValue("POSTGRES_URL");
+  if (postgresUrl) return normalizeConnectionString(postgresUrl);
+
+  const databaseUrl = getEnvValue("DATABASE_URL");
+  if (databaseUrl) return normalizeConnectionString(databaseUrl);
+
+  if (isStrictRuntime()) {
+    throw new Error("[db] Missing database URL. Configure POSTGRES_URL or DATABASE_URL.");
+  }
+
+  const raw = LOCAL_POSTGRES_URL;
   return normalizeConnectionString(raw);
 }
 

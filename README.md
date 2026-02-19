@@ -7,6 +7,7 @@ MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-use
 - PostgreSQL (`pg` / node-postgres)
 - Auth email + mot de passe hashé (Argon2id)
 - Email transactionnel via Resend (reset password)
+- Migrations: `node-pg-migrate` (SQL pur)
 
 ## Setup local
 1. Copier les variables:
@@ -21,7 +22,7 @@ MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-use
    ```bash
    npm install
    ```
-4. Appliquer le schéma et charger les aliments:
+4. Initialiser la base (migrations + seed):
    ```bash
    npm run db:setup
    ```
@@ -35,13 +36,37 @@ MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-use
    ```
 
 Le seed charge les catégories/aliments depuis `aliments_categories.json`.
-Si `POSTGRES_URL` n'est pas défini, l'app utilise `postgres://postgres:postgres@localhost:5432/babymiam`.
+Le runner de migration ne charge pas `.env.local` automatiquement: il lit
+`POSTGRES_URL`, sinon `DATABASE_URL`.
+En `NODE_ENV=production` ou `CI=true`, `POSTGRES_URL`/`DATABASE_URL` est obligatoire (échec immédiat sinon).
+En local (hors CI/prod), fallback vers `postgres://postgres:postgres@localhost:5432/babymiam`.
+Cette règle s'applique aussi au runtime serveur (`lib/db.ts`) et à `npm run users:create`.
 
-## Scripts DB
-- `npm run db:migrate`
-- `npm run db:sync-allergens` (prune + resync transactionnel de `Allergènes majeurs` depuis `aliments_categories.json`)
-- `npm run db:seed`
-- `npm run db:setup`
+## Workflow Base de Données (Migrations)
+
+Nous utilisons `node-pg-migrate` pour versionner le schéma.
+
+- **Préflight prod/CI**:
+  ```bash
+  npm run db:preflight
+  ```
+- **Appliquer les migrations** (Up):
+  ```bash
+  npm run db:migrate
+  ```
+- **Créer une nouvelle migration** :
+  ```bash
+  npm run db:migrate:new -- nom_explicite_du_changement
+  ```
+- **Annuler la dernière migration** (Down):
+  ```bash
+  npm run db:migrate:down
+  ```
+- **Reset Complet** (Drop + Migrate + Seed):
+  ```bash
+  docker compose down -v && docker compose up -d
+  npm run db:setup
+  ```
 
 ## Variables d'environnement
 - `AUTH_SECRET` (ou `AUTH_SECRETS` pour rotation)
@@ -51,77 +76,39 @@ Si `POSTGRES_URL` n'est pas défini, l'app utilise `postgres://postgres:postgres
 - `MAIL_FROM`
 - `PASSWORD_RESET_TTL_MINUTES` (défaut `60`)
 - `MAINTENANCE_MODE` (`true|false`)
-
-## Scripts users
-- `npm run users:create -- --email <email> --password <password>`
-- `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` (migration des données legacy `owner_key` -> `owner_id`)
-
-## Parcours dégustation (v2)
-- Chaque aliment a 3 slots de dégustation indépendants (slots tigre).
-- Chaque slot enregistre une date + un résultat binaire (`aimé` / `pas aimé`) via la même popup en création/édition.
-- Le pouce final est visible uniquement quand 3 slots existent et cycle `neutre -> oui -> non -> neutre`.
-- La suppression n'est autorisée que sur le dernier slot rempli; si on repasse à moins de 3 slots, le pouce final est remis à neutre.
-- Le panneau meta d'un aliment gère uniquement la note.
-
-## Ajout manuel d'un user (a la mano)
-Si la base locale vient d'un ancien schema, lance d'abord `npm run db:migrate` puis `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy`.
-Cree ensuite le compte avec `npm run users:create -- --email <email> --password <password>`.
-Connecte-toi avec l'email du compte cree (pas `AUTH_USER`).
-Redemarre enfin `npm run dev` avec la meme base locale (`POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam`).
-
-## Reset BD locale (memo 4 lignes)
-1. `docker compose down -v && docker compose up -d`
-2. `npm run db:migrate && npm run db:seed`
-3. `npm run users:create -- --email jean.pourroy@gmail.com --password "password38!!"`
-4. `npm run users:create -- --email parent@example.com --password "LOULOU38" && npm run dev`
+- `ALLOW_MIGRATE_SKIP` (`1` pour autoriser explicitement un skip manuel de migration en local)
+- `E2E_ALLOW_REMOTE_DB_RESET` (`1` pour autoriser un reset destructif E2E sur host non local)
 
 ## Tests E2E (Playwright)
 Variables de test supportées:
 - `E2E_POSTGRES_URL` (défaut: `postgres://postgres:postgres@localhost:5432/babymiam_e2e`)
-- `E2E_BASE_URL` (défaut: `http://127.0.0.1:3005`)
-- `E2E_AUTH_EMAIL` (défaut: `parent@example.com`)
-- `E2E_AUTH_PASSWORD` (défaut: `LOULOU38`)
-- `E2E_AUTH_SECRET` (défaut: `e2e-secret-change-me`)
 
 Exécuter la suite:
 ```bash
 npm run test:e2e
 ```
 
-## Runbook synchro allergènes (14 officiels)
-1. Backup:
+Par défaut, le reset destructif E2E est autorisé uniquement pour une base suffixée `_e2e`/`_test` sur host local (`localhost`, `127.0.0.1`, `::1`).
+Pour forcer un host distant: `E2E_ALLOW_REMOTE_DB_RESET=1`.
+
+## Garde-fous obligatoires
+- `SKIP_DB_SETUP=1` bloque `npm run db:migrate` par défaut.
+- Pour skip explicite en local: `ALLOW_MIGRATE_SKIP=1 SKIP_DB_SETUP=1 npm run db:migrate`.
+- En prod/CI, demander un skip migration (`SKIP_DB_SETUP=1`) provoque un échec explicite.
+- `npm run db:preflight` échoue si `SKIP_DB_SETUP=1`, si l'URL DB est absente, ou si la connexion DB est indisponible.
+
+## Runbook déploiement (Clean Start)
+1. Provisionner une base PostgreSQL vierge.
+2. Configurer `POSTGRES_URL`.
+3. Exécuter le préflight:
    ```bash
-   pg_dump "$POSTGRES_URL" -Fc -f backups/local-before-allergens-sync.dump
+   npm run db:preflight
    ```
-2. Exécution:
+4. Exécuter les migrations et le seed:
    ```bash
    npm run db:migrate
    npm run db:sync-allergens
    npm run db:seed
    ```
-3. Contrôles SQL:
-   ```sql
-   SELECT COUNT(*)
-   FROM foods f
-   JOIN categories c ON c.id = f.category_id
-   WHERE c.name = 'Allergènes majeurs';
-   ```
-   ```sql
-   SELECT f.sort_order, f.name
-   FROM foods f
-   JOIN categories c ON c.id = f.category_id
-   WHERE c.name = 'Allergènes majeurs'
-   ORDER BY f.sort_order;
-   ```
-4. Idempotence: rejouer `npm run db:sync-allergens` puis `npm run db:seed`, et revérifier les 2 requêtes ci-dessus.
-
-## Runbook déploiement prod (downtime accepté)
-1. Activer `MAINTENANCE_MODE=true` sur Vercel.
-2. Exécuter `npm run db:migrate` sur la base Neon cible.
-3. Exécuter `npm run db:sync-allergens` sur la base Neon cible.
-4. Exécuter `npm run db:seed` sur la base Neon cible.
-5. Exécuter `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` si nécessaire.
+5. Créer un utilisateur initial via script ou console.
 6. Déployer le code applicatif.
-7. Désactiver `MAINTENANCE_MODE`.
-
-Le build n'exécute plus les migrations automatiquement.

@@ -14,21 +14,28 @@ Déployer l'application Next.js multi-user sur Vercel avec Neon/Postgres, avec u
 - Hébergement: Vercel.
 - Base de données: Neon (Postgres).
 - Connexion DB: `pg` avec pool borné.
-- Migrations: script SQL versionné (`scripts/db/migrate.sql`) exécuté explicitement.
-- Migration legacy: script `scripts/users/migrate-legacy.js`.
+- Migrations: `node-pg-migrate` en SQL pur (dossier `migrations/`).
+- Runner migration: `scripts/db/migrate-runner.js`.
+- Préflight DB: `scripts/db/preflight.js` (`npm run db:preflight`).
+- Chargement env migration: `POSTGRES_URL` puis `DATABASE_URL`.
+- En prod/CI: URL DB obligatoire (pas de fallback local).
 - Mode maintenance: variable `MAINTENANCE_MODE=true` pilotée via Vercel env.
 
 ## 4. Runbook migration prod (downtime accepté)
 1. Activer `MAINTENANCE_MODE=true`.
-2. Exécuter la migration SQL sur la base Neon cible.
-3. Exécuter `LEGACY_ADMIN_EMAIL=<email> LEGACY_ADMIN_PASSWORD=<password> npm run users:migrate-legacy` sur la même base.
-4. Déployer le code applicatif.
-5. Désactiver `MAINTENANCE_MODE`.
+2. Exécuter `npm run db:preflight` sur la base Neon cible.
+3. Exécuter `npm run db:migrate` sur la base Neon cible.
+4. Exécuter `npm run db:sync-allergens` sur la base Neon cible.
+5. Exécuter `npm run db:seed` sur la base Neon cible.
+6. Créer l'utilisateur initial (`npm run users:create -- --email <email> --password "<password>"`).
+7. Déployer le code applicatif.
+8. Désactiver `MAINTENANCE_MODE`.
 
 ## 5. Checklist release
 - Vérifier `AUTH_SECRET` (ou `AUTH_SECRETS`) dans Vercel.
 - Vérifier `RESEND_API_KEY`, `MAIL_FROM`, `APP_BASE_URL`.
 - Vérifier `POSTGRES_URL` / `DATABASE_URL`.
+- Vérifier `SKIP_DB_SETUP` absent (ou différent de `1`).
 - Exécuter `npm run build` en local.
 - Valider preview (login, write path, partage public, reset password).
 - Déployer production.
@@ -37,8 +44,6 @@ Déployer l'application Next.js multi-user sur Vercel avec Neon/Postgres, avec u
 ## 6. Risques principaux et mitigations
 - Échec migration DB:
   - mitigation: maintenance mode + backup Neon avant exécution.
-- Mauvaise migration legacy owner:
-  - mitigation: script idempotent + vérif post-migration (`owner_id` non null).
 - Erreur sur secrets mail/auth:
   - mitigation: checklist release systématique.
 

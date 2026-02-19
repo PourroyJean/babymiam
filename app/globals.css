@@ -1651,7 +1651,6 @@ a {
   display: flex;
   align-items: center;
   gap: 10px;
-  align-items: center;
   flex-wrap: nowrap;
   flex: 1;
   min-width: 0;
@@ -1672,10 +1671,10 @@ a {
 }
 
 .food-timeline-food-name-inline {
-  flex: 0 1 30ch;
+  flex: 1 1 24ch;
   min-width: 0;
-  width: 30ch;
-  max-width: 30ch;
+  width: auto;
+  max-width: none;
 }
 
 .food-timeline-slot-badge {
@@ -1716,14 +1715,6 @@ a {
   color: #555063;
 }
 
-.food-timeline-meta-row {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .food-timeline-category-pill {
   --tone-pill: #efe3ff;
   --tone-border: #ccb2e5;
@@ -1756,7 +1747,6 @@ a {
 }
 
 .food-timeline-category-inline {
-  grid-column: 1;
   width: auto;
   max-width: 20ch;
   min-width: 0;
@@ -1765,7 +1755,6 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 10px;
 }
 
 .food-timeline-category-inline.food-timeline-category-emoji-pill {
@@ -1773,12 +1762,6 @@ a {
   max-width: 2.88ch;
   min-width: 2.88ch;
   height: 2.88ch;
-}
-
-.food-timeline-preference-text {
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: #4b4d59;
 }
 
 .food-timeline-note-inline {
@@ -1797,35 +1780,116 @@ a {
   line-height: 1.4;
 }
 
-.food-timeline-note {
-  margin: 0;
-  border: 1px solid #ebd89f;
-  border-radius: 11px;
-  background: #fffbe8;
-  padding: 6px 9px;
-  font-size: 0.89rem;
-  color: #4f4333;
-  line-height: 1.4;
+.food-timeline-meta-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #d8d1c2;
+  background: #fffdf4;
+  padding: 0;
+  color: #524636;
+  flex: 0 0 auto;
+  align-self: center;
+  cursor: default;
+}
+
+.food-timeline-meta-chip--texture {
+  background: #eef7ff;
+  border-color: #bad6ef;
+}
+
+.food-timeline-meta-chip--reaction {
+  background: #fff2ea;
+  border-color: #f0c7b8;
+}
+
+.food-timeline-meta-chip-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.food-timeline-meta-chip-emoji {
+  font-size: 1.06rem;
+  line-height: 1;
+}
+
+.food-timeline-meta-chip-empty {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.food-timeline-meta-chip::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #2f2738;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+  z-index: 5;
+}
+
+.food-timeline-meta-chip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  transform: translate(-50%, 6px);
+  min-width: 16ch;
+  max-width: 36ch;
+  border-radius: 9px;
+  background: #2f2738;
+  color: #fff;
+  padding: 7px 9px;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 10px 22px rgba(20, 15, 25, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+  z-index: 5;
+}
+
+.food-timeline-meta-chip:hover::before,
+.food-timeline-meta-chip:active::before,
+.food-timeline-meta-chip:hover::after,
+.food-timeline-meta-chip:active::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .food-timeline-result-inline {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-left: auto;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  gap: 0;
+  margin-left: 0;
+  flex: 0 0 auto;
+  align-self: center;
   font-size: 0.84rem;
   font-weight: 700;
   color: #3f3f3f;
 }
 
 .food-timeline-result-inline-icon {
-  width: 31px;
-  height: 31px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
-}
-
-.food-timeline-result-inline-text {
-  white-space: nowrap;
 }
 
 .quick-add-modal {
@@ -2717,7 +2781,7 @@ a {
   }
 
   .food-timeline-note-inline {
-    flex-basis: 100%;
+    flex: 0 1 auto;
     width: fit-content;
     margin-left: 0;
     max-width: min(100%, 24ch);
@@ -2736,15 +2800,41 @@ a {
     height: 18px;
   }
 
+  .food-timeline-meta-chip {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+  }
+
+  .food-timeline-meta-chip-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .food-timeline-meta-chip-emoji,
+  .food-timeline-meta-chip-empty {
+    font-size: 0.92rem;
+  }
+
+  .food-timeline-meta-chip::after {
+    min-width: 12ch;
+    max-width: 24ch;
+    font-size: 0.68rem;
+    padding: 6px 8px;
+  }
+
   .food-timeline-result-inline {
-    gap: 4px;
-    margin-left: auto;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    gap: 0;
+    margin-left: 0;
     font-size: 0.74rem;
   }
 
   .food-timeline-result-inline-icon {
-    width: 21px;
-    height: 21px;
+    width: 20px;
+    height: 20px;
   }
 
   .food-timeline-category-emoji-pill {
@@ -2766,13 +2856,6 @@ a {
     justify-content: center;
     align-items: center;
     text-align: center;
-  }
-
-  .food-timeline-result-inline-text {
-    white-space: nowrap;
-    max-width: 12ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .quick-add-overlay {
