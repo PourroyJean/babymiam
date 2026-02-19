@@ -16,6 +16,7 @@ import {
   logoutEverywhereAction,
   sendVerificationEmailAction
 } from "@/app/account/actions";
+import { getClientTimezoneOffsetMinutes, getCurrentIsoDate } from "@/lib/date-utils";
 import type { ChildProfile, ProgressSummary } from "@/lib/types";
 
 type ProfileMenuProps = {
@@ -47,10 +48,6 @@ function isValidIsoDate(value: string) {
   const parsed = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(parsed.getTime())) return false;
   return parsed.toISOString().slice(0, 10) === value;
-}
-
-function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function copyWithExecCommand(value: string) {
@@ -205,7 +202,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     const trimmedFirstName = firstName.trim();
     if (!trimmedFirstName) return false;
     if (!isValidIsoDate(birthDate)) return false;
-    return birthDate <= getTodayIsoDate();
+    return birthDate <= getCurrentIsoDate();
   }, [firstName, birthDate]);
 
   const shareSnapshot = useMemo(
@@ -604,6 +601,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     const formData = new FormData();
     formData.set("firstName", firstName.trim());
     formData.set("birthDate", birthDate);
+    formData.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
 
     startProfileTransition(async () => {
       const result = await saveChildProfileAction(formData);

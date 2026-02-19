@@ -1,4 +1,5 @@
 import type { FinalPreferenceValue } from "@/lib/types";
+import { getCurrentIsoDate } from "@/lib/date-utils";
 
 // Date & Time Helpers
 export const DIACRITICS_PATTERN = /[\u0300-\u036f]/g;
@@ -34,7 +35,7 @@ export const FRENCH_DAY_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
 });
 
 export function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+  return getCurrentIsoDate();
 }
 
 export function formatDate(value: string) {

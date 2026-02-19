@@ -135,6 +135,49 @@ test.describe("food summary modal", () => {
       .toBe(1);
   });
 
+  test("keeps summary save atomic when one tasting update fails", async ({ appPage, db }) => {
+    const foodName = "Brocoli";
+    const initialGlobalNote = "note initiale";
+    const initialSlot1Note = "slot 1 initial";
+
+    await db.setFoodTastingsByName(
+      foodName,
+      [
+        { slot: 1, liked: true, tastedOn: "2026-02-07", note: initialSlot1Note },
+        { slot: 2, liked: false, tastedOn: "2026-02-08", note: "slot 2 initial" }
+      ],
+      { note: initialGlobalNote }
+    );
+
+    await appPage.reload();
+    await ensureCategoryExpanded(appPage, "Légumes");
+    await getFoodSummaryTrigger(appPage, foodName).click();
+
+    const dialog = getFoodSummaryDialog(appPage, foodName);
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByRole("textbox", { name: "Note", exact: true }).fill("note globale modifiée");
+    await dialog.getByLabel("Note du 1/3").fill("slot 1 modifié");
+
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany(
+      `
+        DELETE FROM food_tastings
+        WHERE owner_id = $1
+          AND food_id = (SELECT id FROM foods WHERE name = $2 LIMIT 1)
+          AND slot = 2;
+      `,
+      [ownerId, foodName]
+    );
+
+    await dialog.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(dialog.getByText("Impossible d'enregistrer les notes pour le moment.")).toBeVisible();
+
+    const state = await db.getFoodProgressByName(foodName);
+    expect(state?.note ?? "").toBe(initialGlobalNote);
+    expect(state?.tastings.find((entry) => entry.slot === 1)?.note ?? "").toBe(initialSlot1Note);
+  });
+
   test("updates the main view after toggling tiger state from summary", async ({ appPage, db }) => {
     const foodName = "Brocoli";
     await db.setFoodTastingsByName(foodName, [{ slot: 1, liked: true, tastedOn: "2026-02-07" }]);

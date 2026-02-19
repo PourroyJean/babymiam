@@ -5,7 +5,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import { saveTastingEntryAction, setNoteAction } from "@/app/actions";
+import { saveFoodSummaryAction } from "@/app/actions";
+import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { FoodTastingEntry } from "@/lib/types";
 import {
   DEFAULT_REACTION_TYPE,
@@ -149,54 +150,42 @@ export function FoodSummaryModal({
 
   function saveNote() {
     const trimmedNote = draftNote.trim();
-    const foodNoteFormData = new FormData();
-    foodNoteFormData.set("foodId", String(foodId));
-    foodNoteFormData.set("note", trimmedNote);
 
     startTransition(async () => {
       setSaveError("");
       try {
-        for (const tasting of tastings) {
-          const updatedLiked = draftTastingLiked[tasting.slot] ?? tasting.liked;
-          const updatedTastedOn = (draftTastingDates[tasting.slot] || tasting.tastedOn).trim();
-          const updatedNote = draftTastingNotes[tasting.slot] ?? tasting.note;
-          const hasDraftTextureLevel = Object.prototype.hasOwnProperty.call(draftTastingTextures, tasting.slot);
-          const updatedTextureLevel = hasDraftTextureLevel
-            ? draftTastingTextures[tasting.slot]
-            : (tasting.textureLevel ?? null);
-          const updatedReactionType =
-            draftTastingReactions[tasting.slot] ?? tasting.reactionType ?? DEFAULT_REACTION_TYPE;
-          const normalizedExistingReaction = tasting.reactionType ?? DEFAULT_REACTION_TYPE;
+        const formData = new FormData();
+        formData.set("foodId", String(foodId));
+        formData.set("note", trimmedNote);
+        formData.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
+        formData.set(
+          "tastings",
+          JSON.stringify(
+            tastings.map((tasting) => {
+              const hasDraftTextureLevel = Object.prototype.hasOwnProperty.call(
+                draftTastingTextures,
+                tasting.slot
+              );
+              return {
+                slot: tasting.slot,
+                liked: draftTastingLiked[tasting.slot] ?? tasting.liked,
+                tastedOn: (draftTastingDates[tasting.slot] || tasting.tastedOn).trim(),
+                note: String(draftTastingNotes[tasting.slot] ?? tasting.note).trim(),
+                textureLevel: hasDraftTextureLevel
+                  ? draftTastingTextures[tasting.slot]
+                  : (tasting.textureLevel ?? null),
+                reactionType: draftTastingReactions[tasting.slot] ?? tasting.reactionType ?? DEFAULT_REACTION_TYPE
+              };
+            })
+          )
+        );
 
-          if (
-            updatedLiked === tasting.liked &&
-            updatedTastedOn === tasting.tastedOn &&
-            updatedNote.trim() === tasting.note.trim() &&
-            updatedTextureLevel === (tasting.textureLevel ?? null) &&
-            updatedReactionType === normalizedExistingReaction
-          ) {
-            continue;
-          }
-
-          const tastingFormData = new FormData();
-          tastingFormData.set("foodId", String(foodId));
-          tastingFormData.set("slot", String(tasting.slot));
-          tastingFormData.set("liked", updatedLiked ? "yes" : "no");
-          tastingFormData.set("tastedOn", updatedTastedOn);
-          tastingFormData.set("note", updatedNote.trim());
-          if (updatedTextureLevel !== null) {
-            tastingFormData.set("textureLevel", String(updatedTextureLevel));
-          }
-          tastingFormData.set("reactionType", String(updatedReactionType));
-
-          const tastingResult = await saveTastingEntryAction(tastingFormData);
-          if (!tastingResult.ok) {
-            setSaveError(tastingResult.error || "Impossible d'enregistrer une note de test.");
-            return;
-          }
+        const result = await saveFoodSummaryAction(formData);
+        if (!result.ok) {
+          setSaveError(result.error || "Impossible d'enregistrer les notes pour le moment.");
+          return;
         }
 
-        await setNoteAction(foodNoteFormData);
         router.refresh();
         onClose();
       } catch {

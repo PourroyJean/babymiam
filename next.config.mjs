@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const e2eDistDir = process.env.E2E_DIST_DIR?.trim();
+const isProduction = process.env.NODE_ENV === "production";
+
+const cspScriptSources = ["'self'", "'unsafe-inline'"];
+if (!isProduction) {
+  cspScriptSources.push("'unsafe-eval'");
+}
+
+const cspConnectSources = ["'self'", "https:"];
+if (!isProduction) {
+  cspConnectSources.push("http:", "ws:", "wss:");
+}
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -7,11 +18,11 @@ const contentSecurityPolicy = [
   "frame-ancestors 'none'",
   "form-action 'self'",
   "object-src 'none'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  `script-src ${cspScriptSources.join(" ")}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https: http: ws: wss:"
+  `connect-src ${cspConnectSources.join(" ")}`
 ].join("; ");
 
 const securityHeaders = [
@@ -22,7 +33,7 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" }
 ];
 
-if (process.env.NODE_ENV === "production") {
+if (isProduction) {
   securityHeaders.push({
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload"

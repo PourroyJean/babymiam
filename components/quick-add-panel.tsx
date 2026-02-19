@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition, type FormEvent } f
 import { useRouter } from "next/navigation";
 import { addQuickEntryAction } from "@/app/actions";
 import { TastingEntryFormFields } from "@/components/tasting-entry-form-fields";
+import { getClientTimezoneOffsetMinutes, getCurrentIsoDate } from "@/lib/date-utils";
 import {
   DEFAULT_REACTION_TYPE,
   type ReactionType,
@@ -29,17 +30,11 @@ type TigerChoice = "ok" | "ko" | null;
 
 const MAX_VISIBLE_RESULTS = 16;
 
-function getTodayLocalIsoDate() {
-  const now = new Date();
-  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-  return localDate.toISOString().slice(0, 10);
-}
-
 export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedFoodId, setSelectedFoodId] = useState<number | null>(null);
-  const [tastedOn, setTastedOn] = useState(getTodayLocalIsoDate());
+  const [tastedOn, setTastedOn] = useState(getCurrentIsoDate());
   const [textureLevel, setTextureLevel] = useState<TextureLevel | null>(null);
   const [reactionType, setReactionType] = useState<ReactionType>(DEFAULT_REACTION_TYPE);
   const [showReactionLegend, setShowReactionLegend] = useState(false);
@@ -74,7 +69,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
 
     setQuery("");
     setSelectedFoodId(null);
-    setTastedOn(getTodayLocalIsoDate());
+    setTastedOn(getCurrentIsoDate());
     setTextureLevel(null);
     setReactionType(DEFAULT_REACTION_TYPE);
     setShowReactionLegend(false);
@@ -125,7 +120,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
   function resetForm() {
     setQuery("");
     setSelectedFoodId(null);
-    setTastedOn(getTodayLocalIsoDate());
+    setTastedOn(getCurrentIsoDate());
     setTextureLevel(null);
     setReactionType(DEFAULT_REACTION_TYPE);
     setShowReactionLegend(false);
@@ -143,6 +138,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     formData.set("tastedOn", tastedOn);
     formData.set("liked", tigerChoice === "ok" ? "true" : "false");
     formData.set("note", note);
+    formData.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
     if (textureLevel !== null) {
       formData.set("textureLevel", String(textureLevel));
     }

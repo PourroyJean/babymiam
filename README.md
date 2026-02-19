@@ -42,6 +42,11 @@ En `NODE_ENV=production` ou `CI=true`, `POSTGRES_URL`/`DATABASE_URL` est obligat
 En local (hors CI/prod), fallback vers `postgres://postgres:postgres@localhost:5432/babymiam`.
 Cette règle s'applique aussi au runtime serveur (`lib/db.ts`) et à `npm run users:create`.
 
+Authentification session:
+- `AUTH_SECRET` (ou `AUTH_SECRETS`) est requis par défaut.
+- Le fallback dev est autorisé uniquement en local explicite avec `ALLOW_INSECURE_DEV_AUTH=1`.
+- En `NODE_ENV=production` ou `CI=true`, aucun fallback secret n'est autorisé.
+
 ## Workflow Base de Données (Migrations)
 
 Nous utilisons `node-pg-migrate` pour versionner le schéma.
@@ -70,11 +75,14 @@ Nous utilisons `node-pg-migrate` pour versionner le schéma.
 
 ## Variables d'environnement
 - `AUTH_SECRET` (ou `AUTH_SECRETS` pour rotation)
+- `ALLOW_INSECURE_DEV_AUTH` (`0` par défaut, fallback local explicite uniquement)
 - `POSTGRES_URL`
 - `APP_BASE_URL`
 - `RESEND_API_KEY`
 - `MAIL_FROM`
 - `PASSWORD_RESET_TTL_MINUTES` (défaut `60`)
+- `PASSWORD_RESET_RATE_LIMIT_WINDOW_MINUTES` (défaut `30`)
+- `PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS` (défaut `5`)
 - `SHARE_SNAPSHOT_TTL_DAYS` (défaut `30`, durée de validité des nouveaux liens publics)
 - `MAINTENANCE_MODE` (`true|false`)
 - `TRUST_PROXY_IP_HEADERS` (`0` par défaut, `1` uniquement derrière un proxy de confiance)
@@ -114,3 +122,6 @@ Pour forcer un host distant: `E2E_ALLOW_REMOTE_DB_RESET=1`.
    ```
 5. Créer un utilisateur initial via script ou console.
 6. Déployer le code applicatif.
+- Le déploiement prod standard se lance avec `npm run deploy:prod` (`vercel deploy . --prod -y`).
+- Un `.vercelignore` exclut les artefacts locaux (`.next*`, `playwright-report`, `test-results`, `coverage`, `tmp`, `.vercel`, `node_modules`).
+- Gain mesuré sur le dernier déploiement: upload Vercel réduit de `120MB` à `328KB`.

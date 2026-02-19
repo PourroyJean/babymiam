@@ -5,10 +5,6 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function getTodayLocalIsoDate() {
   const now = new Date();
   const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
@@ -72,7 +68,7 @@ function getTastingEditor(page: Page, foodName: string, slot: 1 | 2 | 3) {
 test.describe("dashboard progression", () => {
   test("creates a tasting entry on an empty food via Première bouchée", async ({ appPage, db }) => {
     const foodName = "Banane";
-    const todayIsoDate = getTodayIsoDate();
+    const todayIsoDate = getTodayLocalIsoDate();
 
     const { dialog, searchInput } = await openSearchOverlay(appPage);
     await searchInput.fill(foodName);
@@ -538,5 +534,32 @@ test.describe("dashboard progression", () => {
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.tastingCount ?? -1)
       .toBe(3);
+  });
+});
+
+test.describe("dashboard progression timezone safety", () => {
+  test.use({ timezoneId: "Pacific/Kiritimati" });
+
+  test("quick add accepts today's date in a forced client timezone", async ({ appPage, db }) => {
+    const foodName = "Banane";
+    const { dialog, searchInput, dateInput, addButton } = await openQuickAddPanel(appPage);
+
+    await searchInput.fill("banane");
+    await dialog.locator(".quick-add-food-option", { hasText: foodName }).first().click();
+
+    const clientToday = await appPage.evaluate(() => {
+      const now = new Date();
+      const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+      return localDate.toISOString().slice(0, 10);
+    });
+
+    await dateInput.fill(clientToday);
+    await dialog.getByRole("button", { name: "Tigre OK" }).click();
+    await addButton.click();
+
+    await expect(dialog.getByText("La date de dégustation ne peut pas être dans le futur.")).toHaveCount(0);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.tastedOn ?? null)
+      .toBe(clientToday);
   });
 });

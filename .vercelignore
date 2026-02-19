@@ -1,0 +1,10 @@
+.next
+.next-e2e
+.next-e2e-degraded
+.next-debug
+playwright-report
+test-results
+coverage
+tmp
+.vercel
+node_modules

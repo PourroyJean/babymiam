@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { deleteTastingEntryAction, saveTastingEntryAction } from "@/app/actions";
 import { Pencil } from "lucide-react";
+import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { FoodTastingEntry } from "@/lib/types";
 import { TastingEntryFormFields } from "@/components/tasting-entry-form-fields";
 import {
@@ -173,6 +174,7 @@ export const VegetableRow = memo(function VegetableRow({
     formData.set("liked", editorLiked);
     formData.set("tastedOn", editorDate || getTodayIsoDate());
     formData.set("note", editorNote.trim());
+    formData.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
     if (editorTextureLevel !== null) {
       formData.set("textureLevel", String(editorTextureLevel));
     }
