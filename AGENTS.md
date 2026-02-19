@@ -41,14 +41,18 @@
   - Verifier que la branche cible est poussee et que l'etat Git est intentionnel avant prod.
   - Ne jamais exposer de secrets dans code, commits, logs ou docs.
 
-## 4) Session Lessons (YYYY-MM-DD)
-- Contexte:
-  - 
-- Changements:
-  - 
-- Problemes rencontres:
-  - 
-- Suivis / next actions:
-  - 
-- Commandes executees:
-  - 
+## Session Lessons (2026-02-19)
+- Lessons learned:
+  - Un test Playwright peut echouer en mode strict si plusieurs champs partagent un label "Note"; pour la note globale, cibler avec `exact: true`.
+  - Lorsqu'une nouvelle table mutable est ajoutee (ex: `auth_password_reset_attempts`), il faut l'ajouter aux deux resets E2E dans `tests/e2e/helpers/db.ts` (`E2E_RESETTABLE_TABLES` et `resetMutableTables`).
+  - La validation de date cote serveur reste stable en envoyant `tzOffsetMinutes` depuis les formulaires clients qui soumettent des dates.
+- Reliable commands:
+  - `npm run lint -- --max-warnings=0`
+  - `npx tsc --noEmit`
+  - `npm run test:e2e`
+  - `npm run build`
+  - `node -e "process.env.NODE_ENV='production'; import('./next.config.mjs')..."`
+- Safety rails / do-not-do:
+  - Ne pas depender d'un bind reseau en sandbox pour verifier la CSP si `npm start` echoue avec `EPERM`; utiliser l'inspection de `next.config.mjs` en fallback.
+  - Ne pas casser la non-enumeration du flux forgot-password: conserver la meme sortie utilisateur pour succes, rate-limit et erreurs internes.
+  - Ne pas oublier de propager les nouvelles tables auth aux routines de reset E2E pour eviter la pollution inter-tests.
