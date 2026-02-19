@@ -1,0 +1,4 @@
+interface:
+  display_name: "Session Wrapup Agent"
+  short_description: "Capture and persist verified session wrap-up lessons"
+  default_prompt: "Review current thread and git diff, then update root AGENTS.md with only new verified session lessons."
