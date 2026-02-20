@@ -16,6 +16,8 @@ export type ReactionOption = {
   description: string;
 };
 
+export const TEXTURE_NONE_ICON_SRC = "/images/textures/texture-0-aucune.webp";
+
 export const TEXTURE_OPTIONS: TextureOption[] = [
   {
     level: 1,

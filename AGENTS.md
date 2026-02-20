@@ -56,3 +56,18 @@
   - Ne pas depender d'un bind reseau en sandbox pour verifier la CSP si `npm start` echoue avec `EPERM`; utiliser l'inspection de `next.config.mjs` en fallback.
   - Ne pas casser la non-enumeration du flux forgot-password: conserver la meme sortie utilisateur pour succes, rate-limit et erreurs internes.
   - Ne pas oublier de propager les nouvelles tables auth aux routines de reset E2E pour eviter la pollution inter-tests.
+
+## Session Lessons (2026-02-20)
+- Lessons learned:
+  - Pour une texture "aucune", conserver le modele metier `textureLevel = null` et centraliser le chemin d'icone dans une constante partagee (`TEXTURE_NONE_ICON_SRC`) dans `lib/tasting-metadata.ts`.
+  - Le remplacement du fallback visuel `ø` par une image doit etre applique dans les deux surfaces: timeline (`components/timeline-panel.tsx`) et controle texture partage (`components/texture-segmented-control.tsx`).
+  - Lors du retrait de `ø`, supprimer aussi les classes CSS obsoletes desktop + mobile (`.food-timeline-meta-chip-empty`, `.texture-segmented-empty-label`) pour eviter les styles morts.
+  - Si une WebP convertie parait incorrecte, verifier d'abord le PNG source: la conversion peut etre correcte mais l'asset d'origine etre deja noir/plat.
+- Reliable commands:
+  - `cwebp -q 80 public/images/legacy/png/texture_0_aucune.png -o public/images/textures/texture-0-aucune.webp`
+  - `sips -g pixelWidth -g pixelHeight public/images/textures/texture-0-aucune.webp`
+  - `npm run test:e2e -- tests/e2e/specs/food-summary.spec.ts`
+  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts`
+- Safety rails / do-not-do:
+  - En E2E, eviter les selecteurs dependants d'un etat variable (ex: slot exact sur un aliment potentiellement deja teste); preferer un flow stable (ex: "Premiere bouchee" sur aliment vide) pour ouvrir l'editeur.
+  - En scope "icones seulement", ne pas modifier les libelles textuels de formulaire (ex: "Texture non renseignee" dans le resume aliment).

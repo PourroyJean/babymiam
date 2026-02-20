@@ -403,6 +403,31 @@ test.describe("dashboard progression", () => {
     await expect(dialog.locator(".quick-add-food-option", { hasText: "Épinard" })).toBeVisible();
   });
 
+  test("shows none texture icon in quick add and tasting editor", async ({ appPage }) => {
+    const foodName = "Banane";
+
+    const { dialog } = await openQuickAddPanel(appPage);
+
+    const quickAddNoneButton = dialog.locator("#quick-add-none");
+    await expect(quickAddNoneButton).toBeVisible();
+    await expect(quickAddNoneButton.locator('img[src*="texture-0-aucune.webp"]')).toHaveCount(1);
+
+    await dialog.getByRole("button", { name: "Annuler" }).click();
+    await expect(dialog).toHaveCount(0);
+
+    const { dialog: searchDialog, searchInput } = await openSearchOverlay(appPage);
+    await searchInput.fill("banane");
+    await expect(getFirstBiteButton(searchDialog, foodName)).toBeVisible();
+    await getFirstBiteButton(searchDialog, foodName).click();
+
+    const editor = getTastingEditor(appPage, foodName, 1);
+    await expect(editor).toBeVisible();
+
+    const editorNoneButton = editor.locator('button[id$="-none"]');
+    await expect(editorNoneButton).toHaveCount(1);
+    await expect(editorNoneButton.locator('img[src*="texture-0-aucune.webp"]')).toHaveCount(1);
+  });
+
   test("resets quick add form fields after close and reopen", async ({ appPage }) => {
     const todayLocalIsoDate = getTodayLocalIsoDate();
     const { dialog, searchInput, dateInput, noteInput, addButton } = await openQuickAddPanel(appPage);

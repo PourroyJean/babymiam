@@ -2,7 +2,12 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { TEXTURE_OPTIONS, getTextureOption, type TextureLevel } from "@/lib/tasting-metadata";
+import {
+  TEXTURE_NONE_ICON_SRC,
+  TEXTURE_OPTIONS,
+  getTextureOption,
+  type TextureLevel
+} from "@/lib/tasting-metadata";
 
 type TextureSegmentedControlProps = {
   value: TextureLevel | null;
@@ -49,6 +54,7 @@ export function TextureSegmentedControl({
                 type="button"
                 disabled={disabled}
                 aria-pressed={value === null}
+                aria-label="Aucune texture"
                 className={`texture-segmented-btn ${value === null ? "is-current" : "is-inactive"}`}
                 onClick={() => onChange(null)}
                 onMouseEnter={() => setHintedLevel("none")}
@@ -57,9 +63,14 @@ export function TextureSegmentedControl({
                 onBlur={() => setHintedLevel((current) => (current === "none" ? null : current))}
                 title="Aucune texture"
               >
-                <span className="texture-segmented-empty-label" aria-hidden="true">
-                  ø
-                </span>
+                <Image
+                  src={TEXTURE_NONE_ICON_SRC}
+                  alt=""
+                  aria-hidden="true"
+                  width={77}
+                  height={77}
+                  className="texture-segmented-icon"
+                />
               </button>
 
               <div className={`texture-segmented-tooltip ${hintedLevel === "none" ? "is-visible" : ""}`} role="tooltip">

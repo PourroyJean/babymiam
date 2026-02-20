@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import type { FoodTimelineEntry, FinalPreferenceValue } from "@/lib/types";
-import { DEFAULT_REACTION_TYPE, getReactionOption, getTextureOption } from "@/lib/tasting-metadata";
+import {
+  DEFAULT_REACTION_TYPE,
+  TEXTURE_NONE_ICON_SRC,
+  getReactionOption,
+  getTextureOption
+} from "@/lib/tasting-metadata";
 import {
   FRENCH_COLLATOR,
   formatTimelineDayLabel,
@@ -181,7 +186,6 @@ export function TimelinePanel({
                           key={`${entry.foodId}-${entry.slot}-${entry.tastedOn}`}
                           className="food-timeline-entry"
                         >
-                          <div className="food-timeline-rail-dot" aria-hidden="true" />
                           <article
                             className={`food-timeline-card ${
                               entry.slot === 3
@@ -192,14 +196,25 @@ export function TimelinePanel({
                             <header className="food-timeline-card-header food-timeline-card-header--line">
                               <div className="food-timeline-one-liner food-timeline-one-liner--compact">
                                 <span
-                                  className={`food-timeline-category-pill food-timeline-category-inline food-timeline-category-emoji-pill ${toneByCategory[entry.categoryName] || "tone-other"}`}
+                                  className={`food-timeline-category-pill food-timeline-category-inline food-timeline-category-emoji-pill food-timeline-cell--category ${toneByCategory[entry.categoryName] || "tone-other"}`}
                                   title={entry.categoryName}
                                   aria-label={entry.categoryName}
                                   role="img"
                                 >
                                   {getCategoryPictogram(entry.categoryName)}
                                 </span>
-                                <span className={`food-timeline-slot-badge slot-${entry.slot}`}>
+
+                                <button
+                                  type="button"
+                                  className="food-timeline-food-name food-timeline-food-name-inline food-timeline-cell--name touch-manipulation appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
+                                  onClick={(event) => openFoodSummary(entry.foodId, event.currentTarget)}
+                                  aria-label={`Ouvrir le résumé de ${entry.foodName}`}
+                                  title="Résumé"
+                                >
+                                  {entry.foodName}
+                                </button>
+
+                                <span className={`food-timeline-slot-badge food-timeline-cell--slot slot-${entry.slot}`}>
                                   <Image
                                     src={getTimelineTigerIcon(entry.liked)}
                                     alt=""
@@ -211,7 +226,7 @@ export function TimelinePanel({
                                   <span>{entry.slot}/3</span>
                                 </span>
                                 <span
-                                  className="food-timeline-meta-chip food-timeline-meta-chip--texture"
+                                  className="food-timeline-meta-chip food-timeline-meta-chip--texture food-timeline-cell--texture"
                                   role="img"
                                   aria-label={textureLabel}
                                   title={textureLabel}
@@ -227,14 +242,19 @@ export function TimelinePanel({
                                       className="food-timeline-meta-chip-icon"
                                     />
                                   ) : (
-                                      <span className="food-timeline-meta-chip-empty" aria-hidden="true">
-                                        ø
-                                      </span>
-                                    )}
+                                    <Image
+                                      src={TEXTURE_NONE_ICON_SRC}
+                                      alt=""
+                                      aria-hidden="true"
+                                      width={22}
+                                      height={22}
+                                      className="food-timeline-meta-chip-icon"
+                                    />
+                                  )}
                                 </span>
 
                                 <span
-                                  className="food-timeline-meta-chip food-timeline-meta-chip--reaction"
+                                  className="food-timeline-meta-chip food-timeline-meta-chip--reaction food-timeline-cell--reaction"
                                   role="img"
                                   aria-label={reactionLabel}
                                   title={reactionLabel}
@@ -245,25 +265,9 @@ export function TimelinePanel({
                                   </span>
                                 </span>
 
-                                <button
-                                  type="button"
-                                  className="food-timeline-food-name food-timeline-food-name-inline touch-manipulation appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
-                                  onClick={(event) => openFoodSummary(entry.foodId, event.currentTarget)}
-                                  aria-label={`Ouvrir le résumé de ${entry.foodName}`}
-                                  title="Résumé"
-                                >
-                                  {entry.foodName}
-                                </button>
-
-                                {entry.note.trim() ? (
-                                  <span className="food-timeline-note-inline" title={entry.note}>
-                                    {entry.note}
-                                  </span>
-                                ) : null}
-
                                 {entry.slot === 3 ? (
                                   <span
-                                    className="food-timeline-result-inline"
+                                    className="food-timeline-result-inline food-timeline-cell--result"
                                     aria-label={`Résultat final : ${getFinalPreferenceLabel(entryFinalPreference)}`}
                                   >
                                     <Image
@@ -274,6 +278,17 @@ export function TimelinePanel({
                                       height={31}
                                       className="food-timeline-result-inline-icon"
                                     />
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="food-timeline-result-inline food-timeline-result-inline--placeholder food-timeline-cell--result"
+                                    aria-hidden="true"
+                                  />
+                                )}
+
+                                {entry.note.trim() ? (
+                                  <span className="food-timeline-note-inline food-timeline-cell--note" title={entry.note}>
+                                    {entry.note}
                                   </span>
                                 ) : null}
                               </div>
