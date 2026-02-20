@@ -63,11 +63,14 @@
   - Le remplacement du fallback visuel `ø` par une image doit etre applique dans les deux surfaces: timeline (`components/timeline-panel.tsx`) et controle texture partage (`components/texture-segmented-control.tsx`).
   - Lors du retrait de `ø`, supprimer aussi les classes CSS obsoletes desktop + mobile (`.food-timeline-meta-chip-empty`, `.texture-segmented-empty-label`) pour eviter les styles morts.
   - Si une WebP convertie parait incorrecte, verifier d'abord le PNG source: la conversion peut etre correcte mais l'asset d'origine etre deja noir/plat.
+  - Le flux de verification email doit consommer le token via action explicite `POST` (et non en `GET`) pour eviter la consommation involontaire par des prefetch/scanners.
 - Reliable commands:
   - `cwebp -q 80 public/images/legacy/png/texture_0_aucune.png -o public/images/textures/texture-0-aucune.webp`
   - `sips -g pixelWidth -g pixelHeight public/images/textures/texture-0-aucune.webp`
   - `npm run test:e2e -- tests/e2e/specs/food-summary.spec.ts`
   - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts`
+  - `npm run test:e2e -- tests/e2e/specs/auth-and-guards.spec.ts tests/e2e/specs/profile-account.spec.ts`
 - Safety rails / do-not-do:
   - En E2E, eviter les selecteurs dependants d'un etat variable (ex: slot exact sur un aliment potentiellement deja teste); preferer un flow stable (ex: "Premiere bouchee" sur aliment vide) pour ouvrir l'editeur.
   - En scope "icones seulement", ne pas modifier les libelles textuels de formulaire (ex: "Texture non renseignee" dans le resume aliment).
+  - En E2E local, ne pas laisser un serveur `npm run dev` externe avec un env different: Playwright peut le reutiliser (`reuseExistingServer`) et produire des resultats trompeurs.

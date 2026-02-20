@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth";
+import { requireVerifiedAuth } from "@/lib/auth";
 import { CATEGORY_TONE_BY_NAME } from "@/lib/category-ui";
 import { getChildProfile, getDashboardData, getFoodTimeline } from "@/lib/data";
 import { CategoriesGrid } from "@/components/categories-grid";
@@ -30,7 +30,7 @@ function buildProgressSummary(categories: DashboardCategory[]): ProgressSummary 
 }
 
 export default async function DashboardPage() {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
   let childProfile: Awaited<ReturnType<typeof getChildProfile>> = null;
 
   let categories: Awaited<ReturnType<typeof getDashboardData>> = [];

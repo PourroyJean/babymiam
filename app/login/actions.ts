@@ -22,6 +22,7 @@ export async function loginAction(formData: FormData) {
   }
 
   let loginSucceeded = false;
+  let loginRedirect = "/";
 
   try {
     if (await isLoginRateLimited(email, clientIp)) {
@@ -39,6 +40,7 @@ export async function loginAction(formData: FormData) {
       if (user && success && user.status === "active") {
         await createSession(user.id, user.sessionVersion);
         loginSucceeded = true;
+        loginRedirect = user.emailVerifiedAt ? "/" : "/account?verify_required=1";
       }
     }
   } catch {
@@ -49,5 +51,5 @@ export async function loginAction(formData: FormData) {
     redirect("/login?error=1");
   }
 
-  redirect("/");
+  redirect(loginRedirect);
 }

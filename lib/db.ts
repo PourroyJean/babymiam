@@ -53,12 +53,19 @@ function getConnectionString() {
 
 export function getPool() {
   if (!global.__grrrignotePool) {
-    global.__grrrignotePool = new Pool({
+    const pool = new Pool({
       connectionString: getConnectionString(),
       max: Number(process.env.PG_POOL_MAX || 5),
       idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: 5_000
     });
+
+    // Prevent idle client errors from crashing the Node process.
+    pool.on("error", (error) => {
+      console.error("[db] Unexpected error on idle client.", error);
+    });
+
+    global.__grrrignotePool = pool;
   }
 
   return global.__grrrignotePool;

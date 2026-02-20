@@ -1,10 +1,10 @@
-import { requireAuth } from "@/lib/auth";
+import { requireVerifiedAuth } from "@/lib/auth";
 import { getChildProfile } from "@/lib/data";
 import { SiteNav } from "@/components/site-nav";
 import { TextureTimeline } from "@/components/texture-timeline";
 
 export default async function BlogPage() {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   let childProfile: Awaited<ReturnType<typeof getChildProfile>> = null;
   let dbError: string | null = null;

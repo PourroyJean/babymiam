@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { clearSession, requireAuth } from "@/lib/auth";
+import { clearSession, requireVerifiedAuth } from "@/lib/auth";
 import {
   appendQuickEntry,
   createGrowthEvent,
@@ -101,7 +101,7 @@ export async function logoutAction() {
 }
 
 export async function saveTastingEntryAction(formData: FormData) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   const todayIsoDate = getTodayIsoDate(formData);
   const foodId = Number(formData.get("foodId"));
@@ -144,7 +144,7 @@ export async function saveTastingEntryAction(formData: FormData) {
 }
 
 export async function deleteTastingEntryAction(formData: FormData) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   const foodId = Number(formData.get("foodId"));
   const slot = Number(formData.get("slot"));
@@ -163,7 +163,7 @@ export async function deleteTastingEntryAction(formData: FormData) {
 }
 
 export async function setFinalPreferenceAction(formData: FormData) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   const foodId = Number(formData.get("foodId"));
   const selected = Number(formData.get("value"));
@@ -178,7 +178,7 @@ export async function setFinalPreferenceAction(formData: FormData) {
 }
 
 export async function addQuickEntryAction(formData: FormData) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   const todayIsoDate = getTodayIsoDate(formData);
   const foodId = Number(formData.get("foodId"));
@@ -230,7 +230,7 @@ export async function addQuickEntryAction(formData: FormData) {
 }
 
 export async function saveChildProfileAction(formData: FormData) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   const todayIsoDate = getTodayIsoDate(formData);
   const firstName = String(formData.get("firstName") || "").trim();
@@ -254,7 +254,7 @@ export async function saveChildProfileAction(formData: FormData) {
 }
 
 export async function saveFoodSummaryAction(formData: FormData) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
   const todayIsoDate = getTodayIsoDate(formData);
 
   const foodId = Number(formData.get("foodId"));
@@ -350,7 +350,7 @@ export async function saveFoodSummaryAction(formData: FormData) {
 }
 
 export async function createShareSnapshotAction(formData: FormData) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   const shareId = String(formData.get("shareId") || "").trim();
   if (!SHARE_ID_PATTERN.test(shareId)) {
@@ -388,7 +388,7 @@ export async function createShareSnapshotAction(formData: FormData) {
 }
 
 export async function revokeShareSnapshotAction(formData: FormData) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   const shareId = String(formData.get("shareId") || "").trim();
   if (!SHARE_ID_PATTERN.test(shareId)) {
@@ -408,7 +408,7 @@ export async function revokeShareSnapshotAction(formData: FormData) {
 }
 
 export async function trackShareEventAction(formData: FormData) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   const eventName = String(formData.get("eventName") || "").trim();
   if (!SHARE_EVENT_NAMES.has(eventName)) return;

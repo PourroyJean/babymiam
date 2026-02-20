@@ -29,6 +29,7 @@ type SessionPayload = {
 export type AuthenticatedUser = {
   id: number;
   email: string;
+  emailVerifiedAt: string | null;
   sessionVersion: number;
   status: string;
 };
@@ -216,11 +217,12 @@ async function getUserById(userId: number): Promise<AuthenticatedUser | null> {
   const result = await query<{
     id: number;
     email: string;
+    email_verified_at: string | null;
     session_version: number;
     status: string;
   }>(
     `
-      SELECT id, email::text AS email, session_version, status
+      SELECT id, email::text AS email, email_verified_at::text AS email_verified_at, session_version, status
       FROM users
       WHERE id = $1
       LIMIT 1;
@@ -234,6 +236,7 @@ async function getUserById(userId: number): Promise<AuthenticatedUser | null> {
   return {
     id: Number(row.id),
     email: row.email,
+    emailVerifiedAt: row.email_verified_at,
     sessionVersion: Number(row.session_version),
     status: row.status
   };
@@ -298,12 +301,13 @@ export async function getUserByEmail(email: string) {
   const result = await query<{
     id: number;
     email: string;
+    email_verified_at: string | null;
     password_hash: string;
     session_version: number;
     status: string;
   }>(
     `
-      SELECT id, email::text AS email, password_hash, session_version, status
+      SELECT id, email::text AS email, email_verified_at::text AS email_verified_at, password_hash, session_version, status
       FROM users
       WHERE email = $1
       LIMIT 1;
@@ -317,6 +321,7 @@ export async function getUserByEmail(email: string) {
   return {
     id: Number(row.id),
     email: row.email,
+    emailVerifiedAt: row.email_verified_at,
     passwordHash: row.password_hash,
     sessionVersion: Number(row.session_version),
     status: row.status
@@ -442,6 +447,15 @@ export async function getAuthenticatedUser() {
 
 export async function requireAuth() {
   return getAuthenticatedUser();
+}
+
+export async function requireVerifiedAuth() {
+  const user = await getAuthenticatedUser();
+  if (!user.emailVerifiedAt) {
+    redirect("/account?verify_required=1");
+  }
+
+  return user;
 }
 
 export async function recordLoginAttempt(emailNorm: string, ip: string | null, success: boolean) {

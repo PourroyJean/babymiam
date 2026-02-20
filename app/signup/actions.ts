@@ -105,5 +105,5 @@ export async function signupAction(formData: FormData) {
     // Email verification is best-effort.
   }
 
-  redirect("/");
+  redirect("/account?verify_required=1&verify_sent=1");
 }

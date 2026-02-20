@@ -234,12 +234,13 @@ export async function ensureAuthUser() {
 
   const result = await queryMany<{ id: number }>(
     `
-      INSERT INTO users (email, password_hash, status)
-      VALUES ($1, $2, 'active')
+      INSERT INTO users (email, password_hash, status, email_verified_at)
+      VALUES ($1, $2, 'active', NOW())
       ON CONFLICT (email)
       DO UPDATE SET
         password_hash = EXCLUDED.password_hash,
         status = 'active',
+        email_verified_at = COALESCE(users.email_verified_at, NOW()),
         updated_at = NOW()
       RETURNING id;
     `,

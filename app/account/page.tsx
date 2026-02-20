@@ -27,6 +27,7 @@ export default async function AccountPage({
     pw?: string;
     verify_sent?: string;
     already_verified?: string;
+    verify_required?: string;
     sessions?: string;
     error?: string;
   }>;
@@ -87,6 +88,11 @@ export default async function AccountPage({
           {params.verify_sent ? (
             <p className="info-text account-feedback">
               Si Resend est configuré, un email de vérification vient d&apos;être envoyé.
+            </p>
+          ) : null}
+          {params.verify_required ? (
+            <p className="info-text account-feedback">
+              Vérifie ton email pour accéder au suivi et aux actions principales.
             </p>
           ) : null}
           {params.already_verified ? (
