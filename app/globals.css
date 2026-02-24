@@ -1365,6 +1365,44 @@ a {
   outline-offset: 2px;
 }
 
+.pediatric-report-trigger-btn {
+  border: 1px solid #93aac8;
+  border-radius: 999px;
+  background: linear-gradient(160deg, #edf5ff 0%, #f9fcff 100%);
+  color: #234162;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.pediatric-report-trigger-btn:hover {
+  background: linear-gradient(160deg, #e2efff 0%, #f2f9ff 100%);
+}
+
+.pediatric-report-trigger-btn:focus-visible {
+  outline: 2px solid #3c6ea1;
+  outline-offset: 2px;
+}
+
+.pediatric-report-badge {
+  border: 1px solid #7f99bc;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.73rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #ffffff;
+  color: #2a4868;
+  font-weight: 900;
+}
+
 .share-feedback {
   margin: 0;
   font-size: 0.86rem;
@@ -2716,6 +2754,11 @@ a {
   }
 
   .quick-add-trigger-btn {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .pediatric-report-trigger-btn {
     width: 100%;
     justify-content: space-between;
   }

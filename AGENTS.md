@@ -74,3 +74,20 @@
   - En E2E, eviter les selecteurs dependants d'un etat variable (ex: slot exact sur un aliment potentiellement deja teste); preferer un flow stable (ex: "Premiere bouchee" sur aliment vide) pour ouvrir l'editeur.
   - En scope "icones seulement", ne pas modifier les libelles textuels de formulaire (ex: "Texture non renseignee" dans le resume aliment).
   - En E2E local, ne pas laisser un serveur `npm run dev` externe avec un env different: Playwright peut le reutiliser (`reuseExistingServer`) et produire des resultats trompeurs.
+
+## Session Lessons (2026-02-24)
+- Lessons learned:
+  - Pour aligner des colonnes dans un PDF texte, il faut une police monospaced (ex: `Courier`); des largeurs fixes ne suffisent pas avec `Helvetica`.
+  - Le rendu monospaced base sur la presence de `|` cree des faux positifs (ex: ligne symptomes); utiliser un marqueur explicite (ex: `[[MONO]]`) pour les seules lignes tabulaires.
+  - Le gate premium du rapport PDF doit etre force en E2E (`PREMIUM_GATE_MODE=on`) avec allowlist explicite (`PEDIATRIC_REPORT_PREMIUM_USER_EMAILS`) pour garder des tests deterministes.
+  - Le endpoint `/api/pediatric-report` doit etre couvert aussi sur les chemins negatifs: user authentifie non premium -> `402`, non-auth -> redirection `307` vers `/login`.
+- Reliable commands:
+  - `npm run lint -- --max-warnings=0`
+  - `npm exec tsc -- --noEmit`
+  - `npm run build`
+  - `npm run test:e2e -- tests/e2e/specs/pediatric-report.spec.ts`
+  - `set -a; [ -f .env.local ] && source .env.local; [ -f .env.development.local ] && source .env.development.local; npm run db:preflight`
+- Safety rails / do-not-do:
+  - Ne pas conclure a un probleme DB distant sur un `db:preflight` en sandbox sans verifier d'abord la connectivite reseau du contexte d'execution.
+  - Ne pas laisser des heuristiques implicites de style PDF (ex: detection via `|`) en prod; preferer des marqueurs explicites pour eviter des regressions visuelles silencieuses.
+  - Ne pas valider la feature PDF uniquement sur le rendu `200`: verifier aussi les statuts `402` et `307` pour verrouiller auth/authz.

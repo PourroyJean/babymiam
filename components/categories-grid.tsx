@@ -8,6 +8,7 @@ import { SearchPanel } from "@/components/search-panel";
 import { TimelinePanel } from "@/components/timeline-panel";
 import { VegetableRow } from "@/components/vegetable-row";
 import { getCategoryUi } from "@/lib/category-ui";
+import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { DashboardCategory, DashboardFood, FinalPreferenceValue, FoodTimelineEntry } from "@/lib/types";
 import { getNextFinalPreference, normalizeSearchValue } from "@/lib/ui-utils";
 
@@ -554,6 +555,24 @@ export function CategoriesGrid({
 
             <button ref={quickAddTriggerRef} type="button" className="quick-add-trigger-btn" onClick={openQuickAdd}>
               <span>Ajout rapide</span>
+            </button>
+
+            <button
+              type="button"
+              className="pediatric-report-trigger-btn"
+              onClick={() => {
+                const query = new URLSearchParams();
+                query.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
+                const reportUrl = `/api/pediatric-report?${query.toString()}`;
+                const popup = window.open(reportUrl, "_blank", "noopener,noreferrer");
+                if (!popup) {
+                  window.location.assign(reportUrl);
+                }
+              }}
+              aria-label="Télécharger le rapport pédiatre en PDF"
+            >
+              <span>Rapport pédiatre PDF</span>
+              <span className="pediatric-report-badge">Premium</span>
             </button>
 
             <label className="toolbox-toggle">
