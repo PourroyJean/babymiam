@@ -3,7 +3,18 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { Pool } = require("pg");
-const { resolveDatabaseUrl } = require("./_db-url");
+const { resolveDatabaseUrl, getEnvValue, isStrictRuntime } = require("./_db-url");
+
+function shouldSkipSeed() {
+  if (getEnvValue("SKIP_DB_SETUP") !== "1") return false;
+
+  if (isStrictRuntime()) {
+    throw new Error("[db:seed] Refusing to skip seed in production/CI. Remove SKIP_DB_SETUP=1.");
+  }
+
+  console.log("[db:seed] Skipped (SKIP_DB_SETUP=1).");
+  return true;
+}
 
 async function readSourceCategories() {
   const sourcePath = path.join(process.cwd(), "aliments_categories.json");
@@ -22,8 +33,7 @@ function normalizeFoodName(value) {
 }
 
 async function runSeed() {
-  if (process.env.SKIP_DB_SETUP === "1") {
-    console.log("[db:seed] Skipped (SKIP_DB_SETUP=1).");
+  if (shouldSkipSeed()) {
     return;
   }
 

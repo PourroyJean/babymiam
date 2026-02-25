@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth";
+import { requireVerifiedAuth } from "@/lib/auth";
 import { getChildProfile, getDashboardData, getFoodTimeline } from "@/lib/data";
 import { normalizeTimezoneOffsetMinutes } from "@/lib/date-utils";
 import { buildPediatricReportFileName, buildPediatricReportLines } from "@/lib/pediatric-report";
@@ -15,7 +15,7 @@ function getTimezoneOffsetFromRequest(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
   if (!hasPremiumFeatureAccess(user, "pediatric_report_pdf")) {
     return new Response("Rapport pédiatre réservé à l'offre Premium.", {
       status: 402,

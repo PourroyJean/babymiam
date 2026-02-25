@@ -26,14 +26,19 @@ MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-use
    ```bash
    npm run db:setup
    ```
-5. Créer le premier compte admin:
+5. (Optionnel) Créer un compte local supplémentaire:
    ```bash
-   npm run users:create -- --email parent@example.com --password "ChangeMe123!"
+   npm run users:create -- --email "dev@example.com" --password "change-me-now" --status active --verify-email
    ```
 6. Démarrer l'app:
    ```bash
    npm run dev
    ```
+
+`npm run db:setup` upsert automatiquement un compte bootstrap local (hors prod/CI):
+
+En prod/CI, ce bootstrap est ignoré par défaut. Pour l'activer explicitement, définir `DB_SETUP_BOOTSTRAP_EMAIL` et `DB_SETUP_BOOTSTRAP_PASSWORD`.
+En non-production, si aucune allowlist premium n'est configurée, `[EMAIL_ADDRESS]` est traité premium par défaut (usage test/local).
 
 Le seed charge les catégories/aliments depuis `aliments_categories.json`.
 Le runner de migration ne charge pas `.env.local` automatiquement: il lit
@@ -88,6 +93,10 @@ Nous utilisons `node-pg-migrate` pour versionner le schéma.
 - `TRUST_PROXY_IP_HEADERS` (`0` par défaut, `1` uniquement derrière un proxy de confiance)
 - `ALLOW_MIGRATE_SKIP` (`1` pour autoriser explicitement un skip manuel de migration en local)
 - `E2E_ALLOW_REMOTE_DB_RESET` (`1` pour autoriser un reset destructif E2E sur host non local)
+- `DB_SETUP_BOOTSTRAP_EMAIL` (optionnel, override l'email bootstrap; requis avec `DB_SETUP_BOOTSTRAP_PASSWORD` en prod/CI)
+- `DB_SETUP_BOOTSTRAP_PASSWORD` (optionnel, override du mot de passe bootstrap; requis avec `DB_SETUP_BOOTSTRAP_EMAIL` en prod/CI)
+- `DB_SETUP_BOOTSTRAP_STATUS` (optionnel, défaut `active`)
+- `DB_SETUP_BOOTSTRAP_VERIFY_EMAIL` (optionnel, défaut `1`; mettre `0`/`false` pour ne pas vérifier l'email)
 
 ## Tests E2E (Playwright)
 Variables de test supportées:
@@ -98,13 +107,15 @@ Exécuter la suite:
 npm run test:e2e
 ```
 
+Le setup global E2E upsert ce compte en base avec `status='active'` et `email_verified_at` renseigné.
+
 Par défaut, le reset destructif E2E est autorisé uniquement pour une base suffixée `_e2e`/`_test` sur host local (`localhost`, `127.0.0.1`, `::1`).
 Pour forcer un host distant: `E2E_ALLOW_REMOTE_DB_RESET=1`.
 
 ## Garde-fous obligatoires
 - `SKIP_DB_SETUP=1` bloque `npm run db:migrate` par défaut.
 - Pour skip explicite en local: `ALLOW_MIGRATE_SKIP=1 SKIP_DB_SETUP=1 npm run db:migrate`.
-- En prod/CI, demander un skip migration (`SKIP_DB_SETUP=1`) provoque un échec explicite.
+- En prod/CI, demander un skip (`SKIP_DB_SETUP=1`) provoque un échec explicite pour migration, seed et sync allergènes.
 - `npm run db:preflight` échoue si `SKIP_DB_SETUP=1`, si l'URL DB est absente, ou si la connexion DB est indisponible.
 
 ## Runbook déploiement (Clean Start)

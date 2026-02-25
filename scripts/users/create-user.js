@@ -8,7 +8,8 @@ function parseArgs(argv) {
   const parsed = {
     email: "",
     password: "",
-    status: "active"
+    status: "active",
+    verifyEmail: false
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -30,6 +31,12 @@ function parseArgs(argv) {
     if (arg === "--status" && next) {
       parsed.status = String(next).trim().toLowerCase();
       i += 1;
+      continue;
+    }
+
+    if (arg === "--verify-email") {
+      parsed.verifyEmail = true;
+      continue;
     }
   }
 
@@ -65,8 +72,19 @@ async function run() {
   const pool = new Pool({ connectionString: databaseUrl });
 
   try {
-    const result = await pool.query(
+    const queryText = args.verifyEmail
+      ? `
+        INSERT INTO users (email, password_hash, status, email_verified_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (email)
+        DO UPDATE SET
+          password_hash = EXCLUDED.password_hash,
+          status = EXCLUDED.status,
+          email_verified_at = COALESCE(users.email_verified_at, NOW()),
+          updated_at = NOW()
+        RETURNING id, email, status, email_verified_at::text AS email_verified_at;
       `
+      : `
         INSERT INTO users (email, password_hash, status)
         VALUES ($1, $2, $3)
         ON CONFLICT (email)
@@ -74,8 +92,11 @@ async function run() {
           password_hash = EXCLUDED.password_hash,
           status = EXCLUDED.status,
           updated_at = NOW()
-        RETURNING id, email, status;
-      `,
+        RETURNING id, email, status, email_verified_at::text AS email_verified_at;
+      `;
+
+    const result = await pool.query(
+      queryText,
       [args.email, passwordHash, args.status || "active"]
     );
 

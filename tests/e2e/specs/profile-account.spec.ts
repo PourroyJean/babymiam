@@ -1,6 +1,6 @@
 import { expect, test } from "../fixtures/test-fixtures";
 
-const AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "parent@example.com").toLowerCase();
+const AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com").toLowerCase();
 
 test.describe("profile account", () => {
   test("shows account overview and blocks password update when confirmation mismatches", async ({ appPage }) => {

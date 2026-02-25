@@ -1,6 +1,7 @@
 import type { AuthenticatedUser } from "@/lib/auth";
 
 type PremiumFeatureKey = "pediatric_report_pdf";
+const DEFAULT_TEST_PREMIUM_EMAIL = "ljcls@gmail.com";
 
 function parseCsv(rawValue: string | undefined) {
   return new Set(
@@ -36,7 +37,16 @@ function getAllowedEmailsForFeature(feature: PremiumFeatureKey) {
   }
 
   const globalEmails = parseCsv(process.env.PREMIUM_FEATURE_USER_EMAILS);
-  return new Set([...globalEmails].map((value) => value.toLowerCase()));
+  if (globalEmails.size > 0) {
+    return new Set([...globalEmails].map((value) => value.toLowerCase()));
+  }
+
+  // Keep a deterministic premium test user in non-production when no allowlist is configured.
+  if (process.env.NODE_ENV !== "production") {
+    return new Set([DEFAULT_TEST_PREMIUM_EMAIL]);
+  }
+
+  return new Set<string>();
 }
 
 export function hasPremiumFeatureAccess(

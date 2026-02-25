@@ -1,5 +1,7 @@
 import { expect, test } from "../fixtures/test-fixtures";
 
+const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com").toLowerCase();
+
 function getIsoDateDaysAgo(daysAgo: number) {
   const now = new Date();
   const utcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -93,9 +95,13 @@ test.describe("pediatric report", () => {
     const ownerId = await db.getDefaultOwnerId();
     await db.queryMany("UPDATE users SET email = $2 WHERE id = $1;", [ownerId, "blocked-parent@example.com"]);
 
-    const response = await appPage.request.get("/api/pediatric-report?tzOffsetMinutes=120");
-    expect(response.status()).toBe(402);
-    expect(await response.text()).toContain("Rapport pédiatre réservé à l'offre Premium.");
+    try {
+      const response = await appPage.request.get("/api/pediatric-report?tzOffsetMinutes=120");
+      expect(response.status()).toBe(402);
+      expect(await response.text()).toContain("Rapport pédiatre réservé à l'offre Premium.");
+    } finally {
+      await db.queryMany("UPDATE users SET email = $2 WHERE id = $1;", [ownerId, DEFAULT_E2E_AUTH_EMAIL]);
+    }
   });
 
   test("redirects unauthenticated access to login for pediatric report API", async ({ page }) => {

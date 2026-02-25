@@ -4,7 +4,7 @@ import path from "node:path";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 const DEFAULT_E2E_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam_e2e";
-const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "parent@example.com").toLowerCase();
+const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com").toLowerCase();
 const DEFAULT_E2E_AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 const SAFE_E2E_DB_SUFFIX = /(_e2e|_test)$/i;
 const LOCAL_RESET_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
