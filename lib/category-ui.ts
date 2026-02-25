@@ -6,6 +6,11 @@ type CategoryUiConfig = {
 export const CATEGORY_UI_BY_NAME: Record<string, CategoryUiConfig> = {
   "Légumes": { pictogram: "🥕", toneClass: "tone-vegetables" },
   "Fruits": { pictogram: "🍓", toneClass: "tone-fruits" },
+  "Féculents & céréales": { pictogram: "🍞", toneClass: "tone-starch" },
+  "Protéines animales": { pictogram: "🍖", toneClass: "tone-proteins" },
+  "Fruits à coque & graines": { pictogram: "🌰", toneClass: "tone-oils" },
+  "Herbes & épices": { pictogram: "🌿", toneClass: "tone-herbs" },
+  // Legacy labels kept for backward compatibility during transition.
   "Féculents": { pictogram: "🍞", toneClass: "tone-starch" },
   "Protéines": { pictogram: "🍖", toneClass: "tone-proteins" },
   "Légumineuses": { pictogram: "🫘", toneClass: "tone-legumes" },

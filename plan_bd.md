@@ -30,10 +30,9 @@ Supprimer de l’init:
 - Retirer l’usage de l’ancien script SQL monolithique
 - Utiliser uniquement le runner `node-pg-migrate` pour appliquer les migrations
 
-5. **Garder seed/sync séparés (bon choix)**
+5. **Garder le seed séparé (bon choix)**
 - Conserver `/Users/jean/Documents/CODE/babymiam/scripts/db/seed.js`
-- Conserver `/Users/jean/Documents/CODE/babymiam/scripts/db/sync-allergens.js`
-- Workflow: `db:migrate` puis `db:sync-allergens` puis `db:seed`
+- Workflow: `db:migrate` puis `db:seed`
 
 6. **Adapter les tests E2E**
 Dans `/Users/jean/Documents/CODE/babymiam/tests/e2e/helpers/db.ts`, exécuter le runner de migration sur `E2E_POSTGRES_URL`.
@@ -41,7 +40,7 @@ Dans `/Users/jean/Documents/CODE/babymiam/tests/e2e/helpers/db.ts`, exécuter le
 7. **Runbook prod “clean start”**
 - Créer une DB prod neuve
 - Configurer `POSTGRES_URL`
-- Exécuter: `npm run db:migrate`, `npm run db:sync-allergens`, `npm run db:seed`
+- Exécuter: `npm run db:migrate`, `npm run db:seed`
 - Créer le compte admin via `/Users/jean/Documents/CODE/babymiam/scripts/users/create-user.js`
 - Déployer l’app
 

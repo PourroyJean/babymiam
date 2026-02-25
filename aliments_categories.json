@@ -1,5 +1,5 @@
 {
-  "source": "Photos 'Les premiers aliments de bébé'",
+  "source": "Refonte catégories",
   "categories": [
     {
       "categorie": "Légumes",
@@ -7,20 +7,21 @@
         "Artichaut",
         "Asperge",
         "Aubergine",
-        "Avocat",
-        "Blette",
+        "Bette (blette)",
         "Betterave",
         "Brocoli",
         "Carotte",
+        "Céleri branche",
+        "Céleri-rave",
         "Champignon",
         "Chou blanc",
         "Chou de Bruxelles",
+        "Chou-fleur",
         "Chou rouge",
         "Chou vert",
-        "Chou-fleur",
         "Chou-rave",
-        "Citrouille",
         "Concombre",
+        "Courge butternut",
         "Courgette",
         "Endive",
         "Épinards",
@@ -29,11 +30,10 @@
         "Navet",
         "Oignon",
         "Panais",
-        "Patate douce",
-        "Pâtisson",
-        "Petits pois",
+        "Patisson",
         "Poireau",
         "Poivron",
+        "Potimarron",
         "Potiron",
         "Radis",
         "Rutabaga",
@@ -48,20 +48,18 @@
       "aliments": [
         "Abricot",
         "Ananas",
+        "Avocat",
         "Banane",
         "Brugnon",
         "Cassis",
         "Cerise",
         "Châtaigne",
-        "Citron",
         "Clémentine",
         "Coing",
         "Datte",
         "Figue",
         "Fraise",
         "Framboise",
-        "Fruit de la passion",
-        "Goyave",
         "Grenade",
         "Groseille",
         "Kaki",
@@ -76,6 +74,7 @@
         "Nectarine",
         "Noix de coco",
         "Orange",
+        "Pamplemousse",
         "Papaye",
         "Pastèque",
         "Pêche",
@@ -89,50 +88,25 @@
       ]
     },
     {
-      "categorie": "Féculents",
+      "categorie": "Féculents & céréales",
       "aliments": [
         "Amarante",
+        "Avoine",
         "Boulgour",
-        "Chia",
-        "Farine infantile",
-        "Flageolets",
-        "Fèves",
-        "Haricots blancs",
-        "Haricots rouges",
-        "Lentilles corail",
-        "Lentilles vertes",
-        "Manioc",
-        "Maïs doux",
+        "Maïs (polenta)",
         "Millet",
         "Orge",
-        "Pain blanc",
-        "Patate douce",
-        "Petits pois",
-        "Polenta",
-        "Pomme de terre",
+        "Pain",
         "Pâtes",
         "Quinoa",
-        "Riz blanc",
+        "Riz",
         "Sarrasin",
         "Semoule",
-        "Tapioca"
-      ]
-    },
-    {
-      "categorie": "Protéines",
-      "aliments": [
-        "Abats",
-        "Agneau",
-        "Bœuf",
-        "Canard",
-        "Dinde",
-        "Jambon blanc",
-        "Lapin",
-        "Mouton",
-        "Porc",
-        "Poulet",
-        "Veau",
-        "Charcuterie"
+        "Tapioca",
+        "Manioc",
+        "Pomme de terre",
+        "Patate douce",
+        "Châtaigne (farine/purée)"
       ]
     },
     {
@@ -145,35 +119,98 @@
         "Haricots rouges",
         "Lentilles corail",
         "Lentilles vertes",
+        "Petits pois",
         "Pois cassés",
         "Pois chiches"
+      ]
+    },
+    {
+      "categorie": "Protéines animales",
+      "aliments": [
+        "Poulet",
+        "Dinde",
+        "Bœuf",
+        "Veau",
+        "Agneau",
+        "Porc",
+        "Canard",
+        "Lapin",
+        "Oeuf (bien cuit)",
+        "Cabillaud",
+        "Colin",
+        "Merlu",
+        "Saumon",
+        "Truite",
+        "Sardine",
+        "Maquereau",
+        "Crevette (cuite)",
+        "Moule (cuite)"
       ]
     },
     {
       "categorie": "Produits laitiers",
       "aliments": [
         "Lait de vache",
-        "Lait de brebis",
         "Lait de chèvre",
-        "Beurre",
-        "Crème fraîche",
+        "Lait de brebis",
         "Yaourt nature",
         "Yaourt à la grecque",
         "Yaourt aux fruits",
+        "Fromage blanc",
         "Faisselle",
         "Petit-suisse",
         "Fromage frais",
-        "Beaufort",
-        "Camembert",
-        "Cheddar",
-        "Chèvre frais",
-        "Comté",
+        "Beurre",
+        "Crème fraîche",
         "Emmental",
+        "Comté",
         "Gruyère",
-        "Gouda",
-        "Gorgonzola",
-        "Mimolette",
+        "Beaufort",
         "Parmesan"
+      ]
+    },
+    {
+      "categorie": "Fruits à coque & graines",
+      "aliments": [
+        "Amande (purée/poudre)",
+        "Noisette (purée/poudre)",
+        "Noix (purée)",
+        "Noix de cajou (purée)",
+        "Pistache (purée)",
+        "Noix de pécan (purée)",
+        "Noix du Brésil (purée)",
+        "Arachide (purée/beurre lisse)",
+        "Graines de sésame (tahini)",
+        "Graines de chia",
+        "Graines de courge",
+        "Graines de lin (moulues)",
+        "Huile d'olive",
+        "Huile de colza",
+        "Huile de tournesol"
+      ]
+    },
+    {
+      "categorie": "Herbes & épices",
+      "aliments": [
+        "Basilic",
+        "Persil",
+        "Ciboulette",
+        "Coriandre",
+        "Aneth",
+        "Estragon",
+        "Menthe",
+        "Origan",
+        "Romarin",
+        "Sauge",
+        "Laurier",
+        "Marjolaine",
+        "Cannelle",
+        "Cumin",
+        "Curcuma",
+        "Gingembre",
+        "Paprika (doux)",
+        "Muscade",
+        "Vanille"
       ]
     },
     {
@@ -194,97 +231,6 @@
         "Lupin",
         "Mollusques"
       ]
-    },
-    {
-      "categorie": "Épices",
-      "aliments": [
-        "Anis",
-        "Cannelle",
-        "Curcuma",
-        "Curry",
-        "Cumin",
-        "Gingembre",
-        "Masala",
-        "Muscade",
-        "Paprika",
-        "Poivre",
-        "Tandoori",
-        "Vanille",
-        "Safran",
-        "Cajun"
-      ]
-    },
-    {
-      "categorie": "Oléagineux et huiles",
-      "aliments": [
-        "Avocat",
-        "Amande",
-        "Graines de courge",
-        "Graines de lin",
-        "Noix",
-        "Noix de cajou",
-        "Noix de pécan",
-        "Noisette",
-        "Noix de coco",
-        "Noix du Brésil",
-        "Olive",
-        "Pistache",
-        "Huile de colza",
-        "Huile de tournesol",
-        "Huile de pépin de raisin",
-        "Huile de graines de lin",
-        "Huile de graines de courge",
-        "Huile de sésame"
-      ]
-    },
-    {
-      "categorie": "Herbes et aromates",
-      "aliments": [
-        "Ail",
-        "Ail des ours",
-        "Aneth",
-        "Basilic",
-        "Ciboulette",
-        "Coriandre",
-        "Estragon",
-        "Laurier",
-        "Marjolaine",
-        "Menthe",
-        "Origan",
-        "Persil",
-        "Romarin",
-        "Sauge",
-        "Sarriette"
-      ]
-    },
-    {
-      "categorie": "Sucreries",
-      "aliments": [
-        "Biscuits / Gâteaux",
-        "Bonbons",
-        "Chocolat noir",
-        "Chocolat blanc",
-        "Chocolat au lait",
-        "Confiture",
-        "Miel",
-        "Viennoiserie"
-      ]
-    },
-    {
-      "categorie": "Condiments",
-      "aliments": [
-        "Mayonnaise",
-        "Moutarde",
-        "Vinaigre",
-        "Sauce soja",
-        "Câpres",
-        "Cornichon",
-        "Tamarin"
-      ]
-    },
-    {
-      "categorie": "Autres",
-      "aliments": []
     }
   ]
 }

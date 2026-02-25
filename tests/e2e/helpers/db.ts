@@ -52,11 +52,11 @@ const FIXTURE_CATEGORIES: FixtureCategory[] = [
     foods: ["Banane", "Pomme", "Poire"]
   },
   {
-    name: "Féculents",
+    name: "Féculents & céréales",
     foods: ["Riz", "Avoine", "Pomme de terre"]
   },
   {
-    name: "Protéines",
+    name: "Protéines animales",
     foods: ["Oeuf", "Poulet"]
   },
   {

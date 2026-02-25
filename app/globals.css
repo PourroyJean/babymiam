@@ -2408,7 +2408,7 @@ a {
 
 .categories-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -2720,6 +2720,12 @@ a {
   --tone-border: #e8decf;
   --tone-dot: #d2bf9c;
   --tone-dot-border: #b8a884;
+}
+
+@media (max-width: 1200px) {
+  .categories-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 768px) {

@@ -62,7 +62,7 @@ export default async function BlogPage() {
               </p>
               <p>
                 Un enfant peut commencer à découvrir toutes les familles d&apos;aliments entre 4 et 6 mois,
-                y compris œuf, arachide et gluten, selon l&apos;avis médical.
+                y compris oeuf, arachide et gluten, selon l&apos;avis médical.
               </p>
               <p>
                 Source :{" "}
@@ -110,7 +110,7 @@ export default async function BlogPage() {
                 majeurs.
               </li>
               <li>
-                Pour l&apos;arachide chez les bébés à haut risque (eczéma sévère et/ou allergie à l&apos;œuf),
+                Pour l&apos;arachide chez les bébés à haut risque (eczéma sévère et/ou allergie à l&apos;oeuf),
                 une introduction entre 4 et 6 mois peut être discutée avec un professionnel de santé.
               </li>
             </ul>
@@ -143,7 +143,7 @@ export default async function BlogPage() {
 
             <h3>5. Points pratiques par allergène fréquent</h3>
             <ul className="blog-list">
-              <li>Œuf: privilégier l&apos;œuf bien cuit (pas cru au début).</li>
+              <li>Oeuf: privilégier l&apos;oeuf bien cuit (pas cru au début).</li>
               <li>
                 Lait de vache: possible comme ingrédient (yaourt, fromage, préparation), mais pas comme boisson
                 principale avant 12 mois.
@@ -184,7 +184,7 @@ export default async function BlogPage() {
             <ul className="blog-list">
               <li>Céréales contenant du gluten (blé, seigle, orge, avoine, épeautre, kamut)</li>
               <li>Crustacés</li>
-              <li>Œufs</li>
+              <li>Oeufs</li>
               <li>Poissons</li>
               <li>Arachides</li>
               <li>Soja</li>
