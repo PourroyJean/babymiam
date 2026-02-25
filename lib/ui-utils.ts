@@ -65,6 +65,19 @@ export function getUpdatedTimestamp(updatedAt: string | null) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+export function getRedirectUrlFromError(error: unknown) {
+  if (typeof error !== "object" || error === null || !("digest" in error)) return null;
+
+  const digest = (error as { digest?: unknown }).digest;
+  if (typeof digest !== "string") return null;
+
+  const segments = digest.split(";");
+  if (segments[0] !== "NEXT_REDIRECT") return null;
+
+  const redirectUrl = segments.slice(2, -2).join(";");
+  return redirectUrl || null;
+}
+
 // Preference Logic Helpers
 export function getNextFinalPreference(current: FinalPreferenceValue): FinalPreferenceValue {
   if (current === 0) return 1;

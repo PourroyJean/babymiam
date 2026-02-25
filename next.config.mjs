@@ -2,31 +2,7 @@
 const e2eDistDir = process.env.E2E_DIST_DIR?.trim();
 const isProduction = process.env.NODE_ENV === "production";
 
-const cspScriptSources = ["'self'", "'unsafe-inline'"];
-if (!isProduction) {
-  cspScriptSources.push("'unsafe-eval'");
-}
-
-const cspConnectSources = ["'self'", "https:"];
-if (!isProduction) {
-  cspConnectSources.push("http:", "ws:", "wss:");
-}
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  "object-src 'none'",
-  `script-src ${cspScriptSources.join(" ")}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  `connect-src ${cspConnectSources.join(" ")}`
-].join("; ");
-
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: contentSecurityPolicy },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import { saveFoodSummaryAction } from "@/app/actions";
+import { deleteFoodAction, saveFoodSummaryAction } from "@/app/actions";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { FoodTastingEntry } from "@/lib/types";
 import {
@@ -19,6 +19,7 @@ import {
   getFinalPreferenceImageSrc,
   getFinalPreferenceLabel,
   getFinalPreferenceVisualClass,
+  getRedirectUrlFromError,
   getNextFinalPreference
 } from "@/lib/ui-utils";
 
@@ -33,6 +34,7 @@ type FoodSummaryModalProps = {
   tastingCount: number;
   finalPreference: -1 | 0 | 1;
   initialNote: string;
+  isUserOwned: boolean;
   onCycleFinalPreference?: (foodId: number) => void;
 };
 
@@ -54,6 +56,7 @@ export function FoodSummaryModal({
   tastingCount,
   finalPreference,
   initialNote,
+  isUserOwned,
   onCycleFinalPreference
 }: FoodSummaryModalProps) {
   const router = useRouter();
@@ -188,8 +191,44 @@ export function FoodSummaryModal({
 
         router.refresh();
         onClose();
-      } catch {
+      } catch (error) {
+        const redirectUrl = getRedirectUrlFromError(error);
+        if (redirectUrl) {
+          window.location.assign(redirectUrl);
+          return;
+        }
+
         setSaveError("Impossible d'enregistrer les notes pour le moment.");
+      }
+    });
+  }
+
+  function deleteFood() {
+    const shouldDelete = window.confirm(`Supprimer "${foodName}" et son historique de dégustations ?`);
+    if (!shouldDelete) return;
+
+    startTransition(async () => {
+      setSaveError("");
+      try {
+        const formData = new FormData();
+        formData.set("foodId", String(foodId));
+
+        const result = await deleteFoodAction(formData);
+        if (!result.ok) {
+          setSaveError(result.error || "Impossible de supprimer cet aliment pour le moment.");
+          return;
+        }
+
+        router.refresh();
+        onClose();
+      } catch (error) {
+        const redirectUrl = getRedirectUrlFromError(error);
+        if (redirectUrl) {
+          window.location.assign(redirectUrl);
+          return;
+        }
+
+        setSaveError("Impossible de supprimer cet aliment pour le moment.");
       }
     });
   }
@@ -402,23 +441,37 @@ export function FoodSummaryModal({
             aria-label="Note"
           />
 
-          <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isPending}
-              className="touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[#ddcfbb] bg-white px-3 py-2 text-sm font-semibold text-[#554a3f] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={saveNote}
-              disabled={isPending}
-              className="touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[#b89056] bg-[#f6ead4] px-3 py-2 text-sm font-semibold text-[#5f4323] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Enregistrer
-            </button>
+          <div className="flex flex-wrap justify-between gap-2">
+            <div>
+              {isUserOwned ? (
+                <button
+                  type="button"
+                  onClick={deleteFood}
+                  disabled={isPending}
+                  className="touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border border-rose-400 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Supprimer
+                </button>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isPending}
+                className="touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[#ddcfbb] bg-white px-3 py-2 text-sm font-semibold text-[#554a3f] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={saveNote}
+                disabled={isPending}
+                className="touch-manipulation inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[#b89056] bg-[#f6ead4] px-3 py-2 text-sm font-semibold text-[#5f4323] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Enregistrer
+              </button>
+            </div>
           </div>
 
           {isPending ? <p className="m-0 text-sm font-semibold text-[#7b6648]">Enregistrement…</p> : null}

@@ -28,6 +28,15 @@ function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function normalizeFoodName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 type FixtureCategory = {
   name: string;
   foods: string[];
@@ -73,6 +82,7 @@ const FIXTURE_CATEGORIES: FixtureCategory[] = [
 
 let pool: Pool | null = null;
 let cachedDefaultOwnerId: number | null = null;
+let cachedDefaultPasswordHash: string | null = null;
 
 function getConnectionString() {
   return process.env.E2E_POSTGRES_URL || DEFAULT_E2E_POSTGRES_URL;
@@ -225,12 +235,14 @@ export async function applyMigrations() {
 }
 
 export async function ensureAuthUser() {
-  const passwordHash = await argon2.hash(DEFAULT_E2E_AUTH_PASSWORD, {
-    type: argon2.argon2id,
-    memoryCost: 19_456,
-    timeCost: 2,
-    parallelism: 1
-  });
+  if (!cachedDefaultPasswordHash) {
+    cachedDefaultPasswordHash = await argon2.hash(DEFAULT_E2E_AUTH_PASSWORD, {
+      type: argon2.argon2id,
+      memoryCost: 19_456,
+      timeCost: 2,
+      parallelism: 1
+    });
+  }
 
   const result = await queryMany<{ id: number }>(
     `
@@ -244,7 +256,7 @@ export async function ensureAuthUser() {
         updated_at = NOW()
       RETURNING id;
     `,
-    [DEFAULT_E2E_AUTH_EMAIL, passwordHash]
+    [DEFAULT_E2E_AUTH_EMAIL, cachedDefaultPasswordHash]
   );
 
   cachedDefaultOwnerId = Number(result[0]?.id || 0);
@@ -277,6 +289,18 @@ export async function resetMutableTables() {
   await queryMany(
     "TRUNCATE TABLE food_tastings, food_progress, child_profiles, growth_events, share_snapshots, password_reset_tokens, auth_password_reset_attempts, email_verification_tokens, auth_login_attempts, auth_signup_attempts RESTART IDENTITY;"
   );
+
+  await queryMany(
+    `
+      DELETE FROM foods
+      WHERE owner_id IS NOT NULL;
+    `
+  );
+
+  await queryMany("TRUNCATE TABLE users RESTART IDENTITY;");
+
+  cachedDefaultOwnerId = null;
+  await ensureAuthUser();
 }
 
 export async function seedFixtureData() {
@@ -302,10 +326,15 @@ export async function seedFixtureData() {
       for (let foodIndex = 0; foodIndex < category.foods.length; foodIndex += 1) {
         await client.query(
           `
-            INSERT INTO foods (category_id, name, sort_order)
-            VALUES ($1, $2, $3);
+            INSERT INTO foods (category_id, owner_id, name, normalized_name, sort_order)
+            VALUES ($1, NULL, $2, $3, $4);
           `,
-          [categoryId, category.foods[foodIndex], foodIndex]
+          [
+            categoryId,
+            category.foods[foodIndex],
+            normalizeFoodName(category.foods[foodIndex]),
+            foodIndex
+          ]
         );
       }
     }
@@ -413,7 +442,12 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
       LEFT JOIN tasting_agg t
         ON t.food_id = f.id
        AND t.owner_id = $2
-      WHERE f.name = $1;
+      WHERE f.name = $1
+        AND (f.owner_id IS NULL OR f.owner_id = $2)
+      ORDER BY
+        CASE WHEN f.owner_id = $2 THEN 0 ELSE 1 END,
+        f.id
+      LIMIT 1;
     `,
     [foodName, resolvedOwnerId]
   );

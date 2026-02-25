@@ -15,6 +15,7 @@ export type DashboardFood = {
   id: number;
   name: string;
   sortOrder: number;
+  isUserOwned: boolean;
   tastings: FoodTastingEntry[];
   tastingCount: number;
   finalPreference: -1 | 0 | 1;

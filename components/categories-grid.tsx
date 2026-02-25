@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setFinalPreferenceAction } from "@/app/actions";
+import { AddFoodPanel } from "@/components/add-food-panel";
 import { FoodSummaryModal } from "@/components/food-summary-modal";
 import { QuickAddPanel } from "@/components/quick-add-panel";
 import { SearchPanel } from "@/components/search-panel";
@@ -10,7 +11,7 @@ import { VegetableRow } from "@/components/vegetable-row";
 import { getCategoryUi } from "@/lib/category-ui";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { DashboardCategory, DashboardFood, FinalPreferenceValue, FoodTimelineEntry } from "@/lib/types";
-import { getNextFinalPreference, normalizeSearchValue } from "@/lib/ui-utils";
+import { getNextFinalPreference, getRedirectUrlFromError, normalizeSearchValue } from "@/lib/ui-utils";
 
 type CategoriesGridProps = {
   categories: DashboardCategory[];
@@ -89,19 +90,6 @@ function buildCategoryKpi(foods: DashboardFood[]): CategoryKpi {
   };
 }
 
-function getRedirectUrlFromError(error: unknown) {
-  if (typeof error !== "object" || error === null || !("digest" in error)) return null;
-
-  const digest = (error as { digest?: unknown }).digest;
-  if (typeof digest !== "string") return null;
-
-  const segments = digest.split(";");
-  if (segments[0] !== "NEXT_REDIRECT") return null;
-
-  const redirectUrl = segments.slice(2, -2).join(";");
-  return redirectUrl || null;
-}
-
 function getCategoryPictogram(categoryName: string) {
   return getCategoryUi(categoryName).pictogram;
 }
@@ -116,6 +104,7 @@ export function CategoriesGrid({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
   const [summaryFoodId, setSummaryFoodId] = useState<number | null>(null);
   const [showTestedOnly, setShowTestedOnly] = useState(false);
   const [finalPreferenceOverridesByFoodId, setFinalPreferenceOverridesByFoodId] = useState<
@@ -124,6 +113,7 @@ export function CategoriesGrid({
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineTriggerRef = useRef<HTMLButtonElement>(null);
   const quickAddTriggerRef = useRef<HTMLButtonElement>(null);
+  const addFoodTriggerRef = useRef<HTMLButtonElement>(null);
   const summaryTriggerRef = useRef<HTMLElement | null>(null);
   const wasSearchOpenRef = useRef(false);
   const wasSummaryOpenRef = useRef(false);
@@ -132,6 +122,7 @@ export function CategoriesGrid({
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const wasTimelineOpenRef = useRef(false);
   const wasQuickAddOpenRef = useRef(false);
+  const wasAddFoodOpenRef = useRef(false);
   const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const pendingFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const inFlightFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
@@ -154,6 +145,7 @@ export function CategoriesGrid({
   function openSearch() {
     setIsTimelineOpen(false);
     setIsQuickAddOpen(false);
+    setIsAddFoodOpen(false);
     setIsSearchOpen(true);
   }
 
@@ -164,6 +156,7 @@ export function CategoriesGrid({
   function openTimeline() {
     setIsSearchOpen(false);
     setIsQuickAddOpen(false);
+    setIsAddFoodOpen(false);
     setIsTimelineOpen(true);
   }
 
@@ -174,7 +167,19 @@ export function CategoriesGrid({
   function openQuickAdd() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
+    setIsAddFoodOpen(false);
     setIsQuickAddOpen(true);
+  }
+
+  function closeAddFood() {
+    setIsAddFoodOpen(false);
+  }
+
+  function openAddFood() {
+    setIsSearchOpen(false);
+    setIsTimelineOpen(false);
+    setIsQuickAddOpen(false);
+    setIsAddFoodOpen(true);
   }
 
   const isSummaryOpen = summaryFoodId !== null;
@@ -274,7 +279,10 @@ export function CategoriesGrid({
     const formData = new FormData();
     formData.set("foodId", String(foodId));
     formData.set("value", String(preference));
-    await setFinalPreferenceAction(formData);
+    const result = await setFinalPreferenceAction(formData);
+    if (!result.ok) {
+      throw new Error(result.error || "Impossible d'enregistrer la préférence finale.");
+    }
   }, []);
 
   const flushPendingFinalPreference = useCallback(
@@ -350,6 +358,7 @@ export function CategoriesGrid({
         event.preventDefault();
         setIsTimelineOpen(false);
         setIsQuickAddOpen(false);
+        setIsAddFoodOpen(false);
         setIsSearchOpen(true);
         return;
       }
@@ -364,6 +373,7 @@ export function CategoriesGrid({
         setIsSearchOpen(false);
         setIsTimelineOpen(false);
         setIsQuickAddOpen(false);
+        setIsAddFoodOpen(false);
       }
     }
 
@@ -426,7 +436,19 @@ export function CategoriesGrid({
   }, [isQuickAddOpen]);
 
   useEffect(() => {
-    const hasOverlayOpen = isSearchOpen || isTimelineOpen || isQuickAddOpen || isSummaryOpen;
+    if (isAddFoodOpen) {
+      wasAddFoodOpenRef.current = true;
+      return;
+    }
+
+    if (wasAddFoodOpenRef.current) {
+      addFoodTriggerRef.current?.focus();
+      wasAddFoodOpenRef.current = false;
+    }
+  }, [isAddFoodOpen]);
+
+  useEffect(() => {
+    const hasOverlayOpen = isSearchOpen || isTimelineOpen || isQuickAddOpen || isAddFoodOpen || isSummaryOpen;
     if (!hasOverlayOpen) return;
 
     const previousOverflow = document.body.style.overflow;
@@ -435,7 +457,7 @@ export function CategoriesGrid({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isSearchOpen, isTimelineOpen, isQuickAddOpen, isSummaryOpen]);
+  }, [isSearchOpen, isTimelineOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -509,6 +531,15 @@ export function CategoriesGrid({
     [categories]
   );
 
+  const addFoodCategories = useMemo(
+    () =>
+      categories.map((category) => ({
+        id: category.id,
+        name: category.name
+      })),
+    [categories]
+  );
+
 
 
   const finalPreferenceByFoodId = useMemo(() => {
@@ -555,6 +586,10 @@ export function CategoriesGrid({
 
             <button ref={quickAddTriggerRef} type="button" className="quick-add-trigger-btn" onClick={openQuickAdd}>
               <span>Ajout rapide</span>
+            </button>
+
+            <button ref={addFoodTriggerRef} type="button" className="add-food-trigger-btn" onClick={openAddFood}>
+              <span>Ajouter un aliment</span>
             </button>
 
             <button
@@ -715,6 +750,7 @@ export function CategoriesGrid({
       />
 
       <QuickAddPanel isOpen={isQuickAddOpen} foods={quickAddEligibleFoods} onClose={closeQuickAdd} />
+      <AddFoodPanel isOpen={isAddFoodOpen} categories={addFoodCategories} onClose={closeAddFood} />
       <FoodSummaryModal
         isOpen={summaryFoodId !== null && summaryFood !== null}
         onClose={closeFoodSummary}
@@ -726,6 +762,7 @@ export function CategoriesGrid({
         tastingCount={summaryFood?.tastingCount ?? 0}
         finalPreference={summaryFinalPreference}
         initialNote={summaryFood?.note ?? ""}
+        isUserOwned={summaryFood?.isUserOwned ?? false}
         onCycleFinalPreference={cycleFinalPreference}
       />
     </section>

@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { clearSession, requireVerifiedAuth } from "@/lib/auth";
 import {
   appendQuickEntry,
+  createUserFood,
   createGrowthEvent,
+  deleteUserFood,
   deleteFoodTastingEntry,
   revokeShareSnapshot,
   saveFoodSummary,
@@ -129,7 +131,7 @@ export async function saveTastingEntryAction(formData: FormData) {
     return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
   }
 
-  await upsertFoodTastingEntry(
+  const saved = await upsertFoodTastingEntry(
     user.id,
     foodId,
     slot as 1 | 2 | 3,
@@ -139,6 +141,9 @@ export async function saveTastingEntryAction(formData: FormData) {
     textureLevel,
     reactionType
   );
+  if (!saved) {
+    return { ok: false, error: "Aliment introuvable." };
+  }
   revalidatePath("/");
   return { ok: true };
 }
@@ -173,6 +178,9 @@ export async function setFinalPreferenceAction(formData: FormData) {
   }
 
   const appliedPreference = await upsertFinalPreference(user.id, foodId, selected as -1 | 0 | 1);
+  if (appliedPreference === null) {
+    return { ok: false, error: "Aliment introuvable." };
+  }
   revalidatePath("/");
   return { ok: true, appliedPreference };
 }
@@ -227,6 +235,57 @@ export async function addQuickEntryAction(formData: FormData) {
 
   revalidatePath("/");
   return { ok: true };
+}
+
+export async function createFoodAction(formData: FormData) {
+  const user = await requireVerifiedAuth();
+  const categoryId = Number(formData.get("categoryId"));
+  const name = String(formData.get("name") || "");
+
+  if (!Number.isInteger(categoryId) || categoryId <= 0) {
+    return { ok: false, error: "Catégorie invalide." };
+  }
+
+  try {
+    const result = await createUserFood(user.id, categoryId, name);
+    if (result.status !== "created") {
+      if (result.status === "invalid_name") {
+        return { ok: false, error: "Le nom de l'aliment est obligatoire." };
+      }
+
+      if (result.status === "category_not_found") {
+        return { ok: false, error: "Catégorie introuvable." };
+      }
+
+      return { ok: false, error: "Cet aliment existe déjà dans cette catégorie." };
+    }
+
+    revalidatePath("/");
+    return { ok: true, foodId: result.foodId };
+  } catch {
+    return { ok: false, error: "Impossible d'ajouter cet aliment pour le moment." };
+  }
+}
+
+export async function deleteFoodAction(formData: FormData) {
+  const user = await requireVerifiedAuth();
+  const foodId = Number(formData.get("foodId"));
+
+  if (!Number.isInteger(foodId) || foodId <= 0) {
+    return { ok: false, error: "Aliment invalide." };
+  }
+
+  try {
+    const result = await deleteUserFood(user.id, foodId);
+    if (result.status !== "deleted") {
+      return { ok: false, error: "Suppression impossible pour cet aliment." };
+    }
+
+    revalidatePath("/");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Suppression impossible pour cet aliment." };
+  }
 }
 
 export async function saveChildProfileAction(formData: FormData) {
@@ -340,7 +399,10 @@ export async function saveFoodSummaryAction(formData: FormData) {
   }
 
   try {
-    await saveFoodSummary(user.id, foodId, note, tastings);
+    const saved = await saveFoodSummary(user.id, foodId, note, tastings);
+    if (!saved) {
+      return { ok: false, error: "Aliment introuvable." };
+    }
   } catch {
     return { ok: false, error: "Impossible d'enregistrer les notes pour le moment." };
   }

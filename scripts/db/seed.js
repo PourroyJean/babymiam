@@ -12,6 +12,15 @@ async function readSourceCategories() {
   return Array.isArray(parsed.categories) ? parsed.categories : [];
 }
 
+function normalizeFoodName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function runSeed() {
   if (process.env.SKIP_DB_SETUP === "1") {
     console.log("[db:seed] Skipped (SKIP_DB_SETUP=1).");
@@ -55,12 +64,13 @@ async function runSeed() {
 
         await client.query(
           `
-          INSERT INTO foods (category_id, name, sort_order)
-          VALUES ($1, $2, $3)
-          ON CONFLICT (category_id, name)
+          INSERT INTO foods (category_id, owner_id, name, normalized_name, sort_order)
+          VALUES ($1, NULL, $2, $3, $4)
+          ON CONFLICT (category_id, normalized_name)
+          WHERE owner_id IS NULL
           DO UPDATE SET sort_order = EXCLUDED.sort_order;
           `,
-          [categoryId, foodName, i]
+          [categoryId, foodName, normalizeFoodName(foodName), i]
         );
       }
     }

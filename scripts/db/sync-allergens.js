@@ -45,6 +45,15 @@ async function readAllergenSource() {
   };
 }
 
+function normalizeFoodName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function runSync() {
   if (process.env.SKIP_DB_SETUP === "1") {
     console.log("[db:sync-allergens] Skipped (SKIP_DB_SETUP=1).");
@@ -83,12 +92,16 @@ async function runSync() {
       const foodName = allergenFoods[index];
       await client.query(
         `
-          INSERT INTO foods (category_id, name, sort_order)
-          VALUES ($1, $2, $3)
-          ON CONFLICT (category_id, name)
-          DO UPDATE SET sort_order = EXCLUDED.sort_order;
+          INSERT INTO foods (category_id, owner_id, name, normalized_name, sort_order)
+          VALUES ($1, NULL, $2, $3, $4)
+          ON CONFLICT (category_id, normalized_name)
+          WHERE owner_id IS NULL
+          DO UPDATE SET
+            name = EXCLUDED.name,
+            normalized_name = EXCLUDED.normalized_name,
+            sort_order = EXCLUDED.sort_order;
         `,
-        [categoryId, foodName, index]
+        [categoryId, foodName, normalizeFoodName(foodName), index]
       );
     }
 
@@ -96,6 +109,7 @@ async function runSync() {
       `
         DELETE FROM foods
         WHERE category_id = $1
+          AND owner_id IS NULL
           AND NOT (name = ANY($2::text[]));
       `,
       [categoryId, allergenFoods]

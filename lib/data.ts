@@ -57,6 +57,12 @@ export type AppendQuickEntryResult = {
   status: "ok" | "maxed" | "food_not_found" | "unavailable";
 };
 
+export type CreateUserFoodResult =
+  | { status: "created"; foodId: number }
+  | { status: "invalid_name" | "category_not_found" | "duplicate" };
+
+export type DeleteUserFoodResult = { status: "deleted" | "forbidden_or_not_found" };
+
 type FoodProgressColumns = {
   hasExposureCount: boolean;
   hasFirstTastedOn: boolean;
@@ -64,9 +70,17 @@ type FoodProgressColumns = {
   hasUpdatedAt: boolean;
 };
 
+type AccessibleFoodRow = {
+  food_id: number;
+  category_id: number;
+  sort_order: number;
+  owner_id: number | null;
+};
+
 const DEFAULT_SHARE_SNAPSHOT_TTL_DAYS = 30;
 const MAX_SHARE_SNAPSHOT_TTL_DAYS = 365;
 const SHARE_OPEN_DEDUPE_MINUTES = 5;
+const NORMALIZED_MARKS_PATTERN = /[\u0300-\u036f]/g;
 
 function getShareSnapshotTtlDays() {
   const parsed = Number(process.env.SHARE_SNAPSHOT_TTL_DAYS || DEFAULT_SHARE_SNAPSHOT_TTL_DAYS);
@@ -83,6 +97,47 @@ function resolveShareSnapshotExpiresAt(expiresAt: string | null | undefined) {
 
   const ttlDays = getShareSnapshotTtlDays();
   return new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function normalizeFoodName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(NORMALIZED_MARKS_PATTERN, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeFoodLabel(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function isUniqueViolation(error: unknown) {
+  if (typeof error !== "object" || error === null || !("code" in error)) return false;
+  return (error as { code?: unknown }).code === "23505";
+}
+
+async function getAccessibleFoodById(
+  client: Pick<PoolClient, "query">,
+  ownerId: number,
+  foodId: number
+): Promise<AccessibleFoodRow | null> {
+  const result = await client.query<AccessibleFoodRow>(
+    `
+      SELECT
+        id AS food_id,
+        category_id,
+        sort_order,
+        owner_id
+      FROM foods
+      WHERE id = $1
+        AND (owner_id IS NULL OR owner_id = $2)
+      LIMIT 1;
+    `,
+    [foodId, ownerId]
+  );
+
+  return result.rows[0] ?? null;
 }
 
 async function getFoodProgressColumns(client: PoolClient): Promise<FoodProgressColumns> {
@@ -119,8 +174,8 @@ export async function appendQuickEntry(ownerId: number, payload: AppendQuickEntr
       return { status: "unavailable" };
     }
 
-    const foodCheckResult = await client.query("SELECT 1 FROM foods WHERE id = $1 LIMIT 1;", [payload.foodId]);
-    if (!foodCheckResult.rowCount) {
+    const food = await getAccessibleFoodById(client, ownerId, payload.foodId);
+    if (!food) {
       await client.query("ROLLBACK");
       return { status: "food_not_found" };
     }
@@ -233,6 +288,7 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
     food_id: number;
     food_name: string;
     food_sort_order: number;
+    is_user_owned: boolean;
     tasting_count: number;
     tastings: unknown;
     final_preference: number;
@@ -268,6 +324,7 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
         f.id AS food_id,
         f.name AS food_name,
         f.sort_order AS food_sort_order,
+        (f.owner_id = $1) AS is_user_owned,
         COALESCE(t.tasting_count, 0) AS tasting_count,
         COALESCE(t.tastings, '[]'::jsonb) AS tastings,
         COALESCE(p.final_preference, 0) AS final_preference,
@@ -286,7 +343,12 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
       LEFT JOIN tasting_agg t
         ON t.food_id = f.id
        AND t.owner_id = $1
-      ORDER BY c.sort_order, f.sort_order;
+      WHERE f.owner_id IS NULL OR f.owner_id = $1
+      ORDER BY
+        c.sort_order,
+        CASE WHEN f.owner_id IS NULL THEN 0 ELSE 1 END,
+        f.sort_order,
+        f.id;
     `,
     [ownerId]
   );
@@ -348,6 +410,7 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
       id: foodId,
       name: row.food_name,
       sortOrder: foodSortOrder,
+      isUserOwned: Boolean(row.is_user_owned),
       tastings,
       tastingCount: Number(row.tasting_count || 0),
       finalPreference: Number(row.final_preference || 0) as -1 | 0 | 1,
@@ -386,6 +449,7 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
       INNER JOIN foods f ON f.id = t.food_id
       INNER JOIN categories c ON c.id = f.category_id
       WHERE t.owner_id = $1
+        AND (f.owner_id IS NULL OR f.owner_id = $1)
       ORDER BY
         t.tasted_on DESC,
         c.sort_order ASC,
@@ -441,10 +505,16 @@ export async function upsertFoodTastingEntry(
   note: string,
   textureLevel: TextureLevel | null,
   reactionType: ReactionType | null
-) {
+): Promise<boolean> {
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
+
+    const food = await getAccessibleFoodById(client, ownerId, foodId);
+    if (!food) {
+      await client.query("ROLLBACK");
+      return false;
+    }
 
     await client.query(
       `
@@ -482,6 +552,7 @@ export async function upsertFoodTastingEntry(
     );
 
     await client.query("COMMIT");
+    return true;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -498,6 +569,12 @@ export async function deleteFoodTastingEntry(
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
+
+    const food = await getAccessibleFoodById(client, ownerId, foodId);
+    if (!food) {
+      await client.query("ROLLBACK");
+      return { ok: false, error: "Aliment introuvable." };
+    }
 
     const maxSlotResult = await client.query<{ max_slot: number }>(
       `
@@ -586,10 +663,16 @@ export async function upsertFinalPreference(
   ownerId: number,
   foodId: number,
   finalPreference: -1 | 0 | 1
-) {
+): Promise<-1 | 0 | 1 | null> {
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
+
+    const food = await getAccessibleFoodById(client, ownerId, foodId);
+    if (!food) {
+      await client.query("ROLLBACK");
+      return null;
+    }
 
     await client.query(
       `
@@ -635,31 +718,22 @@ export async function upsertFinalPreference(
   }
 }
 
-export async function upsertNote(ownerId: number, foodId: number, note: string) {
-  await ensureFoodProgressRow(ownerId, foodId);
-  await query(
-    `
-      INSERT INTO food_progress (owner_id, food_id, note)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (owner_id, food_id)
-      DO UPDATE SET
-        note = EXCLUDED.note,
-        updated_at = NOW();
-    `,
-    [ownerId, foodId, note]
-  );
-}
-
 export async function saveFoodSummary(
   ownerId: number,
   foodId: number,
   note: string,
   tastings: SaveFoodSummaryInput[]
-) {
+): Promise<boolean> {
   const client = await getPool().connect();
 
   try {
     await client.query("BEGIN");
+
+    const food = await getAccessibleFoodById(client, ownerId, foodId);
+    if (!food) {
+      await client.query("ROLLBACK");
+      return false;
+    }
 
     await client.query(
       `
@@ -738,12 +812,111 @@ export async function saveFoodSummary(
     );
 
     await client.query("COMMIT");
+    return true;
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
   } finally {
     client.release();
   }
+}
+
+export async function createUserFood(
+  ownerId: number,
+  categoryId: number,
+  nameInput: string
+): Promise<CreateUserFoodResult> {
+  const name = normalizeFoodLabel(nameInput);
+  if (!name) {
+    return { status: "invalid_name" };
+  }
+
+  const normalizedTarget = normalizeFoodName(name);
+  const client = await getPool().connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const categoryResult = await client.query<{ id: number }>(
+      `
+        SELECT id
+        FROM categories
+        WHERE id = $1
+        LIMIT 1;
+      `,
+      [categoryId]
+    );
+    if (!categoryResult.rowCount) {
+      await client.query("ROLLBACK");
+      return { status: "category_not_found" };
+    }
+
+    const duplicateCheck = await client.query<{ id: number }>(
+      `
+        SELECT id
+        FROM foods
+        WHERE category_id = $1
+          AND (owner_id IS NULL OR owner_id = $2)
+          AND normalized_name = $3
+        LIMIT 1;
+      `,
+      [categoryId, ownerId, normalizedTarget]
+    );
+
+    if (duplicateCheck.rowCount) {
+      await client.query("ROLLBACK");
+      return { status: "duplicate" };
+    }
+
+    const sortOrderResult = await client.query<{ max_sort_order: number }>(
+      `
+        SELECT COALESCE(MAX(sort_order), -1)::int AS max_sort_order
+        FROM foods
+        WHERE category_id = $1;
+      `,
+      [categoryId]
+    );
+    const nextSortOrder = Number(sortOrderResult.rows[0]?.max_sort_order ?? -1) + 1;
+
+    const insertResult = await client.query<{ id: number }>(
+      `
+        INSERT INTO foods (category_id, owner_id, name, normalized_name, sort_order)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id;
+      `,
+      [categoryId, ownerId, name, normalizedTarget, nextSortOrder]
+    );
+
+    await client.query("COMMIT");
+    return {
+      status: "created",
+      foodId: Number(insertResult.rows[0]?.id)
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    if (isUniqueViolation(error)) {
+      return { status: "duplicate" };
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteUserFood(ownerId: number, foodId: number): Promise<DeleteUserFoodResult> {
+  const result = await query<{ id: number }>(
+    `
+      DELETE FROM foods
+      WHERE id = $1
+        AND owner_id = $2
+      RETURNING id;
+    `,
+    [foodId, ownerId]
+  );
+
+  return {
+    status: result.rowCount === 1 ? "deleted" : "forbidden_or_not_found"
+  };
 }
 
 export async function getChildProfile(ownerId: number): Promise<ChildProfile | null> {

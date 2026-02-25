@@ -10,6 +10,7 @@ const authPassword = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 const authSecret = process.env.E2E_AUTH_SECRET || "e2e-secret-change-me";
 const postgresUrl =
   process.env.E2E_POSTGRES_URL || "postgres://postgres:postgres@localhost:5432/babymiam_e2e";
+const reuseExistingServer = process.env.E2E_REUSE_EXISTING_SERVER === "1";
 
 export default defineConfig({
   testDir: "./tests/e2e/specs",
@@ -43,7 +44,8 @@ export default defineConfig({
     command: `node scripts/e2e/web-server.js --hostname ${host} --port ${port}`,
     url: baseURL,
     timeout: 120_000,
-    reuseExistingServer: process.env.CI ? false : true,
+    // Default to a fresh web server in local runs to avoid stale env/schema mismatches.
+    reuseExistingServer: process.env.CI ? false : reuseExistingServer,
     gracefulShutdown: {
       signal: "SIGTERM",
       timeout: 5_000
