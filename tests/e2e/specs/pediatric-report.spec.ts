@@ -1,6 +1,6 @@
 import { expect, test } from "../fixtures/test-fixtures";
 
-const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com").toLowerCase();
+const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test").toLowerCase();
 
 function getIsoDateDaysAgo(daysAgo: number) {
   const now = new Date();

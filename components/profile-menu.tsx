@@ -616,6 +616,8 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     });
   }
 
+  const isAccountEmailVerified = Boolean(accountOverview?.emailVerifiedAt);
+
   const modal = isOpen ? (
     <div className="profile-modal-overlay" onClick={onClose} role="presentation">
       <section
@@ -828,78 +830,82 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
                 ) : null}
               </article>
 
-              <article className="account-card">
-                <h2>Sécurité</h2>
-                <p className="account-muted">Change ton mot de passe (8 caractères minimum).</p>
+              {isAccountEmailVerified ? (
+                <>
+                  <article className="account-card">
+                    <h2>Sécurité</h2>
+                    <p className="account-muted">Change ton mot de passe (8 caractères minimum).</p>
 
-                <form onSubmit={onChangePassword} className="account-form">
-                  <input type="hidden" name="__mode" value="modal" />
+                    <form onSubmit={onChangePassword} className="account-form">
+                      <input type="hidden" name="__mode" value="modal" />
 
-                  <label>
-                    Mot de passe actuel
-                    <input
-                      name="currentPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      required
-                      autoComplete="current-password"
-                    />
-                  </label>
+                      <label>
+                        Mot de passe actuel
+                        <input
+                          name="currentPassword"
+                          type="password"
+                          placeholder="••••••••"
+                          required
+                          autoComplete="current-password"
+                        />
+                      </label>
 
-                  <label>
-                    Nouveau mot de passe
-                    <input
-                      name="password"
-                      type="password"
-                      placeholder="••••••••"
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                    />
-                  </label>
+                      <label>
+                        Nouveau mot de passe
+                        <input
+                          name="password"
+                          type="password"
+                          placeholder="••••••••"
+                          required
+                          minLength={8}
+                          autoComplete="new-password"
+                        />
+                      </label>
 
-                  <label>
-                    Confirmer le mot de passe
-                    <input
-                      name="confirmPassword"
-                      type="password"
-                      placeholder="••••••••"
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                    />
-                  </label>
+                      <label>
+                        Confirmer le mot de passe
+                        <input
+                          name="confirmPassword"
+                          type="password"
+                          placeholder="••••••••"
+                          required
+                          minLength={8}
+                          autoComplete="new-password"
+                        />
+                      </label>
 
-                  <button type="submit" className="account-btn" disabled={isAccountPending}>
-                    Mettre à jour
-                  </button>
-                </form>
-              </article>
+                      <button type="submit" className="account-btn" disabled={isAccountPending}>
+                        Mettre à jour
+                      </button>
+                    </form>
+                  </article>
 
-              <article className="account-card">
-                <h2>Sessions</h2>
-                <p className="account-muted">
-                  Si tu as oublié de te déconnecter ailleurs, tu peux invalider toutes les sessions.
-                </p>
+                  <article className="account-card">
+                    <h2>Sessions</h2>
+                    <p className="account-muted">
+                      Si tu as oublié de te déconnecter ailleurs, tu peux invalider toutes les sessions.
+                    </p>
 
-                <form onSubmit={onLogoutEverywhere} className="account-inline-form">
-                  <input type="hidden" name="__mode" value="modal" />
-                  <button
-                    type="submit"
-                    className="account-btn account-btn-secondary"
-                    disabled={isAccountPending}
-                  >
-                    Déconnecter les autres appareils
-                  </button>
-                </form>
-              </article>
+                    <form onSubmit={onLogoutEverywhere} className="account-inline-form">
+                      <input type="hidden" name="__mode" value="modal" />
+                      <button
+                        type="submit"
+                        className="account-btn account-btn-secondary"
+                        disabled={isAccountPending}
+                      >
+                        Déconnecter les autres appareils
+                      </button>
+                    </form>
+                  </article>
 
-              <article className="account-card">
-                <h2>Aide</h2>
-                <p className="account-muted">
-                  Mot de passe oublié ? <Link href="/forgot-password">Réinitialiser</Link>.
-                </p>
-              </article>
+                  <article className="account-card">
+                    <h2>Aide</h2>
+                    <p className="account-muted">
+                      Mot de passe oublié ? <Link href="/forgot-password">Réinitialiser</Link>.
+                    </p>
+                  </article>
+                </>
+              ) : null}
             </section>
 
             {accountLoadError ? <p className="error-text account-global-error">{accountLoadError}</p> : null}

@@ -55,6 +55,24 @@ function getFoodSummaryDialog(page: Page, foodName: string) {
   return page.getByRole("dialog", { name: foodName });
 }
 
+function sortFoodNamesAlphabetically(values: string[]) {
+  return [...values].sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
+}
+
+async function getCategoryFoodNames(page: Page, categoryName: string) {
+  const categoryToggle = page.getByRole("button", {
+    name: new RegExp(escapeRegExp(categoryName), "i")
+  });
+  const categoryCard = categoryToggle.locator("xpath=ancestor::article[1]");
+  const summaryButtons = categoryCard.locator(
+    'ul.category-list.open button[aria-label^="Ouvrir le résumé de "]'
+  );
+
+  await expect(summaryButtons.first()).toBeVisible();
+  const names = await summaryButtons.allTextContents();
+  return names.map((name) => name.trim()).filter(Boolean);
+}
+
 test.describe("custom foods", () => {
   test("adds a user-owned food from toolbox in an existing category", async ({ appPage, db }) => {
     const foodName = "Patate douce perso";
@@ -79,6 +97,27 @@ test.describe("custom foods", () => {
         return row ? Number(row.owner_id) : null;
       })
       .toBe(ownerId);
+  });
+
+  test("keeps manual foods sorted alphabetically in the category list", async ({ appPage }) => {
+    const categoryName = "Légumes";
+    const foodName = "Aubergine perso";
+
+    await addFood(appPage, categoryName, foodName);
+    await ensureCategoryExpanded(appPage, categoryName);
+    await expect(getFoodSummaryTrigger(appPage, foodName)).toBeVisible();
+
+    const namesBeforeReload = await getCategoryFoodNames(appPage, categoryName);
+    expect(namesBeforeReload).toContain(foodName);
+    expect(namesBeforeReload).toEqual(sortFoodNamesAlphabetically(namesBeforeReload));
+
+    await appPage.reload();
+    await ensureCategoryExpanded(appPage, categoryName);
+    await expect(getFoodSummaryTrigger(appPage, foodName)).toBeVisible();
+
+    const namesAfterReload = await getCategoryFoodNames(appPage, categoryName);
+    expect(namesAfterReload).toContain(foodName);
+    expect(namesAfterReload).toEqual(sortFoodNamesAlphabetically(namesAfterReload));
   });
 
   test("rejects duplicates case- and accent-insensitively", async ({ appPage, db }) => {
@@ -143,10 +182,10 @@ test.describe("custom foods", () => {
     await getFoodSummaryTrigger(appPage, userFood).click();
     const dialog = getFoodSummaryDialog(appPage, userFood);
     await expect(dialog).toBeVisible();
-    const confirmDialogPromise = appPage.waitForEvent("dialog");
+    appPage.once("dialog", (confirmDialog) => {
+      void confirmDialog.accept();
+    });
     await dialog.getByRole("button", { name: "Supprimer" }).click();
-    const confirmDialog = await confirmDialogPromise;
-    await confirmDialog.accept();
     await expect(dialog).toBeHidden();
 
     await expect(getFoodSummaryTrigger(appPage, userFood)).toHaveCount(0);

@@ -4,8 +4,8 @@ import path from "node:path";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
 const DEFAULT_E2E_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam_e2e";
-const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com").toLowerCase();
-const DEFAULT_E2E_AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
+const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test").toLowerCase();
+const DEFAULT_E2E_AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "e2e-test-password";
 const SAFE_E2E_DB_SUFFIX = /(_e2e|_test)$/i;
 const LOCAL_RESET_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 const E2E_RESETTABLE_TABLES = [
@@ -297,7 +297,8 @@ export async function resetMutableTables() {
     `
   );
 
-  await queryMany("TRUNCATE TABLE users RESTART IDENTITY;");
+  await queryMany("DELETE FROM users;");
+  await queryMany("ALTER SEQUENCE users_id_seq RESTART WITH 1;");
 
   cachedDefaultOwnerId = null;
   await ensureAuthUser();

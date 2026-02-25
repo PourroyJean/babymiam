@@ -1,6 +1,6 @@
 import { expect, test } from "../fixtures/test-fixtures";
 
-const AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com").toLowerCase();
+const AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test").toLowerCase();
 
 test.describe("profile account", () => {
   test("shows account overview and blocks password update when confirmation mismatches", async ({ appPage }) => {
@@ -21,4 +21,3 @@ test.describe("profile account", () => {
     await expect(dialog.getByText("Les deux mots de passe ne correspondent pas.")).toBeVisible();
   });
 });
-

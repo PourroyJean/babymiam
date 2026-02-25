@@ -15,8 +15,8 @@ import {
   upsertFoodProgressByName
 } from "../helpers/db";
 
-const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com";
-const AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
+const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test";
+const E2E_PASSWORD = process.env.E2E_AUTH_PASSWORD || "e2e-test-password";
 
 type DbFixture = {
   resetMutableTables: typeof resetMutableTables;
@@ -73,7 +73,7 @@ export const test = base.extend<E2EFixtures & AutoFixtures>({
     await runFixture(async () => {
       await page.goto("/login");
       await page.locator('input[name="email"]').fill(AUTH_EMAIL);
-      await page.locator('input[name="password"]').fill(AUTH_PASSWORD);
+      await page.locator('input[name="password"]').fill(E2E_PASSWORD);
 
       await page.getByRole("button", { name: "Se connecter" }).click();
       await expect(page).toHaveURL(/\/$/);

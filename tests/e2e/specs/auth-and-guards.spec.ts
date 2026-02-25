@@ -1,8 +1,8 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/test-fixtures";
 
-const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com";
-const AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
+const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test";
+const E2E_PASSWORD = process.env.E2E_AUTH_PASSWORD || "e2e-test-password";
 const BASE_URL = process.env.E2E_BASE_URL || "http://127.0.0.1:3005";
 const FORGOT_PASSWORD_CONFIRMATION =
   "Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.";
@@ -119,7 +119,7 @@ test.describe("auth and guards", () => {
     await page.goto("/login");
 
     await page.locator('input[name="email"]').fill(AUTH_EMAIL);
-    await page.locator('input[name="password"]').fill(AUTH_PASSWORD);
+    await page.locator('input[name="password"]').fill(E2E_PASSWORD);
     await page.getByRole("button", { name: "Se connecter" }).click();
 
     await expect(page).toHaveURL(/\/$/);

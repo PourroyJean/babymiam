@@ -35,10 +35,17 @@ MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-use
    npm run dev
    ```
 
-`npm run db:setup` upsert automatiquement un compte bootstrap local (hors prod/CI):
+`npm run db:seed` (et donc `npm run db:setup`) garantit l'upsert du compte d'accès perso:
+- email normalisé en lowercase,
+- `status='active'`,
+- `email_verified_at` renseigné.
 
-En prod/CI, ce bootstrap est ignoré par défaut. Pour l'activer explicitement, définir `DB_SETUP_BOOTSTRAP_EMAIL` et `DB_SETUP_BOOTSTRAP_PASSWORD`.
-En non-production, si aucune allowlist premium n'est configurée, `[EMAIL_ADDRESS]` est traité premium par défaut (usage test/local).
+Variables canoniques:
+- `PERSONAL_ACCESS_EMAIL`
+- `PERSONAL_ACCESS_PASSWORD`
+
+En `NODE_ENV=production` ou `CI=true`, credentials invalides/absents pour ce compte provoquent un échec explicite du seed.
+Le compte perso est traité premium par défaut, même sans allowlist explicite.
 
 Le seed charge les catégories/aliments depuis `aliments_categories.json`.
 Le runner de migration ne charge pas `.env.local` automatiquement: il lit
@@ -82,6 +89,8 @@ Nous utilisons `node-pg-migrate` pour versionner le schéma.
 - `AUTH_SECRET` (ou `AUTH_SECRETS` pour rotation)
 - `ALLOW_INSECURE_DEV_AUTH` (`0` par défaut, fallback local explicite uniquement)
 - `POSTGRES_URL`
+- `PERSONAL_ACCESS_EMAIL` (email du compte perso garanti; défaut local `ljcls@gmail.com`)
+- `PERSONAL_ACCESS_PASSWORD` (mot de passe du compte perso garanti; requis)
 - `APP_BASE_URL`
 - `RESEND_API_KEY`
 - `MAIL_FROM`
@@ -93,10 +102,6 @@ Nous utilisons `node-pg-migrate` pour versionner le schéma.
 - `TRUST_PROXY_IP_HEADERS` (`0` par défaut, `1` uniquement derrière un proxy de confiance)
 - `ALLOW_MIGRATE_SKIP` (`1` pour autoriser explicitement un skip manuel de migration en local)
 - `E2E_ALLOW_REMOTE_DB_RESET` (`1` pour autoriser un reset destructif E2E sur host non local)
-- `DB_SETUP_BOOTSTRAP_EMAIL` (optionnel, override l'email bootstrap; requis avec `DB_SETUP_BOOTSTRAP_PASSWORD` en prod/CI)
-- `DB_SETUP_BOOTSTRAP_PASSWORD` (optionnel, override du mot de passe bootstrap; requis avec `DB_SETUP_BOOTSTRAP_EMAIL` en prod/CI)
-- `DB_SETUP_BOOTSTRAP_STATUS` (optionnel, défaut `active`)
-- `DB_SETUP_BOOTSTRAP_VERIFY_EMAIL` (optionnel, défaut `1`; mettre `0`/`false` pour ne pas vérifier l'email)
 
 ## Tests E2E (Playwright)
 Variables de test supportées:
@@ -130,7 +135,10 @@ Pour forcer un host distant: `E2E_ALLOW_REMOTE_DB_RESET=1`.
    npm run db:migrate
    npm run db:seed
    ```
-5. Créer un utilisateur initial via script ou console.
+5. Vérifier le compte perso garanti:
+   ```bash
+   npm run db:assert-personal-access
+   ```
 6. Déployer le code applicatif.
 - Le déploiement prod standard se lance avec `npm run deploy:prod` (`vercel deploy . --prod -y`).
 - Un `.vercelignore` exclut les artefacts locaux (`.next*`, `playwright-report`, `test-results`, `coverage`, `tmp`, `.vercel`, `node_modules`).

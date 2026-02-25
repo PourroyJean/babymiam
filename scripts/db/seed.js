@@ -4,6 +4,7 @@ const fs = require("fs/promises");
 const path = require("path");
 const { Pool } = require("pg");
 const { resolveDatabaseUrl, getEnvValue, isStrictRuntime } = require("./_db-url");
+const { ensurePersonalAccess } = require("../users/ensure-personal-access");
 
 function shouldSkipSeed() {
   if (getEnvValue("SKIP_DB_SETUP") !== "1") return false;
@@ -43,9 +44,11 @@ async function runSeed() {
     connectionString: databaseUrl
   });
   const client = await pool.connect();
+  let transactionStarted = false;
 
   try {
     await client.query("BEGIN");
+    transactionStarted = true;
 
     for (let c = 0; c < sourceCategories.length; c += 1) {
       const category = sourceCategories[c];
@@ -86,14 +89,24 @@ async function runSeed() {
     }
 
     await client.query("COMMIT");
-    console.log("[db:seed] Seed completed.");
+    transactionStarted = false;
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (transactionStarted) {
+      await client.query("ROLLBACK");
+    }
     throw error;
   } finally {
     client.release();
     await pool.end();
   }
+
+  const user = await ensurePersonalAccess({
+    env: process.env,
+    databaseUrl
+  });
+
+  console.log("[db:seed] Seed completed.");
+  console.log("[db:seed] Personal access ensured:", user);
 }
 
 runSeed().catch((error) => {

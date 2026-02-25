@@ -2,10 +2,6 @@
 
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
-const { isStrictRuntime } = require("../db/_db-url");
-
-const DEFAULT_BOOTSTRAP_EMAIL = "ljcls@gmail.com";
-const DEFAULT_BOOTSTRAP_PASSWORD = "LOULOU38";
 
 function getEnv(name) {
   return String(process.env[name] || "").trim();
@@ -18,9 +14,13 @@ function shouldVerifyEmail() {
 }
 
 function resolveBootstrapCredentials() {
-  const strictRuntime = isStrictRuntime(process.env);
   const email = getEnv("DB_SETUP_BOOTSTRAP_EMAIL").toLowerCase();
   const password = getEnv("DB_SETUP_BOOTSTRAP_PASSWORD");
+
+  if (!email && !password) {
+    console.log("[db:setup] Bootstrap user skipped (no DB_SETUP_BOOTSTRAP_EMAIL/DB_SETUP_BOOTSTRAP_PASSWORD).");
+    return null;
+  }
 
   if ((email && !password) || (!email && password)) {
     throw new Error(
@@ -28,21 +28,7 @@ function resolveBootstrapCredentials() {
     );
   }
 
-  if (email && password) {
-    return { email, password };
-  }
-
-  if (strictRuntime) {
-    console.log(
-      "[db:setup] Bootstrap user skipped in production/CI (define DB_SETUP_BOOTSTRAP_EMAIL and DB_SETUP_BOOTSTRAP_PASSWORD to opt-in)."
-    );
-    return null;
-  }
-
-  return {
-    email: DEFAULT_BOOTSTRAP_EMAIL,
-    password: DEFAULT_BOOTSTRAP_PASSWORD
-  };
+  return { email, password };
 }
 
 function run() {

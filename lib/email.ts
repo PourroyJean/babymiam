@@ -14,7 +14,7 @@ function getResendClient() {
 }
 
 function getMailFrom() {
-  return process.env.MAIL_FROM?.trim() || "Babymiam <no-reply@babymiam.local>";
+  return process.env.MAIL_FROM?.trim() || "Grrrignote <hello@noreply.grrrignote.fr>";
 }
 
 export async function sendPasswordResetEmail(params: { to: string; resetUrl: string }) {

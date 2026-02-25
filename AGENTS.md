@@ -94,8 +94,15 @@
 ## Session Lessons (2026-02-25)
 - Lessons learned:
   - Vercel CLI injecte `.env.development.local` qui ecrase `.env.local`. Pour forcer la priorite de la DB locale sans manipuler les fichiers, introduire une variable `LOCAL_POSTGRES_URL` prioritaire dans la resolution de connexion hors contexte de production (`isStrictRuntime`).
+  - Si Resend est configure sur un sous-domaine d'envoi (ex: `noreply.grrrignote.fr`), le DKIM se valide sur `resend._domainkey.noreply.grrrignote.fr` (et non sur l'apex).
+  - `vercel env list` confirme la presence/scope des variables, mais pour verifier leur valeur effective en production il faut `vercel env pull` vers un fichier temporaire puis inspecter localement.
 - Reliable commands:
-  - `dig TXT resend._domainkey.<domaine> +short` (ou MX, DMARC pour valider Resend)
+  - `dig TXT resend._domainkey.noreply.grrrignote.fr +short` (validation DKIM Resend du sous-domaine d'envoi)
+  - `dig TXT _dmarc.grrrignote.fr +short`
+  - `vercel env list`
+  - `vercel env pull /tmp/babymiam.env.production --environment production --yes`
   - `npx tsx --env-file=.env.local <script.ts>` (executer un script TS avec env local sans dependre de dotenv)
 - Safety rails / do-not-do:
   - Ne pas renommer ou supprimer manuellement `.env.development.local` a chaque fois pour utiliser la base locale; implementer une priorite programmatique (via `LOCAL_POSTGRES_URL`).
+  - Ne pas conclure a un DNS/certificat casse sur un `dig`/`curl` echoue en sandbox (`Operation not permitted`, `Could not resolve host`) sans re-test en mode escalade.
+  - Ne pas passer une cle API en argument CLI ou en dur; pour `vercel env add`, preferer un pipe depuis variable/fichier temporaire puis supprimer le fichier temporaire.

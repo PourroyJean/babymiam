@@ -26,7 +26,7 @@ Déployer l'application Next.js multi-user sur Vercel avec Neon/Postgres, avec u
 2. Exécuter `npm run db:preflight` sur la base Neon cible.
 3. Exécuter `npm run db:migrate` sur la base Neon cible.
 4. Exécuter `npm run db:seed` sur la base Neon cible.
-5. Créer l'utilisateur initial (`npm run users:create -- --email <email> --password "<password>"`).
+5. Vérifier l'upsert automatique du compte perso (`npm run db:assert-personal-access`).
 6. Déployer le code applicatif.
 7. Désactiver `MAINTENANCE_MODE`.
 
@@ -34,6 +34,7 @@ Déployer l'application Next.js multi-user sur Vercel avec Neon/Postgres, avec u
 - Vérifier `AUTH_SECRET` (ou `AUTH_SECRETS`) dans Vercel.
 - Vérifier `RESEND_API_KEY`, `MAIL_FROM`, `APP_BASE_URL`.
 - Vérifier `POSTGRES_URL` / `DATABASE_URL`.
+- Vérifier `PERSONAL_ACCESS_EMAIL` et `PERSONAL_ACCESS_PASSWORD`.
 - Vérifier `SKIP_DB_SETUP` absent (ou différent de `1`).
 - Exécuter `npm run build` en local.
 - Valider preview (login, write path, partage public, reset password).

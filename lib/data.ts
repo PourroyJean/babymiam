@@ -346,8 +346,7 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
       WHERE f.owner_id IS NULL OR f.owner_id = $1
       ORDER BY
         c.sort_order,
-        CASE WHEN f.owner_id IS NULL THEN 0 ELSE 1 END,
-        f.sort_order,
+        f.normalized_name,
         f.id;
     `,
     [ownerId]

@@ -56,6 +56,7 @@ export default async function AccountPage({
   const verifiedAt = formatDate(overview?.emailVerifiedAt ?? null);
   const createdAt = formatDate(overview?.createdAt ?? null);
   const errorMessage = getErrorMessage(params.error);
+  const isEmailVerified = Boolean(overview?.emailVerifiedAt);
 
   return (
     <main className="account-page">
@@ -100,80 +101,84 @@ export default async function AccountPage({
           ) : null}
         </article>
 
-        <article className="account-card">
-          <h2>Sécurité</h2>
-          <p className="account-muted">Change ton mot de passe (8 caractères minimum).</p>
+        {isEmailVerified ? (
+          <>
+            <article className="account-card">
+              <h2>Sécurité</h2>
+              <p className="account-muted">Change ton mot de passe (8 caractères minimum).</p>
 
-          <form action={changePasswordPageAction} className="account-form">
-            <label>
-              Mot de passe actuel
-              <input
-                name="currentPassword"
-                type="password"
-                placeholder="••••••••"
-                required
-                autoComplete="current-password"
-              />
-            </label>
+              <form action={changePasswordPageAction} className="account-form">
+                <label>
+                  Mot de passe actuel
+                  <input
+                    name="currentPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    autoComplete="current-password"
+                  />
+                </label>
 
-            <label>
-              Nouveau mot de passe
-              <input
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-            </label>
+                <label>
+                  Nouveau mot de passe
+                  <input
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                </label>
 
-            <label>
-              Confirmer le mot de passe
-              <input
-                name="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-            </label>
+                <label>
+                  Confirmer le mot de passe
+                  <input
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                </label>
 
-            <button type="submit" className="account-btn">
-              Mettre à jour
-            </button>
-          </form>
+                <button type="submit" className="account-btn">
+                  Mettre à jour
+                </button>
+              </form>
 
-          {params.pw ? <p className="info-text account-feedback">Mot de passe mis à jour.</p> : null}
-        </article>
+              {params.pw ? <p className="info-text account-feedback">Mot de passe mis à jour.</p> : null}
+            </article>
 
-        <article className="account-card">
-          <h2>Sessions</h2>
-          <p className="account-muted">
-            Si tu as oublié de te déconnecter ailleurs, tu peux invalider toutes les sessions.
-          </p>
+            <article className="account-card">
+              <h2>Sessions</h2>
+              <p className="account-muted">
+                Si tu as oublié de te déconnecter ailleurs, tu peux invalider toutes les sessions.
+              </p>
 
-          <form action={logoutEverywherePageAction} className="account-inline-form">
-            <button type="submit" className="account-btn account-btn-secondary">
-              Déconnecter les autres appareils
-            </button>
-          </form>
+              <form action={logoutEverywherePageAction} className="account-inline-form">
+                <button type="submit" className="account-btn account-btn-secondary">
+                  Déconnecter les autres appareils
+                </button>
+              </form>
 
-          {params.sessions ? (
-            <p className="info-text account-feedback">Toutes les sessions ont été réinitialisées.</p>
-          ) : null}
-        </article>
+              {params.sessions ? (
+                <p className="info-text account-feedback">Toutes les sessions ont été réinitialisées.</p>
+              ) : null}
+            </article>
 
-        <article className="account-card">
-          <h2>Aide</h2>
-          <p className="account-muted">
-            Mot de passe oublié ? <Link href="/forgot-password">Réinitialiser</Link>.
-          </p>
-          <p className="account-muted">
-            Retour au <Link href="/">suivi</Link>.
-          </p>
-        </article>
+            <article className="account-card">
+              <h2>Aide</h2>
+              <p className="account-muted">
+                Mot de passe oublié ? <Link href="/forgot-password">Réinitialiser</Link>.
+              </p>
+              <p className="account-muted">
+                Retour au <Link href="/">suivi</Link>.
+              </p>
+            </article>
+          </>
+        ) : null}
       </section>
 
       {errorMessage ? <p className="error-text account-global-error">{errorMessage}</p> : null}

@@ -4,8 +4,8 @@ import { expect, test } from "../fixtures/test-fixtures";
 
 const DEGRADED_BASE_URL = process.env.E2E_DEGRADED_BASE_URL || "http://127.0.0.1:3101";
 const DEGRADED_PORT = new URL(DEGRADED_BASE_URL).port || "3101";
-const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com";
-const AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
+const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test";
+const E2E_PASSWORD = process.env.E2E_AUTH_PASSWORD || "e2e-test-password";
 const AUTH_SECRET = process.env.E2E_AUTH_SECRET || "e2e-secret-change-me";
 const BAD_POSTGRES_URL = "postgres://postgres:postgres@127.0.0.1:65432/broken_db";
 
@@ -71,7 +71,7 @@ test.describe("db degraded mode", () => {
           POSTGRES_URL: BAD_POSTGRES_URL,
           DATABASE_URL: BAD_POSTGRES_URL,
           E2E_AUTH_EMAIL: AUTH_EMAIL,
-          E2E_AUTH_PASSWORD: AUTH_PASSWORD,
+          E2E_AUTH_PASSWORD: E2E_PASSWORD,
           E2E_DIST_DIR: ".next-e2e-degraded"
         },
         stdio: ["ignore", "pipe", "pipe"]
@@ -105,7 +105,7 @@ test.describe("db degraded mode", () => {
     await page.goto(`${DEGRADED_BASE_URL}/login`);
 
     await page.locator('input[name="email"]').fill(AUTH_EMAIL);
-    await page.locator('input[name="password"]').fill(AUTH_PASSWORD);
+    await page.locator('input[name="password"]').fill(E2E_PASSWORD);
     await page.getByRole("button", { name: "Se connecter" }).click();
     await expect(page).toHaveURL(/\/login\?error=1$/);
   });
