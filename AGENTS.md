@@ -15,7 +15,6 @@
 - Commandes DB:
   - `npm run db:preflight`
   - `npm run db:migrate`
-  - `npm run db:sync-allergens`
   - `npm run db:seed`
   - `npm run db:setup`
 - Deploiement:

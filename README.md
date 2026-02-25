@@ -117,7 +117,6 @@ Pour forcer un host distant: `E2E_ALLOW_REMOTE_DB_RESET=1`.
 4. Exécuter les migrations et le seed:
    ```bash
    npm run db:migrate
-   npm run db:sync-allergens
    npm run db:seed
    ```
 5. Créer un utilisateur initial via script ou console.
