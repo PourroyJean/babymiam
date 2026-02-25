@@ -37,6 +37,11 @@ declare global {
 }
 
 function getConnectionString() {
+  const localPostgresUrl = getEnvValue("LOCAL_POSTGRES_URL");
+  if (localPostgresUrl && !isStrictRuntime()) {
+    return normalizeConnectionString(localPostgresUrl);
+  }
+
   const postgresUrl = getEnvValue("POSTGRES_URL");
   if (postgresUrl) return normalizeConnectionString(postgresUrl);
 

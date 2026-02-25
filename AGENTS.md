@@ -90,3 +90,12 @@
   - Ne pas conclure a un probleme DB distant sur un `db:preflight` en sandbox sans verifier d'abord la connectivite reseau du contexte d'execution.
   - Ne pas laisser des heuristiques implicites de style PDF (ex: detection via `|`) en prod; preferer des marqueurs explicites pour eviter des regressions visuelles silencieuses.
   - Ne pas valider la feature PDF uniquement sur le rendu `200`: verifier aussi les statuts `402` et `307` pour verrouiller auth/authz.
+
+## Session Lessons (2026-02-25)
+- Lessons learned:
+  - Vercel CLI injecte `.env.development.local` qui ecrase `.env.local`. Pour forcer la priorite de la DB locale sans manipuler les fichiers, introduire une variable `LOCAL_POSTGRES_URL` prioritaire dans la resolution de connexion hors contexte de production (`isStrictRuntime`).
+- Reliable commands:
+  - `dig TXT resend._domainkey.<domaine> +short` (ou MX, DMARC pour valider Resend)
+  - `npx tsx --env-file=.env.local <script.ts>` (executer un script TS avec env local sans dependre de dotenv)
+- Safety rails / do-not-do:
+  - Ne pas renommer ou supprimer manuellement `.env.development.local` a chaque fois pour utiliser la base locale; implementer une priorite programmatique (via `LOCAL_POSTGRES_URL`).

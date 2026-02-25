@@ -15,6 +15,11 @@ function resolveDatabaseUrl({
   env = process.env,
   allowLocalFallback = true
 } = {}) {
+  const localPostgresUrl = getEnvValue("LOCAL_POSTGRES_URL", env);
+  if (localPostgresUrl && !isStrictRuntime(env)) {
+    return { databaseUrl: localPostgresUrl, source: "LOCAL_POSTGRES_URL", strictRuntime: false };
+  }
+
   const postgresUrl = getEnvValue("POSTGRES_URL", env);
   if (postgresUrl) {
     return { databaseUrl: postgresUrl, source: "POSTGRES_URL", strictRuntime: isStrictRuntime(env) };
