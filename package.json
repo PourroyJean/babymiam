@@ -10,7 +10,7 @@
     "db:preflight": "node scripts/db/preflight.js",
     "db:sync-allergens": "node scripts/db/sync-allergens.js",
     "db:seed": "node scripts/db/seed.js",
-    "db:setup": "npm run db:migrate && npm run db:sync-allergens && npm run db:seed",
+    "db:setup": "npm run db:migrate && npm run db:sync-allergens && npm run db:seed && node scripts/users/bootstrap-user.js",
     "build": "next build --webpack",
     "start": "next start",
     "users:create": "node scripts/users/create-user.js",

@@ -5,7 +5,7 @@ const parsedBaseUrl = new URL(baseURL);
 const host = parsedBaseUrl.hostname;
 const port = parsedBaseUrl.port || (parsedBaseUrl.protocol === "https:" ? "443" : "80");
 
-const authEmail = process.env.E2E_AUTH_EMAIL || "parent@example.com";
+const authEmail = process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com";
 const authPassword = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 const authSecret = process.env.E2E_AUTH_SECRET || "e2e-secret-change-me";
 const postgresUrl =

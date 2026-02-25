@@ -15,7 +15,7 @@ import {
   upsertFoodProgressByName
 } from "../helpers/db";
 
-const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "parent@example.com";
+const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com";
 const AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 
 type DbFixture = {

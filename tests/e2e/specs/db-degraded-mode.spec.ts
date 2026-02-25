@@ -4,7 +4,7 @@ import { expect, test } from "../fixtures/test-fixtures";
 
 const DEGRADED_BASE_URL = process.env.E2E_DEGRADED_BASE_URL || "http://127.0.0.1:3101";
 const DEGRADED_PORT = new URL(DEGRADED_BASE_URL).port || "3101";
-const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "parent@example.com";
+const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "ljcls@gmail.com";
 const AUTH_PASSWORD = process.env.E2E_AUTH_PASSWORD || "LOULOU38";
 const AUTH_SECRET = process.env.E2E_AUTH_SECRET || "e2e-secret-change-me";
 const BAD_POSTGRES_URL = "postgres://postgres:postgres@127.0.0.1:65432/broken_db";

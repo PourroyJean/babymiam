@@ -3,9 +3,20 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { Pool } = require("pg");
-const { resolveDatabaseUrl } = require("./_db-url");
+const { resolveDatabaseUrl, getEnvValue, isStrictRuntime } = require("./_db-url");
 const ALLERGEN_CATEGORY_NAME = "Allergènes majeurs";
 const EXPECTED_ALLERGEN_COUNT = 14;
+
+function shouldSkipSync() {
+  if (getEnvValue("SKIP_DB_SETUP") !== "1") return false;
+
+  if (isStrictRuntime()) {
+    throw new Error("[db:sync-allergens] Refusing to skip sync in production/CI. Remove SKIP_DB_SETUP=1.");
+  }
+
+  console.log("[db:sync-allergens] Skipped (SKIP_DB_SETUP=1).");
+  return true;
+}
 
 async function readAllergenSource() {
   const sourcePath = path.join(process.cwd(), "aliments_categories.json");
@@ -46,8 +57,7 @@ async function readAllergenSource() {
 }
 
 async function runSync() {
-  if (process.env.SKIP_DB_SETUP === "1") {
-    console.log("[db:sync-allergens] Skipped (SKIP_DB_SETUP=1).");
+  if (shouldSkipSync()) {
     return;
   }
 
