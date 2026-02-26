@@ -106,3 +106,21 @@
   - Ne pas renommer ou supprimer manuellement `.env.development.local` a chaque fois pour utiliser la base locale; implementer une priorite programmatique (via `LOCAL_POSTGRES_URL`).
   - Ne pas conclure a un DNS/certificat casse sur un `dig`/`curl` echoue en sandbox (`Operation not permitted`, `Could not resolve host`) sans re-test en mode escalade.
   - Ne pas passer une cle API en argument CLI ou en dur; pour `vercel env add`, preferer un pipe depuis variable/fichier temporaire puis supprimer le fichier temporaire.
+
+## Session Lessons (2026-02-26)
+- Lessons learned:
+  - Dans `tests/e2e/specs/custom-foods.spec.ts`, la fermeture de la modale d'ajout ne suffit pas; pour eliminer la flake post-ajout, attendre explicitement la visibilite de `Ouvrir le resume de <aliment>` dans la categorie cible.
+  - Pour `appendQuickEntry`, cacher l'introspection `information_schema.columns` en process-global (cache + promesse in-flight + TTL) evite une requete schema a chaque action rapide.
+  - Avec ce cache schema, gerer `code 42703` (`undefined_column`) en invalidant le cache puis en retentant une seule fois garde la compatibilite en cas de drift.
+  - Unifier l'entitlement premium dans `lib/premium-entitlement-core.{js,d.ts}` puis le reutiliser depuis `lib/premium-features.ts` et `scripts/users/assert-personal-access.js` evite les divergences app/script.
+  - La suppression de `scripts/users/bootstrap-user.js` est sure apres cleanup des references `DB_SETUP_BOOTSTRAP*` et des aliases env legacy (`AUTH_*`, `LEGACY_ADMIN_*`).
+- Reliable commands:
+  - `npm run lint -- --max-warnings=0`
+  - `npm exec tsc -- --noEmit`
+  - `npm run test:users`
+  - `npm run test:e2e -- tests/e2e/specs/custom-foods.spec.ts --repeat-each=3`
+  - `npm run test:e2e -- tests/e2e/specs/pediatric-report.spec.ts`
+- Safety rails / do-not-do:
+  - Ne pas considerer la fermeture de modale comme signal de stabilite E2E apres un ajout; attendre un selecteur metier visible dans la grille.
+  - Ne pas dupliquer la logique premium (allowlists, gate mode, fallback perso) entre runtime et scripts; passer par le core partage unique.
+  - Ne pas reintroduire `DB_SETUP_BOOTSTRAP*`, `AUTH_*` ou `LEGACY_ADMIN_*`; verifier par grep avant merge.

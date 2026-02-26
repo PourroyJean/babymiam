@@ -45,10 +45,16 @@ async function addFood(page: Page, categoryName: string, foodName: string) {
   await panel.nameInput.fill(foodName);
   await panel.addButton.click();
   await expect(page.getByRole("dialog", { name: "Ajouter un aliment" })).toHaveCount(0);
+  await waitForFoodInCategory(page, categoryName, foodName);
 }
 
 function getFoodSummaryTrigger(page: Page, foodName: string) {
   return page.getByRole("button", { name: `Ouvrir le résumé de ${foodName}` });
+}
+
+async function waitForFoodInCategory(page: Page, categoryName: string, foodName: string) {
+  await ensureCategoryExpanded(page, categoryName);
+  await expect(getFoodSummaryTrigger(page, foodName)).toBeVisible({ timeout: 15_000 });
 }
 
 function getFoodSummaryDialog(page: Page, foodName: string) {

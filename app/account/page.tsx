@@ -87,9 +87,7 @@ export default async function AccountPage({
           ) : null}
 
           {params.verify_sent ? (
-            <p className="info-text account-feedback">
-              Si Resend est configuré, un email de vérification vient d&apos;être envoyé.
-            </p>
+            <p className="info-text account-feedback">Email de vérification envoyé.</p>
           ) : null}
           {params.verify_required ? (
             <p className="info-text account-feedback">

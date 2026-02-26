@@ -356,7 +356,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
 
         showAccountFeedback(
           "success",
-          "Si Resend est configuré, un email de vérification vient d'être envoyé."
+          "Email de vérification envoyé."
         );
       } catch {
         showAccountFeedback("error", getAccountErrorMessage("unknown"));

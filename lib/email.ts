@@ -1,6 +1,10 @@
 import { Resend } from "resend";
 
 let resendClient: Resend | null = null;
+type EmailConfigError = "missing_resend_api_key" | "missing_mail_from";
+type EmailTransport =
+  | { ok: true; client: Resend; from: string }
+  | { ok: false; error: EmailConfigError };
 
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY?.trim();
@@ -14,19 +18,42 @@ function getResendClient() {
 }
 
 function getMailFrom() {
-  return process.env.MAIL_FROM?.trim() || "Grrrignote <hello@noreply.grrrignote.fr>";
+  const mailFrom = process.env.MAIL_FROM?.trim();
+  return mailFrom || null;
 }
 
-export async function sendPasswordResetEmail(params: { to: string; resetUrl: string }) {
+function getEmailClientAndSender(): EmailTransport {
   const client = getResendClient();
-
   if (!client) {
-    console.warn("[email] RESEND_API_KEY is missing; password reset email skipped.");
+    return { ok: false, error: "missing_resend_api_key" };
+  }
+
+  const from = getMailFrom();
+  if (!from) {
+    return { ok: false, error: "missing_mail_from" };
+  }
+
+  return { ok: true, client, from };
+}
+
+function warnEmailConfigError(error: EmailConfigError, type: "password reset" | "email verification") {
+  if (error === "missing_resend_api_key") {
+    console.warn(`[email] RESEND_API_KEY is missing; ${type} email skipped.`);
     return;
   }
 
-  await client.emails.send({
-    from: getMailFrom(),
+  console.warn(`[email] MAIL_FROM is missing; ${type} email skipped.`);
+}
+
+export async function sendPasswordResetEmail(params: { to: string; resetUrl: string }) {
+  const emailClient = getEmailClientAndSender();
+  if (!emailClient.ok) {
+    warnEmailConfigError(emailClient.error, "password reset");
+    return;
+  }
+
+  await emailClient.client.emails.send({
+    from: emailClient.from,
     to: params.to,
     subject: "Réinitialisation de votre mot de passe Grrrignote",
     text: [
@@ -40,15 +67,14 @@ export async function sendPasswordResetEmail(params: { to: string; resetUrl: str
 }
 
 export async function sendEmailVerificationEmail(params: { to: string; verifyUrl: string }) {
-  const client = getResendClient();
-
-  if (!client) {
-    console.warn("[email] RESEND_API_KEY is missing; email verification skipped.");
+  const emailClient = getEmailClientAndSender();
+  if (!emailClient.ok) {
+    warnEmailConfigError(emailClient.error, "email verification");
     return;
   }
 
-  await client.emails.send({
-    from: getMailFrom(),
+  await emailClient.client.emails.send({
+    from: emailClient.from,
     to: params.to,
     subject: "Confirme ton email sur Grrrignote",
     text: [
