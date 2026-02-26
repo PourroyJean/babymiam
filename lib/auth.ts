@@ -3,6 +3,10 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getPool, query } from "@/lib/db";
+import {
+  isSharedTestLoginTokenExpired as isSharedTestLoginTokenExpiredValue,
+  verifySharedTestLoginToken as verifySharedTestLoginTokenValue
+} from "@/lib/shared-test-login-token";
 
 export const COOKIE_NAME = "bb_session";
 
@@ -26,6 +30,18 @@ type SessionPayload = {
   exp: number;
 };
 
+type SessionCookieDescriptor = {
+  name: string;
+  value: string;
+  options: {
+    httpOnly: true;
+    secure: boolean;
+    sameSite: "lax";
+    path: "/";
+    expires: Date;
+  };
+};
+
 export type AuthenticatedUser = {
   id: number;
   email: string;
@@ -39,6 +55,10 @@ export type AccountOverview = {
   email: string;
   emailVerifiedAt: string | null;
   createdAt: string;
+};
+
+type SharedTestAccessUser = AuthenticatedUser & {
+  sharedTestLinkIssuedAt: string | null;
 };
 
 function getBooleanEnv(name: string) {
@@ -188,6 +208,13 @@ function getNowEpochSeconds() {
   return Math.floor(Date.now() / 1000);
 }
 
+function toEpochSeconds(timestamp: string | null) {
+  if (!timestamp) return null;
+  const parsed = Date.parse(timestamp);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.floor(parsed / 1000);
+}
+
 function buildNewPayload(userId: number, sessionVersion: number): SessionPayload {
   const now = getNowEpochSeconds();
   return {
@@ -268,6 +295,13 @@ export function validateEmail(value: string) {
     return "Format d'email invalide.";
   }
   return null;
+}
+
+function getSharedTestAccessEmail() {
+  const email = normalizeEmail(String(process.env.PERSONAL_ACCESS_EMAIL || ""));
+  if (!email) return null;
+  if (validateEmail(email)) return null;
+  return email;
 }
 
 export function validatePasswordPolicy(value: string) {
@@ -397,11 +431,96 @@ export async function getUserPasswordHashById(userId: number) {
 }
 
 export async function createSession(userId: number, sessionVersion: number) {
-  await setSessionCookie(buildNewPayload(userId, sessionVersion));
+  const sessionCookie = buildSessionCookie(userId, sessionVersion);
+  (await cookies()).set(sessionCookie.name, sessionCookie.value, sessionCookie.options);
+}
+
+export function buildSessionCookie(userId: number, sessionVersion: number): SessionCookieDescriptor {
+  const payload = buildNewPayload(userId, sessionVersion);
+  return {
+    name: COOKIE_NAME,
+    value: buildSessionToken(payload),
+    options: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      expires: new Date(payload.exp * 1000)
+    }
+  };
 }
 
 export async function clearSession() {
   (await cookies()).delete(COOKIE_NAME);
+}
+
+export async function getSharedTestAccessUser(): Promise<SharedTestAccessUser | null> {
+  const email = getSharedTestAccessEmail();
+  if (!email) return null;
+
+  const result = await query<{
+    id: number;
+    email: string;
+    email_verified_at: string | null;
+    session_version: number;
+    status: string;
+    shared_test_link_issued_at: string | null;
+  }>(
+    `
+      SELECT
+        id,
+        email::text AS email,
+        email_verified_at::text AS email_verified_at,
+        session_version,
+        status,
+        shared_test_link_issued_at::text AS shared_test_link_issued_at
+      FROM users
+      WHERE email = $1
+      LIMIT 1;
+    `,
+    [email]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+  if (row.status !== "active") return null;
+
+  return {
+    id: Number(row.id),
+    email: row.email,
+    emailVerifiedAt: row.email_verified_at,
+    sessionVersion: Number(row.session_version),
+    status: row.status,
+    sharedTestLinkIssuedAt: row.shared_test_link_issued_at
+  };
+}
+
+export async function verifySharedTestAccessToken(token: string) {
+  const verifiedToken = verifySharedTestLoginTokenValue({
+    token,
+    secrets: getSessionSecrets()
+  });
+  if (!verifiedToken) return null;
+
+  const user = await getSharedTestAccessUser();
+  if (!user) return null;
+
+  if (verifiedToken.userId !== user.id) return null;
+  if (verifiedToken.sessionVersion !== user.sessionVersion) return null;
+
+  const issuedAtEpochSeconds = toEpochSeconds(user.sharedTestLinkIssuedAt);
+  if (!issuedAtEpochSeconds) return null;
+
+  if (
+    isSharedTestLoginTokenExpiredValue({
+      issuedAtEpochSeconds,
+      nowEpochSeconds: getNowEpochSeconds()
+    })
+  ) {
+    return null;
+  }
+
+  return user;
 }
 
 export async function getOptionalAuthenticatedUser() {

@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { createSharedTestLoginToken } from "../../../lib/shared-test-login-token";
 import { expect, test } from "../fixtures/test-fixtures";
 
 const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test";
@@ -7,12 +8,52 @@ const BASE_URL = process.env.E2E_BASE_URL || "http://127.0.0.1:3005";
 const FORGOT_PASSWORD_CONFIRMATION =
   "Si un compte existe pour cet email, un lien de réinitialisation a été envoyé.";
 
+function getPrimaryE2EAuthSecret() {
+  const secrets = String(process.env.AUTH_SECRETS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (secrets.length > 0) return secrets[0];
+  return process.env.E2E_AUTH_SECRET || "e2e-secret-change-me";
+}
+
 async function submitForgotPassword(page: Page, email: string) {
   await page.goto("/forgot-password");
   await page.locator('input[name="email"]').fill(email);
   await page.getByRole("button", { name: "Envoyer le lien" }).click();
   await expect(page).toHaveURL(/\/forgot-password\?sent=1$/);
   await expect(page.getByText(FORGOT_PASSWORD_CONFIRMATION)).toBeVisible();
+}
+
+async function openMagicLogin(page: Page, token: string) {
+  await page.goto(`/magic-login?t=${encodeURIComponent(token)}`, {
+    waitUntil: "domcontentloaded"
+  });
+}
+
+async function getSharedTestTokenForDefaultUser(db: {
+  queryOne: (text: string, values?: unknown[]) => Promise<unknown>;
+}) {
+  const user = (await db.queryOne(
+    `
+      SELECT id, session_version
+      FROM users
+      WHERE email = $1
+      LIMIT 1;
+    `,
+    [AUTH_EMAIL.toLowerCase()]
+  )) as { id?: number; session_version?: number } | null;
+
+  const userId = Number(user?.id || 0);
+  const sessionVersion = Number(user?.session_version || 0);
+  expect(userId).toBeGreaterThan(0);
+  expect(sessionVersion).toBeGreaterThan(0);
+
+  return createSharedTestLoginToken({
+    userId,
+    sessionVersion,
+    secret: getPrimaryE2EAuthSecret()
+  });
 }
 
 test.describe("auth and guards", () => {
@@ -42,6 +83,55 @@ test.describe("auth and guards", () => {
 
     await expect(page).toHaveURL(/\/login\?error=1$/);
     await expect(page.getByText("Email ou mot de passe incorrect.")).toBeVisible();
+  });
+
+  test("rejects invalid shared test magic link token", async ({ page }) => {
+    await openMagicLogin(page, "invalid");
+    await expect(page).toHaveURL(/\/login\?error=1$/);
+  });
+
+  test("accepts valid shared test magic link token", async ({ page, db }) => {
+    const token = await getSharedTestTokenForDefaultUser(db);
+    await openMagicLogin(page, token);
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { name: /Les premiers aliments/i })).toBeVisible();
+  });
+
+  test("rejects expired shared test magic link token", async ({ page, db }) => {
+    const token = await getSharedTestTokenForDefaultUser(db);
+
+    await db.queryOne(
+      `
+        UPDATE users
+        SET shared_test_link_issued_at = NOW() - INTERVAL '32 days'
+        WHERE email = $1
+        RETURNING shared_test_link_issued_at;
+      `,
+      [AUTH_EMAIL.toLowerCase()]
+    );
+
+    await openMagicLogin(page, token);
+    await expect(page).toHaveURL(/\/login\?error=1$/);
+  });
+
+  test("invalidates previous shared test magic link token after session rotation", async ({ page, db }) => {
+    const token = await getSharedTestTokenForDefaultUser(db);
+
+    await db.queryOne(
+      `
+        UPDATE users
+        SET
+          session_version = session_version + 1,
+          updated_at = NOW()
+        WHERE email = $1
+        RETURNING session_version;
+      `,
+      [AUTH_EMAIL.toLowerCase()]
+    );
+
+    await openMagicLogin(page, token);
+    await expect(page).toHaveURL(/\/login\?error=1$/);
   });
 
   test("forgot-password throttles known emails without changing UX", async ({ page, db }) => {

@@ -59,6 +59,23 @@ Authentification session:
 - Le fallback dev est autorisé uniquement en local explicite avec `ALLOW_INSECURE_DEV_AUTH=1`.
 - En `NODE_ENV=production` ou `CI=true`, aucun fallback secret n'est autorisé.
 
+## Magic link test partagé
+- Le lien cible le compte `PERSONAL_ACCESS_EMAIL` (compte normal, état partagé entre testeurs).
+- Générer un lien one-click:
+  ```bash
+  npm run users:test-link:generate
+  ```
+- Révoquer le lien:
+  ```bash
+  npm run users:test-link:revoke
+  ```
+- `users:test-link:generate` affiche toujours le lien courant.
+- Si le lien courant a moins de 31 jours, le même token est réutilisé (pas de déconnexion).
+- Si le lien courant est expiré (>31 jours), un nouveau token est généré (rotation `session_version`) et les sessions actives sont déconnectées.
+- `users:test-link:revoke` invalide les liens existants et déconnecte les sessions actives.
+- Le lien est valide 31 jours à partir de sa génération.
+- Traiter ce lien comme un secret (ne pas le publier dans des canaux ouverts).
+
 ## Workflow Base de Données (Migrations)
 
 Nous utilisons `node-pg-migrate` pour versionner le schéma.
@@ -141,5 +158,9 @@ Pour forcer un host distant: `E2E_ALLOW_REMOTE_DB_RESET=1`.
    ```
 6. Déployer le code applicatif.
 - Le déploiement prod standard se lance avec `npm run deploy:prod` (`vercel deploy . --prod -y`).
+- En build Vercel `preview` et `production`, le hook `postbuild` exécute automatiquement `users:test-link:generate`.
+- Variables requises pour cette génération auto: `PERSONAL_ACCESS_EMAIL`, `AUTH_SECRET` (ou `AUTH_SECRETS`), `POSTGRES_URL` (ou `DATABASE_URL`).
+- `APP_BASE_URL` reste recommandé; en Vercel il est inféré depuis `VERCEL_URL` s'il est absent.
+- Le magic link courant (réutilisé ou régénéré si expiré) est affiché dans les logs de build Vercel à chaque déploiement.
 - Un `.vercelignore` exclut les artefacts locaux (`.next*`, `playwright-report`, `test-results`, `coverage`, `tmp`, `.vercel`, `node_modules`).
 - Gain mesuré sur le dernier déploiement: upload Vercel réduit de `120MB` à `328KB`.

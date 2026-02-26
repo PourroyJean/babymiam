@@ -59,6 +59,7 @@ export default defineConfig({
       DATABASE_URL: postgresUrl,
       E2E_AUTH_EMAIL: authEmail,
       E2E_AUTH_PASSWORD: authPassword,
+      PERSONAL_ACCESS_EMAIL: authEmail,
       APP_BASE_URL: baseURL,
       PASSWORD_RESET_RATE_LIMIT_WINDOW_MINUTES: "60",
       PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS: "2",

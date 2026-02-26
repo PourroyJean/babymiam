@@ -64,11 +64,18 @@ function copyWithExecCommand(value: string) {
 }
 
 function createShareId() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto !== "undefined" && typeof webCrypto.randomUUID === "function") {
+    return webCrypto.randomUUID();
   }
 
-  return `sid_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  if (typeof webCrypto !== "undefined" && typeof webCrypto.getRandomValues === "function") {
+    const randomBytes = new Uint8Array(16);
+    webCrypto.getRandomValues(randomBytes);
+    return Array.from(randomBytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  }
+
+  throw new Error("Secure random generator unavailable.");
 }
 
 function buildSnapshotUrl(origin: string, shareId: string) {
@@ -434,7 +441,15 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     setIsSharePending(true);
 
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const shareId = createShareId();
+    let shareId = "";
+    try {
+      shareId = createShareId();
+    } catch {
+      setIsSharePending(false);
+      showShareFeedback("error", "Impossible de créer un lien de partage sécurisé.");
+      return;
+    }
+
     const snapshotResult = await createShareSnapshot(shareId);
     if (!snapshotResult.ok) {
       setIsSharePending(false);
@@ -505,7 +520,15 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     setActiveMilestone(milestone);
 
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const shareId = createShareId();
+    let shareId = "";
+    try {
+      shareId = createShareId();
+    } catch {
+      setActiveMilestone(null);
+      showShareFeedback("error", "Impossible de créer un lien de partage sécurisé.");
+      return;
+    }
+
     const snapshotResult = await createShareSnapshot(shareId, milestone);
     if (!snapshotResult.ok) {
       setActiveMilestone(null);

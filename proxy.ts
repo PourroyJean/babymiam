@@ -5,6 +5,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/signup",
   "/share",
+  "/magic-login",
   "/forgot-password",
   "/reset-password",
   "/verify-email",

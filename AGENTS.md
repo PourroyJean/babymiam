@@ -118,3 +118,18 @@
   - Ne pas supprimer l'ancienne base tant que les checks post-cutover (migrate/seed/assert + logs + smoke) ne sont pas verts.
   - Ne pas valider la bascule uniquement avec `POSTGRES_URL`/`DATABASE_URL`; verifier toutes les variables DB et auth Neon qui peuvent encore pointer vers l'ancienne base.
   - En sandbox, si Vercel/Neon echoue en DNS reseau (`ENOTFOUND`), relancer les commandes en mode escalade au lieu de conclure a une panne plateforme.
+
+## Session Lessons (2026-02-26)
+- Lessons learned:
+  - Activer la generation du test-link en `postbuild` Vercel pour `preview` + `production` marche, mais un preview peut casser si les variables requises ne sont pas presentes dans ce scope.
+  - Pour les previews Vercel, fallback `APP_BASE_URL <- https://$VERCEL_URL` rend le script de generation robuste sans config manuelle supplementaire.
+  - La contrainte "TTL 31 jours + reaffichage a chaque deploy" se gere sans migration en reutilisant le token si valide et en ne tournant `session_version` qu'a expiration.
+- Reliable commands:
+  - `vercel env list`
+  - `printf '%s' \"$PERSONAL_ACCESS_EMAIL\" | vercel env add PERSONAL_ACCESS_EMAIL preview`
+  - `vercel deploy . -y`
+  - `npm run test:e2e -- tests/e2e/specs/auth-and-guards.spec.ts`
+- Safety rails / do-not-do:
+  - Ne pas activer la generation auto en preview/prod sans verifier les envs des deux scopes (`PERSONAL_ACCESS_EMAIL`, `AUTH_SECRET`/`AUTH_SECRETS`, `POSTGRES_URL`/`DATABASE_URL`).
+  - Ne pas supposer qu'un echec `vercel env add` avec `ENOTFOUND` vient de Vercel; en sandbox, retenter en mode escalade.
+  - Le magic link apparait dans les logs de build Vercel; eviter de partager ces logs dans des canaux publics.
