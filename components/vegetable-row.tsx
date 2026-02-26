@@ -415,7 +415,7 @@ export const VegetableRow = memo(function VegetableRow({
 
             <button
               type="button"
-              className={META_BUTTON_BASE_CLASS}
+              className={`${META_BUTTON_BASE_CLASS} food-row-summary-btn`}
               aria-label={`Voir le résumé de ${name}`}
               title="Résumé"
               onClick={(event) => onOpenFoodSummary?.(foodId, event.currentTarget)}

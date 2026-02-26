@@ -2887,6 +2887,10 @@ a {
     --collapsed-row-height: 87px;
   }
 
+  .food-row-summary-btn {
+    display: none;
+  }
+
   .categories-section,
   .category-card,
   .category-list,
