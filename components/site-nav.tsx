@@ -11,6 +11,8 @@ type SiteNavProps = {
   contextTitle?: string | null;
 };
 
+const NAV_LOGO_RENDER_SIZE = 190;
+
 function getLinkClassName(isActive: boolean) {
   return isActive ? "site-nav-link is-active" : "site-nav-link";
 }
@@ -30,8 +32,8 @@ export function SiteNav({
               <Image
                 src="/images/brand/grrrignote-logo.webp"
                 alt=""
-                width={46}
-                height={46}
+                width={NAV_LOGO_RENDER_SIZE}
+                height={NAV_LOGO_RENDER_SIZE}
                 className="site-logo-image"
               />
             </span>

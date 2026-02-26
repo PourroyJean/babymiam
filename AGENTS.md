@@ -111,16 +111,10 @@
 - Lessons learned:
   - Dans `tests/e2e/specs/custom-foods.spec.ts`, la fermeture de la modale d'ajout ne suffit pas; pour eliminer la flake post-ajout, attendre explicitement la visibilite de `Ouvrir le resume de <aliment>` dans la categorie cible.
   - Pour `appendQuickEntry`, cacher l'introspection `information_schema.columns` en process-global (cache + promesse in-flight + TTL) evite une requete schema a chaque action rapide.
-  - Avec ce cache schema, gerer `code 42703` (`undefined_column`) en invalidant le cache puis en retentant une seule fois garde la compatibilite en cas de drift.
-  - Unifier l'entitlement premium dans `lib/premium-entitlement-core.{js,d.ts}` puis le reutiliser depuis `lib/premium-features.ts` et `scripts/users/assert-personal-access.js` evite les divergences app/script.
-  - La suppression de `scripts/users/bootstrap-user.js` est sure apres cleanup des references `DB_SETUP_BOOTSTRAP*` et des aliases env legacy (`AUTH_*`, `LEGACY_ADMIN_*`).
-- Reliable commands:
-  - `npm run lint -- --max-warnings=0`
-  - `npm exec tsc -- --noEmit`
-  - `npm run test:users`
-  - `npm run test:e2e -- tests/e2e/specs/custom-foods.spec.ts --repeat-each=3`
-  - `npm run test:e2e -- tests/e2e/specs/pediatric-report.spec.ts`
+  - Pour un cutover Neon "nouvelle DB + bascule", il faut mettre a jour aussi les variables DB secondaires (`POSTGRES_PRISMA_URL`, `POSTGRES_URL_NO_SSL`, `PGDATABASE`, `POSTGRES_DATABASE`, `NEON_AUTH_BASE_URL`, `VITE_NEON_AUTH_URL`) avant de supprimer l'ancienne base.
+  - En runbook prod, ne pas utiliser `db:setup`; executer explicitement `db:preflight`, `db:migrate`, `db:seed`, puis `db:assert-personal-access`.
+  - `vercel logs --since` sur une fenetre large peut melanger des erreurs pre-cutover; valider la regression avec une fenetre courte post-deploiement.
 - Safety rails / do-not-do:
-  - Ne pas considerer la fermeture de modale comme signal de stabilite E2E apres un ajout; attendre un selecteur metier visible dans la grille.
-  - Ne pas dupliquer la logique premium (allowlists, gate mode, fallback perso) entre runtime et scripts; passer par le core partage unique.
-  - Ne pas reintroduire `DB_SETUP_BOOTSTRAP*`, `AUTH_*` ou `LEGACY_ADMIN_*`; verifier par grep avant merge.
+  - Ne pas supprimer l'ancienne base tant que les checks post-cutover (migrate/seed/assert + logs + smoke) ne sont pas verts.
+  - Ne pas valider la bascule uniquement avec `POSTGRES_URL`/`DATABASE_URL`; verifier toutes les variables DB et auth Neon qui peuvent encore pointer vers l'ancienne base.
+  - En sandbox, si Vercel/Neon echoue en DNS reseau (`ENOTFOUND`), relancer les commandes en mode escalade au lieu de conclure a une panne plateforme.
