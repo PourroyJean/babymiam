@@ -6,6 +6,7 @@ import { addQuickEntryAction } from "@/app/actions";
 import { TastingEntryFormFields } from "@/components/tasting-entry-form-fields";
 import { getClientTimezoneOffsetMinutes, getCurrentIsoDate } from "@/lib/date-utils";
 import {
+  DEFAULT_TEXTURE_LEVEL,
   DEFAULT_REACTION_TYPE,
   type ReactionType,
   type TextureLevel
@@ -35,7 +36,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
   const [query, setQuery] = useState("");
   const [selectedFoodId, setSelectedFoodId] = useState<number | null>(null);
   const [tastedOn, setTastedOn] = useState(getCurrentIsoDate());
-  const [textureLevel, setTextureLevel] = useState<TextureLevel | null>(null);
+  const [textureLevel, setTextureLevel] = useState<TextureLevel>(DEFAULT_TEXTURE_LEVEL);
   const [reactionType, setReactionType] = useState<ReactionType>(DEFAULT_REACTION_TYPE);
   const [showReactionLegend, setShowReactionLegend] = useState(false);
   const [tigerChoice, setTigerChoice] = useState<TigerChoice>(null);
@@ -70,7 +71,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     setQuery("");
     setSelectedFoodId(null);
     setTastedOn(getCurrentIsoDate());
-    setTextureLevel(null);
+    setTextureLevel(DEFAULT_TEXTURE_LEVEL);
     setReactionType(DEFAULT_REACTION_TYPE);
     setShowReactionLegend(false);
     setTigerChoice(null);
@@ -121,7 +122,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     setQuery("");
     setSelectedFoodId(null);
     setTastedOn(getCurrentIsoDate());
-    setTextureLevel(null);
+    setTextureLevel(DEFAULT_TEXTURE_LEVEL);
     setReactionType(DEFAULT_REACTION_TYPE);
     setShowReactionLegend(false);
     setTigerChoice(null);
@@ -139,9 +140,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     formData.set("liked", tigerChoice === "ok" ? "true" : "false");
     formData.set("note", note);
     formData.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
-    if (textureLevel !== null) {
-      formData.set("textureLevel", String(textureLevel));
-    }
+    formData.set("textureLevel", String(textureLevel));
     formData.set("reactionType", String(reactionType));
 
     startTransition(async () => {

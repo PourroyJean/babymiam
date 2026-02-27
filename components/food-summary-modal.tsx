@@ -9,6 +9,7 @@ import { deleteFoodAction, saveFoodSummaryAction } from "@/app/actions";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { FoodTastingEntry } from "@/lib/types";
 import {
+  DEFAULT_TEXTURE_LEVEL,
   DEFAULT_REACTION_TYPE,
   REACTION_OPTIONS,
   TEXTURE_OPTIONS,
@@ -66,7 +67,7 @@ export function FoodSummaryModal({
   const [draftTastingLiked, setDraftTastingLiked] = useState<Record<number, boolean>>({});
   const [draftTastingNotes, setDraftTastingNotes] = useState<Record<number, string>>({});
   const [draftTastingDates, setDraftTastingDates] = useState<Record<number, string>>({});
-  const [draftTastingTextures, setDraftTastingTextures] = useState<Record<number, TextureLevel | null>>({});
+  const [draftTastingTextures, setDraftTastingTextures] = useState<Record<number, TextureLevel>>({});
   const [draftTastingReactions, setDraftTastingReactions] = useState<Record<number, ReactionType>>({});
   const [saveError, setSaveError] = useState("");
   const modalRef = useRef<HTMLElement>(null);
@@ -82,7 +83,9 @@ export function FoodSummaryModal({
     setDraftTastingLiked(Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.liked])));
     setDraftTastingDates(Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.tastedOn])));
     setDraftTastingNotes(Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.note])));
-    setDraftTastingTextures(Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.textureLevel ?? null])));
+    setDraftTastingTextures(
+      Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.textureLevel ?? DEFAULT_TEXTURE_LEVEL]))
+    );
     setDraftTastingReactions(
       Object.fromEntries(tastings.map((tasting) => [tasting.slot, tasting.reactionType ?? DEFAULT_REACTION_TYPE]))
     );
@@ -165,18 +168,12 @@ export function FoodSummaryModal({
           "tastings",
           JSON.stringify(
             tastings.map((tasting) => {
-              const hasDraftTextureLevel = Object.prototype.hasOwnProperty.call(
-                draftTastingTextures,
-                tasting.slot
-              );
               return {
                 slot: tasting.slot,
                 liked: draftTastingLiked[tasting.slot] ?? tasting.liked,
                 tastedOn: (draftTastingDates[tasting.slot] || tasting.tastedOn).trim(),
                 note: String(draftTastingNotes[tasting.slot] ?? tasting.note).trim(),
-                textureLevel: hasDraftTextureLevel
-                  ? draftTastingTextures[tasting.slot]
-                  : (tasting.textureLevel ?? null),
+                textureLevel: draftTastingTextures[tasting.slot] ?? tasting.textureLevel ?? DEFAULT_TEXTURE_LEVEL,
                 reactionType: draftTastingReactions[tasting.slot] ?? tasting.reactionType ?? DEFAULT_REACTION_TYPE
               };
             })
@@ -283,10 +280,8 @@ export function FoodSummaryModal({
             <ol className="m-0 grid list-none gap-2 p-0">
               {tastings.slice(0, 3).map((tasting) => {
                 const liked = draftTastingLiked[tasting.slot] ?? tasting.liked;
-                const hasDraftTextureLevel = Object.prototype.hasOwnProperty.call(draftTastingTextures, tasting.slot);
-                const textureLevel = hasDraftTextureLevel
-                  ? draftTastingTextures[tasting.slot]
-                  : (tasting.textureLevel ?? null);
+                const textureLevel =
+                  draftTastingTextures[tasting.slot] ?? tasting.textureLevel ?? DEFAULT_TEXTURE_LEVEL;
                 const reactionType =
                   draftTastingReactions[tasting.slot] ?? tasting.reactionType ?? DEFAULT_REACTION_TYPE;
 
@@ -338,19 +333,18 @@ export function FoodSummaryModal({
 
                     <div className="grid grid-cols-2 gap-2">
                       <select
-                        value={textureLevel === null ? "" : String(textureLevel)}
+                        value={String(textureLevel)}
                         onChange={(event) => {
-                          const raw = event.currentTarget.value.trim();
+                          const nextValue = Number(event.currentTarget.value) as TextureLevel;
                           setDraftTastingTextures((current) => ({
                             ...current,
-                            [tasting.slot]: raw ? (Number(raw) as TextureLevel) : null
+                            [tasting.slot]: nextValue
                           }));
                         }}
                         disabled={isPending}
                         className="h-8 rounded-lg border border-[#dfd1ba] bg-[#fffbf4] px-2 text-[0.8rem] font-semibold text-[#6c5b48] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2"
                         aria-label={`Texture du ${tasting.slot}/3`}
                       >
-                        <option value="">Texture non renseignée</option>
                         {TEXTURE_OPTIONS.map((option) => (
                           <option key={option.level} value={option.level}>
                             {option.level} - {option.shortName}

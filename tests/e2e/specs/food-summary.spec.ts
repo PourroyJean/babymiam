@@ -135,6 +135,63 @@ test.describe("food summary modal", () => {
       .toBe(1);
   });
 
+  test("rejects invalid texture payload in summary save", async ({ appPage, db }) => {
+    const foodName = "Brocoli";
+    await db.setFoodTastingsByName(
+      foodName,
+      [{ slot: 1, liked: true, tastedOn: "2026-02-07", textureLevel: 1, reactionType: 0 }],
+      { note: "note intacte" }
+    );
+
+    await appPage.reload();
+    await ensureCategoryExpanded(appPage, "Légumes");
+    await getFoodSummaryTrigger(appPage, foodName).click();
+
+    const dialog = getFoodSummaryDialog(appPage, foodName);
+    await expect(dialog).toBeVisible();
+
+    await appPage.evaluate(() => {
+      const patchedWindow = window as typeof window & {
+        __summarySetOriginal?: (...args: any[]) => void;
+      };
+      if (!patchedWindow.__summarySetOriginal) {
+        patchedWindow.__summarySetOriginal = FormData.prototype.set as (...args: any[]) => void;
+      }
+
+      FormData.prototype.set = function patchedSet(...args: any[]) {
+        const [name, value] = args;
+        if (name === "tastings" && typeof value === "string") {
+          try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed) && parsed.length > 0 && parsed[0] && typeof parsed[0] === "object") {
+              (parsed[0] as Record<string, unknown>).textureLevel = true;
+              return patchedWindow.__summarySetOriginal!.call(this, name, JSON.stringify(parsed));
+            }
+          } catch {}
+        }
+        return patchedWindow.__summarySetOriginal!.apply(this, args);
+      };
+    });
+
+    try {
+      await dialog.getByRole("button", { name: "Enregistrer" }).click();
+      await expect(dialog.getByText("Texture invalide.")).toBeVisible();
+    } finally {
+      await appPage.evaluate(() => {
+        const patchedWindow = window as typeof window & {
+          __summarySetOriginal?: (...args: any[]) => void;
+        };
+        if (patchedWindow.__summarySetOriginal) {
+          FormData.prototype.set = patchedWindow.__summarySetOriginal as typeof FormData.prototype.set;
+        }
+      });
+    }
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.textureLevel ?? null)
+      .toBe(1);
+  });
+
   test("keeps summary save atomic when one tasting update fails", async ({ appPage, db }) => {
     const foodName = "Brocoli";
     const initialGlobalNote = "note initiale";
@@ -291,9 +348,8 @@ test.describe("food summary modal", () => {
     const nonFinalNote = nonFinalEntry.locator(".food-timeline-note-inline");
     await expect(finalNote).toHaveCount(1);
     await expect(nonFinalNote).toHaveCount(1);
-    await expect(
-      nonFinalEntry.locator('.food-timeline-cell--texture img[src*="texture-0-aucune.webp"]')
-    ).toHaveCount(1);
+    await expect(nonFinalEntry.locator('.food-timeline-cell--texture img[src*="texture-1-lisse.webp"]')).toHaveCount(1);
+    await expect(nonFinalEntry.locator('.food-timeline-cell--texture img[src*="texture-0-aucune.webp"]')).toHaveCount(0);
     await expect(dialog.locator("text=ø")).toHaveCount(0);
 
     const [finalBadgePositions, nonFinalBadgePositions] = await Promise.all([

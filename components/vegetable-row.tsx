@@ -10,6 +10,7 @@ import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { FoodTastingEntry } from "@/lib/types";
 import { TastingEntryFormFields } from "@/components/tasting-entry-form-fields";
 import {
+  DEFAULT_TEXTURE_LEVEL,
   DEFAULT_REACTION_TYPE,
   type ReactionType,
   type TextureLevel
@@ -83,7 +84,7 @@ export const VegetableRow = memo(function VegetableRow({
   const [editorSlot, setEditorSlot] = useState<1 | 2 | 3 | null>(null);
   const [editorLiked, setEditorLiked] = useState<"yes" | "no" | null>(null);
   const [editorDate, setEditorDate] = useState("");
-  const [editorTextureLevel, setEditorTextureLevel] = useState<TextureLevel | null>(null);
+  const [editorTextureLevel, setEditorTextureLevel] = useState<TextureLevel>(DEFAULT_TEXTURE_LEVEL);
   const [editorReactionType, setEditorReactionType] = useState<ReactionType>(DEFAULT_REACTION_TYPE);
   const [editorNote, setEditorNote] = useState("");
   const [editorError, setEditorError] = useState("");
@@ -113,7 +114,7 @@ export const VegetableRow = memo(function VegetableRow({
     setEditorSlot(null);
     setEditorLiked(null);
     setEditorDate("");
-    setEditorTextureLevel(null);
+    setEditorTextureLevel(DEFAULT_TEXTURE_LEVEL);
     setEditorReactionType(DEFAULT_REACTION_TYPE);
     setEditorNote("");
     setEditorError("");
@@ -159,7 +160,7 @@ export const VegetableRow = memo(function VegetableRow({
     setEditorSlot(slot);
     setEditorLiked(existing ? (existing.liked ? "yes" : "no") : null);
     setEditorDate(existing?.tastedOn || getTodayIsoDate());
-    setEditorTextureLevel(existing?.textureLevel ?? null);
+    setEditorTextureLevel(existing?.textureLevel ?? DEFAULT_TEXTURE_LEVEL);
     setEditorReactionType(existing?.reactionType ?? DEFAULT_REACTION_TYPE);
     setEditorNote(existing?.note ?? "");
     setEditorError("");
@@ -191,9 +192,7 @@ export const VegetableRow = memo(function VegetableRow({
     formData.set("tastedOn", editorDate || getTodayIsoDate());
     formData.set("note", editorNote.trim());
     formData.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
-    if (editorTextureLevel !== null) {
-      formData.set("textureLevel", String(editorTextureLevel));
-    }
+    formData.set("textureLevel", String(editorTextureLevel));
     formData.set("reactionType", String(editorReactionType));
 
     startEditorTransition(async () => {

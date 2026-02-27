@@ -16,7 +16,7 @@ export type ReactionOption = {
   description: string;
 };
 
-export const TEXTURE_NONE_ICON_SRC = "/images/textures/texture-0-aucune.webp";
+export const DEFAULT_TEXTURE_LEVEL: TextureLevel = 1;
 
 export const TEXTURE_OPTIONS: TextureOption[] = [
   {
@@ -92,9 +92,8 @@ export function isReactionType(value: unknown): value is ReactionType {
   return value === 0 || value === 1 || value === 2 || value === 3 || value === 4;
 }
 
-export function getTextureOption(level: TextureLevel | null | undefined): TextureOption | null {
-  if (level === null || level === undefined) return null;
-  return TEXTURE_OPTIONS.find((option) => option.level === level) ?? null;
+export function getTextureOption(level: TextureLevel): TextureOption {
+  return TEXTURE_OPTIONS.find((option) => option.level === level) ?? TEXTURE_OPTIONS[0];
 }
 
 export function getReactionOption(type: ReactionType | null | undefined): ReactionOption | null {

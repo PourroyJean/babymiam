@@ -7,7 +7,12 @@ import type {
   FoodTimelineEntry,
   PublicShareSnapshot
 } from "@/lib/types";
-import type { ReactionType, TextureLevel } from "@/lib/tasting-metadata";
+import {
+  DEFAULT_TEXTURE_LEVEL,
+  isTextureLevel,
+  type ReactionType,
+  type TextureLevel
+} from "@/lib/tasting-metadata";
 
 export type EventVisibility = "private" | "public";
 
@@ -40,7 +45,7 @@ type AppendQuickEntryInput = {
   tastedOn: string;
   liked: boolean;
   note: string;
-  textureLevel: TextureLevel | null;
+  textureLevel: TextureLevel;
   reactionType: ReactionType | null;
 };
 
@@ -49,7 +54,7 @@ export type SaveFoodSummaryInput = {
   liked: boolean;
   tastedOn: string;
   note: string;
-  textureLevel: TextureLevel | null;
+  textureLevel: TextureLevel;
   reactionType: ReactionType;
 };
 
@@ -432,10 +437,7 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
             const note = typeof noteValue === "string" ? noteValue : "";
             const rawTextureLevel = (item as { textureLevel?: unknown }).textureLevel;
             const rawReactionType = (item as { reactionType?: unknown }).reactionType;
-            const textureLevel =
-              typeof rawTextureLevel === "number" && [1, 2, 3, 4].includes(rawTextureLevel)
-                ? (rawTextureLevel as TextureLevel)
-                : null;
+            const textureLevel = isTextureLevel(rawTextureLevel) ? rawTextureLevel : DEFAULT_TEXTURE_LEVEL;
             const reactionType =
               typeof rawReactionType === "number" && [0, 1, 2, 3, 4].includes(rawReactionType)
                 ? (rawReactionType as ReactionType)
@@ -532,10 +534,7 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
         tastedOn: row.tasted_on,
         liked: Boolean(row.liked),
         note: row.note ?? "",
-        textureLevel:
-          typeof row.texture_level === "number" && [1, 2, 3, 4].includes(row.texture_level)
-            ? (row.texture_level as TextureLevel)
-            : null,
+        textureLevel: isTextureLevel(row.texture_level) ? row.texture_level : DEFAULT_TEXTURE_LEVEL,
         reactionType:
           typeof row.reaction_type === "number" && [0, 1, 2, 3, 4].includes(row.reaction_type)
             ? (row.reaction_type as ReactionType)
@@ -563,7 +562,7 @@ export async function upsertFoodTastingEntry(
   liked: boolean,
   tastedOn: string,
   note: string,
-  textureLevel: TextureLevel | null,
+  textureLevel: TextureLevel,
   reactionType: ReactionType | null
 ): Promise<boolean> {
   const client = await getPool().connect();
