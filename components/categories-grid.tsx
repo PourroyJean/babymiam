@@ -666,7 +666,7 @@ export function CategoriesGrid({
               </h3>
 
               {isOpen ? (
-                <ul className="category-list open">
+                <ul className="category-list open pr-3 pb-2">
                   {category.foods.map((food) => (
                     <VegetableRow
                       key={food.id}
@@ -678,6 +678,8 @@ export function CategoriesGrid({
                       onCycleFinalPreference={cycleFinalPreference}
                       onOpenFoodSummary={openFoodSummary}
                       childFirstName={childFirstName}
+                      themeClass={toneByCategory[category.name]}
+                      buttonThemeClass={toneByCategory[category.name]}
                     />
                   ))}
                 </ul>

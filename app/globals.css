@@ -2422,7 +2422,8 @@ a {
   --collapsed-row-height: 63px;
   --collapsed-row-gap: 6px;
 
-  background: linear-gradient(180deg, var(--tone-surface) 0%, #ffffff 55%);
+  background-color: var(--tone-surface);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.6) 100%);
   border: 1px solid var(--tone-border);
   border-radius: 24px;
   padding: 12px;
@@ -2614,12 +2615,13 @@ a {
   max-height: calc((var(--collapsed-row-count) * var(--collapsed-row-height)) + ((var(--collapsed-row-count) - 1) * var(--collapsed-row-gap)));
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding-right: 2px;
+  padding-right: 14px;
+  padding-bottom: 8px;
   scrollbar-gutter: stable;
 }
 
 .tone-vegetables {
-  --tone-surface: #f2faf0;
+  --tone-surface: #e1ecdd;
   --tone-pill: #dcebd8;
   --tone-border: #d4e7ce;
   --tone-dot: #93c694;
@@ -2627,7 +2629,7 @@ a {
 }
 
 .tone-fruits {
-  --tone-surface: #fff2eb;
+  --tone-surface: #f7e3d8;
   --tone-pill: #f5ded2;
   --tone-border: #f0d4c6;
   --tone-dot: #efb1a0;
@@ -2635,7 +2637,7 @@ a {
 }
 
 .tone-starch {
-  --tone-surface: #fff9e7;
+  --tone-surface: #f5e6b1;
   --tone-pill: #f2e1a5;
   --tone-border: #eadba9;
   --tone-dot: #e6cb67;
@@ -2643,7 +2645,7 @@ a {
 }
 
 .tone-proteins {
-  --tone-surface: #fcf4f2;
+  --tone-surface: #ebdcd6;
   --tone-pill: #e8d7d1;
   --tone-border: #e8d8d2;
   --tone-dot: #d6ac9e;
@@ -2651,7 +2653,7 @@ a {
 }
 
 .tone-legumes {
-  --tone-surface: #f6f8ea;
+  --tone-surface: #e0e8c4;
   --tone-pill: #dbe3bd;
   --tone-border: #d8dfb3;
   --tone-dot: #c5d27a;
@@ -2659,7 +2661,7 @@ a {
 }
 
 .tone-dairy {
-  --tone-surface: #eef9fb;
+  --tone-surface: #dbeff3;
   --tone-pill: #d4eaef;
   --tone-border: #cfe3e8;
   --tone-dot: #9ed7de;
@@ -2667,7 +2669,7 @@ a {
 }
 
 .tone-allergens {
-  --tone-surface: #fff4ea;
+  --tone-surface: #f6cda0;
   --tone-pill: #f3c693;
   --tone-border: #efcca5;
   --tone-dot: #ecab79;
@@ -2675,7 +2677,7 @@ a {
 }
 
 .tone-spices {
-  --tone-surface: #fff8e9;
+  --tone-surface: #f4df9d;
   --tone-pill: #f1d991;
   --tone-border: #ebd89f;
   --tone-dot: #e4bf59;
@@ -2683,7 +2685,7 @@ a {
 }
 
 .tone-oils {
-  --tone-surface: #fbfaed;
+  --tone-surface: #e9e4a8;
   --tone-pill: #e5df9d;
   --tone-border: #e3dda4;
   --tone-dot: #cbc66c;
@@ -2691,7 +2693,7 @@ a {
 }
 
 .tone-herbs {
-  --tone-surface: #f3faee;
+  --tone-surface: #deeabc;
   --tone-pill: #d8e6b4;
   --tone-border: #d4e2b0;
   --tone-dot: #a9c672;
@@ -2699,7 +2701,7 @@ a {
 }
 
 .tone-sweets {
-  --tone-surface: #fdf1f8;
+  --tone-surface: #f7deea;
   --tone-pill: #f4d8e5;
   --tone-border: #efd3e0;
   --tone-dot: #e8abc9;
@@ -2707,7 +2709,7 @@ a {
 }
 
 .tone-condiments {
-  --tone-surface: #f4f8ec;
+  --tone-surface: #dfe9c2;
   --tone-pill: #dae4bb;
   --tone-border: #d4e0b3;
   --tone-dot: #bad17d;
@@ -2715,7 +2717,7 @@ a {
 }
 
 .tone-other {
-  --tone-surface: #faf6ee;
+  --tone-surface: #f0e8d8;
   --tone-pill: #ece3d2;
   --tone-border: #e8decf;
   --tone-dot: #d2bf9c;

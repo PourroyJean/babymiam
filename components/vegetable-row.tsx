@@ -5,7 +5,7 @@ import { memo, useCallback, useEffect, useMemo, useState, useTransition } from "
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { deleteTastingEntryAction, saveTastingEntryAction } from "@/app/actions";
-import { Pencil } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { FoodTastingEntry } from "@/lib/types";
 import { TastingEntryFormFields } from "@/components/tasting-entry-form-fields";
@@ -33,22 +33,36 @@ type VegetableRowProps = {
   onOpenFoodSummary?: (foodId: number, triggerEl: HTMLElement) => void;
   childFirstName?: string | null;
   isFinalPreferenceSaving?: boolean;
+  themeClass?: string;
+  buttonThemeClass?: string;
 };
 
 const ACTION_BUTTON_BASE_CLASS =
-  "touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-0 bg-transparent p-0 text-[#4c4136] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]";
+  "touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-[52px] w-[52px] min-h-[52px] min-w-[52px] items-center justify-center rounded-full border-0 bg-transparent p-0 text-[#4c4136] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]";
 
 const FIRST_BITE_BUTTON_CLASS =
-  "touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-11 w-[188px] min-h-[44px] items-center justify-center whitespace-nowrap rounded-full border border-[#e8d8b8] bg-[#f6ead4] px-4 py-2 text-sm font-semibold text-[#6c4b1b] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]";
+  "touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-[48px] min-h-[48px] w-full min-w-0 items-center justify-center gap-2 sm:gap-2.5 rounded-[1.25rem] border border-black bg-[#c3e3cf] px-1 sm:px-5 py-2.5 text-[#153e21] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]";
 
 const SLOT_VISUAL_BASE_CLASS =
-  "pointer-events-none inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 bg-[#fcfbf9] p-0";
+  "pointer-events-none inline-flex h-[50px] w-[50px] items-center justify-center overflow-hidden rounded-full border-[2.5px] border-white bg-[#fcfbf9] p-0";
 
-const META_BUTTON_BASE_CLASS =
-  "touch-manipulation appearance-none [-webkit-appearance:none] inline-flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border-0 bg-transparent p-0 text-[#4c4136] transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.98]";
+const ROW_CONTAINER_CLASS =
+  "mb-1 sm:mb-2 w-full rounded-2xl bg-white px-2.5 py-1.5 sm:py-2.5 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.07)] sm:px-3";
 
-const META_VISUAL_BASE_CLASS =
-  "pointer-events-none inline-flex h-9 w-9 items-center justify-center rounded-full border-2 bg-[#fcfbf9]";
+const ROW_GRID_CLASS =
+  "grid min-h-[52px] items-center gap-2 sm:gap-3 grid-cols-[40%_minmax(0,60%)]";
+
+const FOOD_NAME_CONTAINER_CLASS =
+  "flex h-full min-w-0 items-stretch gap-2 py-1";
+
+const FOOD_NAME_BUTTON_CLASS =
+  "touch-manipulation flex h-full items-center min-w-0 flex-1 appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left text-[0.95rem] sm:text-[0.98rem] font-semibold leading-tight text-[#3b3128] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]";
+
+const ACTIONS_CONTAINER_CLASS =
+  "flex flex-nowrap items-center justify-end gap-1.5 w-full";
+
+const TASTING_SLOTS_CONTAINER_CLASS =
+  "flex items-center justify-between w-full pt-1";
 
 export const VegetableRow = memo(function VegetableRow({
   foodId,
@@ -59,7 +73,9 @@ export const VegetableRow = memo(function VegetableRow({
   onCycleFinalPreference,
   onOpenFoodSummary,
   childFirstName = null,
-  isFinalPreferenceSaving = false
+  isFinalPreferenceSaving = false,
+  themeClass,
+  buttonThemeClass
 }: VegetableRowProps) {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
@@ -304,43 +320,46 @@ export const VegetableRow = memo(function VegetableRow({
 
   return (
     <>
-      <li className="w-full rounded-2xl bg-white/75 px-2.5 py-2 sm:px-3">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-3">
-          <div className="flex min-w-0 items-center gap-2">
+      <li className={ROW_CONTAINER_CLASS}>
+        <div className={ROW_GRID_CLASS}>
+          <div className={FOOD_NAME_CONTAINER_CLASS}>
             <button
               type="button"
-              className="touch-manipulation min-w-0 flex-1 truncate appearance-none [-webkit-appearance:none] border-0 bg-transparent p-0 text-left text-[0.98rem] font-semibold leading-tight text-[#3b3128] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 active:scale-[0.99]"
+              className={FOOD_NAME_BUTTON_CLASS}
               onClick={(event) => onOpenFoodSummary?.(foodId, event.currentTarget)}
               aria-label={`Ouvrir le résumé de ${name}`}
               title="Résumé"
             >
-              {name}
+              <span className="truncate w-full block">{name}</span>
             </button>
-
           </div>
 
           <div
             role="group"
             aria-label={`Actions pour ${name}`}
-            className="flex flex-nowrap items-center justify-end gap-1 sm:gap-1.5"
+            className={ACTIONS_CONTAINER_CLASS}
           >
             {tastingCount === 0 ? (
-              <>
-                <button
-                  type="button"
-                  className={FIRST_BITE_BUTTON_CLASS}
-                  onClick={() => openEditor(1)}
-                  aria-label={`Marquer ${name} en première bouchée`}
-                  title="Première bouchée"
-                >
-                  Première bouchée
-                </button>
-                <span aria-hidden="true" className={`${ACTION_BUTTON_BASE_CLASS} pointer-events-none opacity-0`}>
-                  <span className={SLOT_VISUAL_BASE_CLASS} />
-                </span>
-              </>
+              <button
+                type="button"
+                className={`${FIRST_BITE_BUTTON_CLASS} ${buttonThemeClass}`}
+                style={{ backgroundColor: 'var(--tone-surface)' }}
+                onClick={() => openEditor(1)}
+                aria-label={`Marquer ${name} en première bouchée`}
+                title="Première bouchée"
+              >
+                <CheckCircle className="h-5 w-5 sm:h-5 sm:w-5 opacity-90 shrink-0 text-black" strokeWidth={2.5} />
+                <div className="flex flex-col items-start leading-[1.2] min-w-0 overflow-hidden w-full gap-0.5">
+                  <span className="text-[0.62rem] sm:text-[0.6rem] font-bold tracking-[0.05em] sm:tracking-[0.08em] opacity-80 uppercase truncate w-full text-left">
+                    Enregistrer
+                  </span>
+                  <span className="text-[0.75rem] sm:text-[0.85rem] font-bold tracking-tight uppercase truncate w-full text-left">
+                    PREMIÈRE BOUCHÉE
+                  </span>
+                </div>
+              </button>
             ) : (
-              <div role="group" aria-label={`Dégustations pour ${name}`} className="flex items-center gap-1 sm:gap-1.5">
+              <div role="group" aria-label={`Dégustations pour ${name}`} className={TASTING_SLOTS_CONTAINER_CLASS}>
                 {[1, 2, 3].map((slotValue) => {
                   const slot = slotValue as 1 | 2 | 3;
                   const tasting = tastingsBySlot.get(slot);
@@ -371,8 +390,8 @@ export const VegetableRow = memo(function VegetableRow({
                         <Image
                           src={iconSrc}
                           alt={iconAlt}
-                          width={36}
-                          height={36}
+                          width={42}
+                          height={42}
                           className="h-full w-full object-contain"
                         />
                       </span>
@@ -399,8 +418,8 @@ export const VegetableRow = memo(function VegetableRow({
                         src={getFinalPreferenceImageSrc(finalPreference)}
                         alt=""
                         aria-hidden="true"
-                        width={36}
-                        height={36}
+                        width={42}
+                        height={42}
                         className="h-full w-full object-contain"
                       />
                     </span>
@@ -412,23 +431,12 @@ export const VegetableRow = memo(function VegetableRow({
                 )}
               </div>
             )}
-
-            <button
-              type="button"
-              className={`${META_BUTTON_BASE_CLASS} food-row-summary-btn`}
-              aria-label={`Voir le résumé de ${name}`}
-              title="Résumé"
-              onClick={(event) => onOpenFoodSummary?.(foodId, event.currentTarget)}
-            >
-              <span aria-hidden="true" className={`${META_VISUAL_BASE_CLASS} border-[#b9ac9b]`}>
-                <Pencil className="h-[17px] w-[17px]" />
-              </span>
-            </button>
           </div>
         </div>
-      </li>
+      </li >
 
-      {isMounted && editor ? createPortal(editor, document.body) : null}
+      {isMounted && editor ? createPortal(editor, document.body) : null
+      }
     </>
   );
 });
