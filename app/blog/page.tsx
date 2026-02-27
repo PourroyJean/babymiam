@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { requireVerifiedAuth } from "@/lib/auth";
 import { getChildProfile } from "@/lib/data";
 import { SiteNav } from "@/components/site-nav";
 import { TextureTimeline } from "@/components/texture-timeline";
+
+export const metadata: Metadata = {
+  title: "Blog connaissance"
+};
 
 export default async function BlogPage() {
   const user = await requireVerifiedAuth();

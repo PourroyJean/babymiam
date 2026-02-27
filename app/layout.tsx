@@ -10,7 +10,11 @@ const fredoka = localFont({
 
 export const metadata: Metadata = {
   title: "Grrrignote",
-  description: "Suivi de la diversification alimentaire de bébé"
+  description: "Suivi de la diversification alimentaire de bébé",
+  icons: {
+    icon: "/icon.png",
+    apple: "/apple-icon.png"
+  }
 };
 
 export default function RootLayout({

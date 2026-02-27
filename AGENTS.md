@@ -144,3 +144,15 @@
   - Ne pas conclure qu'un preview magic-link est casse si `curl` retourne `401` avec `_vercel_sso_nonce`: la protection Vercel peut bloquer avant d'atteindre la route applicative.
   - Ne pas valider le flux localhost sans avoir applique la migration `1772800000000_add-shared-test-link-issued-at`; sinon la generation du lien echoue (colonne absente).
   - Ne pas reutiliser un `APP_BASE_URL` statique en local quand le serveur tourne sur un port different; sinon le lien logge peut viser le mauvais port.
+
+## Session Lessons (2026-02-27)
+- Lessons learned:
+  - La validation texture doit etre strictement identique entre `FormData` et payload JSON de resume (`tastings`): sans parseur commun, des valeurs type `true` peuvent etre coercées au lieu d'etre rejetees.
+  - Dans les specs Playwright qui patchent `FormData.prototype.set`, encapsuler patch + restauration dans `try/finally` elimine la pollution inter-tests si une assertion echoue.
+  - Avant un deploy, verifier que le commit attendu est bien dans `main` (ex: `git merge-base --is-ancestor <sha> main`) pour eviter un faux positif apres des commandes git lancees en parallele.
+- Reliable commands:
+  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts -g "quick add rejects non-integer texture level payload"`
+  - `npm run test:e2e -- tests/e2e/specs/food-summary.spec.ts -g "rejects invalid texture payload in summary save"`
+  - `vercel deploy . --prod -y`
+- Safety rails / do-not-do:
+  - Ne pas lancer `git checkout`, `git merge` et `git push` en parallele sur la meme branche: executer ces etapes en sequence puis verifier l'ancestry avant de deployer.
