@@ -7,7 +7,7 @@ export type FoodTastingEntry = {
   liked: boolean;
   tastedOn: string;
   note: string;
-  textureLevel: TextureLevel | null;
+  textureLevel: TextureLevel;
   reactionType: ReactionType | null;
 };
 
@@ -50,7 +50,7 @@ export type FoodTimelineEntry = {
   tastedOn: string;
   liked: boolean;
   note: string;
-  textureLevel: TextureLevel | null;
+  textureLevel: TextureLevel;
   reactionType: ReactionType | null;
 };
 

@@ -18,6 +18,7 @@ import {
 } from "@/lib/data";
 import { getIsoDateForTimezoneOffset, normalizeTimezoneOffsetMinutes } from "@/lib/date-utils";
 import {
+  DEFAULT_TEXTURE_LEVEL,
   DEFAULT_REACTION_TYPE,
   isReactionType,
   isTextureLevel,
@@ -41,7 +42,7 @@ type FoodSummaryDraftEntry = {
   liked: boolean;
   tastedOn: string;
   note: string;
-  textureLevel: TextureLevel | null;
+  textureLevel: TextureLevel;
   reactionType: ReactionType;
 };
 
@@ -85,10 +86,30 @@ function parseNullableInteger(formData: FormData, key: string) {
   return Math.trunc(parsed);
 }
 
-function parseTextureLevel(formData: FormData): TextureLevel | null {
-  const parsed = parseNullableInteger(formData, "textureLevel");
-  if (parsed === null) return null;
-  return isTextureLevel(parsed) ? parsed : null;
+function parseTextureLevelRaw(raw: unknown): { ok: true; value: TextureLevel } | { ok: false } {
+  if (raw === null || raw === undefined) {
+    return { ok: true, value: DEFAULT_TEXTURE_LEVEL };
+  }
+
+  if (typeof raw === "number") {
+    return Number.isInteger(raw) && isTextureLevel(raw) ? { ok: true, value: raw } : { ok: false };
+  }
+
+  if (typeof raw !== "string") {
+    return { ok: false };
+  }
+
+  const value = raw.trim();
+  if (!value) {
+    return { ok: true, value: DEFAULT_TEXTURE_LEVEL };
+  }
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && isTextureLevel(parsed) ? { ok: true, value: parsed } : { ok: false };
+}
+
+function parseTextureLevel(formData: FormData): { ok: true; value: TextureLevel } | { ok: false } {
+  return parseTextureLevelRaw(formData.get("textureLevel"));
 }
 
 function parseReactionType(formData: FormData): ReactionType | null {
@@ -112,7 +133,7 @@ export async function saveTastingEntryAction(formData: FormData) {
   const tastedOnRaw = String(formData.get("tastedOn") || "").trim();
   const tastedOn = tastedOnRaw || todayIsoDate;
   const note = String(formData.get("note") || "").trim();
-  const textureLevel = parseTextureLevel(formData);
+  const parsedTextureLevel = parseTextureLevel(formData);
   const reactionType = parseReactionType(formData) ?? DEFAULT_REACTION_TYPE;
 
   if (!Number.isFinite(foodId) || ![1, 2, 3].includes(slot)) {
@@ -121,6 +142,10 @@ export async function saveTastingEntryAction(formData: FormData) {
 
   if (likedRaw !== "yes" && likedRaw !== "no") {
     return { ok: false, error: "Choisis si bébé a aimé ou non." };
+  }
+
+  if (!parsedTextureLevel.ok) {
+    return { ok: false, error: "Texture invalide." };
   }
 
   if (!isValidIsoDate(tastedOn)) {
@@ -138,7 +163,7 @@ export async function saveTastingEntryAction(formData: FormData) {
     likedRaw === "yes",
     tastedOn,
     note,
-    textureLevel,
+    parsedTextureLevel.value,
     reactionType
   );
   if (!saved) {
@@ -193,7 +218,7 @@ export async function addQuickEntryAction(formData: FormData) {
   const tastedOn = String(formData.get("tastedOn") || "").trim();
   const likedRaw = String(formData.get("liked") || "").trim().toLowerCase();
   const note = String(formData.get("note") || "").trim();
-  const textureLevel = parseTextureLevel(formData);
+  const parsedTextureLevel = parseTextureLevel(formData);
   const reactionType = parseReactionType(formData) ?? DEFAULT_REACTION_TYPE;
 
   if (!Number.isFinite(foodId)) {
@@ -212,12 +237,16 @@ export async function addQuickEntryAction(formData: FormData) {
     return { ok: false, error: "Préférence invalide." };
   }
 
+  if (!parsedTextureLevel.ok) {
+    return { ok: false, error: "Texture invalide." };
+  }
+
   const result = await appendQuickEntry(user.id, {
     foodId,
     tastedOn,
     liked: likedRaw === "true",
     note,
-    textureLevel,
+    textureLevel: parsedTextureLevel.value,
     reactionType
   });
 
@@ -374,14 +403,11 @@ export async function saveFoodSummaryAction(formData: FormData) {
       return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
     }
 
-    let textureLevel: TextureLevel | null = null;
-    if (textureLevelRaw !== null && textureLevelRaw !== undefined && textureLevelRaw !== "") {
-      const parsedTextureLevel = Number(textureLevelRaw);
-      if (!isTextureLevel(parsedTextureLevel)) {
-        return { ok: false, error: "Texture invalide." };
-      }
-      textureLevel = parsedTextureLevel;
+    const parsedTextureLevel = parseTextureLevelRaw(textureLevelRaw);
+    if (!parsedTextureLevel.ok) {
+      return { ok: false, error: "Texture invalide." };
     }
+    const textureLevel = parsedTextureLevel.value;
 
     const parsedReactionType = Number(reactionTypeRaw);
     if (!isReactionType(parsedReactionType)) {

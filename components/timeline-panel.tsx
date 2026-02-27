@@ -5,7 +5,6 @@ import Image from "next/image";
 import type { FoodTimelineEntry, FinalPreferenceValue } from "@/lib/types";
 import {
   DEFAULT_REACTION_TYPE,
-  TEXTURE_NONE_ICON_SRC,
   getReactionOption,
   getTextureOption
 } from "@/lib/tasting-metadata";
@@ -174,9 +173,7 @@ export function TimelinePanel({
                       const entryFinalPreference = finalPreferenceByFoodId.get(entry.foodId) ?? 0;
                       const textureOption = getTextureOption(entry.textureLevel);
                       const reactionOption = getReactionOption(entry.reactionType ?? DEFAULT_REACTION_TYPE);
-                      const textureLabel = textureOption
-                        ? `Texture: ${textureOption.shortName}. ${textureOption.description}`
-                        : "Texture: Aucune texture";
+                      const textureLabel = `Texture: ${textureOption.shortName}. ${textureOption.description}`;
                       const reactionLabel = reactionOption
                         ? `Réaction observée: ${reactionOption.label}. ${reactionOption.description}`
                         : "Réaction observée: Aucun symptôme";
@@ -232,25 +229,14 @@ export function TimelinePanel({
                                   title={textureLabel}
                                   data-tooltip={textureLabel}
                                 >
-                                  {textureOption ? (
-                                    <Image
-                                      src={textureOption.iconSrc}
-                                      alt=""
-                                      aria-hidden="true"
-                                      width={22}
-                                      height={22}
-                                      className="food-timeline-meta-chip-icon"
-                                    />
-                                  ) : (
-                                    <Image
-                                      src={TEXTURE_NONE_ICON_SRC}
-                                      alt=""
-                                      aria-hidden="true"
-                                      width={22}
-                                      height={22}
-                                      className="food-timeline-meta-chip-icon"
-                                    />
-                                  )}
+                                  <Image
+                                    src={textureOption.iconSrc}
+                                    alt=""
+                                    aria-hidden="true"
+                                    width={22}
+                                    height={22}
+                                    className="food-timeline-meta-chip-icon"
+                                  />
                                 </span>
 
                                 <span

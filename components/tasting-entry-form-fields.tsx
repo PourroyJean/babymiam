@@ -23,8 +23,8 @@ type TastingEntryFormFieldsProps = {
   onTastedOnChange: (value: string) => void;
   tastedOnLabel?: string;
   tastedOnAriaLabel?: string;
-  textureLevel: TextureLevel | null;
-  onTextureLevelChange: (value: TextureLevel | null) => void;
+  textureLevel: TextureLevel;
+  onTextureLevelChange: (value: TextureLevel) => void;
   reactionType: ReactionType;
   onReactionTypeChange: (value: ReactionType) => void;
   note: string;
@@ -157,7 +157,6 @@ export function TastingEntryFormFields({
           }}
           disabled={Boolean(disabled)}
           idPrefix={idPrefix}
-          allowClear
         />
       </div>
 

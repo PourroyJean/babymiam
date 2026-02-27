@@ -23,6 +23,7 @@ const E2E_RESETTABLE_TABLES = [
   "categories",
   "users"
 ];
+const DEFAULT_TEXTURE_LEVEL = 1 as const;
 
 function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -374,7 +375,7 @@ export type FoodProgressState = {
     liked: boolean;
     tastedOn: string;
     note: string;
-    textureLevel: 1 | 2 | 3 | 4 | null;
+    textureLevel: 1 | 2 | 3 | 4;
     reactionType: 0 | 1 | 2 | 3 | 4 | null;
   }>;
   tastingCount: number;
@@ -469,7 +470,7 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
         const textureLevel =
           typeof textureLevelValue === "number" && [1, 2, 3, 4].includes(textureLevelValue)
             ? (textureLevelValue as 1 | 2 | 3 | 4)
-            : null;
+            : DEFAULT_TEXTURE_LEVEL;
         const reactionType =
           typeof reactionTypeValue === "number" && [0, 1, 2, 3, 4].includes(reactionTypeValue)
             ? (reactionTypeValue as 0 | 1 | 2 | 3 | 4)
@@ -496,7 +497,7 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
           liked: boolean;
           tastedOn: string;
           note: string;
-          textureLevel: 1 | 2 | 3 | 4 | null;
+          textureLevel: 1 | 2 | 3 | 4;
           reactionType: 0 | 1 | 2 | 3 | 4 | null;
         } => entry !== null
       )
@@ -546,7 +547,7 @@ export async function upsertFoodProgressByName(
     liked: boolean;
     tastedOn: string;
     note: string;
-    textureLevel: 1 | 2 | 3 | 4 | null;
+    textureLevel: 1 | 2 | 3 | 4;
     reactionType: 0 | 1 | 2 | 3 | 4 | null;
   }> = [];
   for (let slot = 1; slot <= targetCount; slot += 1) {
@@ -558,7 +559,7 @@ export async function upsertFoodProgressByName(
         liked: false,
         tastedOn: getTodayIsoDate(),
         note: "",
-        textureLevel: null,
+        textureLevel: DEFAULT_TEXTURE_LEVEL,
         reactionType: 0
       }
     );
@@ -636,7 +637,7 @@ export async function setFoodTastingsByName(
     liked: boolean;
     tastedOn: string;
     note?: string;
-    textureLevel?: 1 | 2 | 3 | 4 | null;
+    textureLevel?: 1 | 2 | 3 | 4;
     reactionType?: 0 | 1 | 2 | 3 | 4 | null;
   }>,
   options: {
@@ -660,7 +661,7 @@ export async function setFoodTastingsByName(
       liked: Boolean(entry.liked),
       tastedOn: entry.tastedOn,
       note: entry.note ?? "",
-      textureLevel: entry.textureLevel ?? null,
+      textureLevel: entry.textureLevel ?? DEFAULT_TEXTURE_LEVEL,
       reactionType: entry.reactionType ?? 0
     }));
 
@@ -749,7 +750,7 @@ export async function replaceFoodTastingsByName(
     liked: boolean;
     tastedOn: string;
     note?: string;
-    textureLevel?: 1 | 2 | 3 | 4 | null;
+    textureLevel?: 1 | 2 | 3 | 4;
     reactionType?: 0 | 1 | 2 | 3 | 4 | null;
   }>,
   ownerId?: number
@@ -778,7 +779,7 @@ export async function replaceFoodTastingsByName(
         entry.liked,
         entry.tastedOn,
         entry.note ?? "",
-        entry.textureLevel ?? null,
+        entry.textureLevel ?? DEFAULT_TEXTURE_LEVEL,
         entry.reactionType ?? 0
       ]
     );
@@ -807,12 +808,12 @@ export async function setIntroducedFoods(count: number, ownerId?: number) {
     await client.query(
       `
         INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note, texture_level, reaction_type, updated_at)
-        SELECT $1, id, 1, false, CURRENT_DATE, '', NULL, 0, NOW()
+        SELECT $1, id, 1, false, CURRENT_DATE, '', $3, 0, NOW()
         FROM foods
         ORDER BY id
         LIMIT $2;
       `,
-      [resolvedOwnerId, normalizedCount]
+      [resolvedOwnerId, normalizedCount, DEFAULT_TEXTURE_LEVEL]
     );
     await client.query("COMMIT");
   } catch (error) {

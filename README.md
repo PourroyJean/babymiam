@@ -164,3 +164,36 @@ Pour forcer un host distant: `E2E_ALLOW_REMOTE_DB_RESET=1`.
 - Le magic link courant (réutilisé ou régénéré si expiré) est affiché dans les logs de build Vercel à chaque déploiement.
 - Un `.vercelignore` exclut les artefacts locaux (`.next*`, `playwright-report`, `test-results`, `coverage`, `tmp`, `.vercel`, `node_modules`).
 - Gain mesuré sur le dernier déploiement: upload Vercel réduit de `120MB` à `328KB`.
+
+## Migration avec changement de contrainte DB
+Quand une migration ajoute/renforce une contrainte (ex: `NOT NULL`, `DEFAULT`, `CHECK`), appliquer cet ordre sans le simplifier:
+1. Vérifier l'environnement DB ciblé:
+   ```bash
+   npm run db:preflight
+   ```
+2. Appliquer la migration:
+   ```bash
+   npm run db:migrate
+   ```
+3. Déployer l'application (`npm run deploy:prod` ou déploiement preview).
+4. Lancer des smoke checks métier (ajout rapide, édition résumé, timeline).
+
+Contrôles SQL post-migration recommandés:
+```sql
+SELECT COUNT(*) AS null_textures
+FROM food_tastings
+WHERE texture_level IS NULL;
+```
+Résultat attendu: `0`.
+
+```sql
+SELECT
+  column_name,
+  is_nullable,
+  column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'food_tastings'
+  AND column_name = 'texture_level';
+```
+Résultat attendu: `is_nullable = 'NO'` et `column_default` contenant `1`.

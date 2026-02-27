@@ -403,14 +403,14 @@ test.describe("dashboard progression", () => {
     await expect(dialog.locator(".quick-add-food-option", { hasText: "Épinard" })).toBeVisible();
   });
 
-  test("shows none texture icon in quick add and tasting editor", async ({ appPage }) => {
+  test("shows four texture options and defaults to level 1 in quick add and tasting editor", async ({ appPage }) => {
     const foodName = "Banane";
 
     const { dialog } = await openQuickAddPanel(appPage);
 
-    const quickAddNoneButton = dialog.locator("#quick-add-none");
-    await expect(quickAddNoneButton).toBeVisible();
-    await expect(quickAddNoneButton.locator('img[src*="texture-0-aucune.webp"]')).toHaveCount(1);
+    const quickAddTextureButtons = dialog.locator(".texture-segmented-steps .texture-segmented-btn");
+    await expect(quickAddTextureButtons).toHaveCount(4);
+    await expect(dialog.locator("#quick-add-1")).toHaveClass(/is-current/);
 
     await dialog.getByRole("button", { name: "Annuler" }).click();
     await expect(dialog).toHaveCount(0);
@@ -423,9 +423,9 @@ test.describe("dashboard progression", () => {
     const editor = getTastingEditor(appPage, foodName, 1);
     await expect(editor).toBeVisible();
 
-    const editorNoneButton = editor.locator('button[id$="-none"]');
-    await expect(editorNoneButton).toHaveCount(1);
-    await expect(editorNoneButton.locator('img[src*="texture-0-aucune.webp"]')).toHaveCount(1);
+    const editorTextureButtons = editor.locator(".texture-segmented-steps .texture-segmented-btn");
+    await expect(editorTextureButtons).toHaveCount(4);
+    await expect(editor.locator('button[id$="-1"]')).toHaveClass(/is-current/);
   });
 
   test("resets quick add form fields after close and reopen", async ({ appPage }) => {
@@ -446,8 +446,71 @@ test.describe("dashboard progression", () => {
     await expect(reopenedPanel.searchInput).toHaveValue("");
     await expect(reopenedPanel.noteInput).toHaveValue("");
     await expect(reopenedPanel.dateInput).toHaveValue(todayLocalIsoDate);
+    await expect(reopenedPanel.dialog.locator("#quick-add-1")).toHaveClass(/is-current/);
     await expect(reopenedPanel.addButton).toBeDisabled();
     await expect(reopenedPanel.dialog.getByText("Sélectionne un aliment existant.")).toBeVisible();
+  });
+
+  test("quick add persists default texture level 1 when user does not change texture", async ({ appPage, db }) => {
+    const foodName = "Banane";
+    const tastedOn = "2026-02-14";
+
+    const { dialog, searchInput, dateInput, addButton } = await openQuickAddPanel(appPage);
+    await searchInput.fill("banane");
+    await dialog.locator(".quick-add-food-option", { hasText: foodName }).first().click();
+    await dateInput.fill(tastedOn);
+    await dialog.getByRole("button", { name: "Tigre OK" }).click();
+    await addButton.click();
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.textureLevel ?? 0)
+      .toBe(1);
+  });
+
+  test("quick add rejects non-integer texture level payload", async ({ appPage, db }) => {
+    const foodName = "Banane";
+    const testedOn = "2026-02-14";
+
+    const { dialog, searchInput, dateInput, addButton } = await openQuickAddPanel(appPage);
+    await searchInput.fill("banane");
+    await dialog.locator(".quick-add-food-option", { hasText: foodName }).first().click();
+    await dateInput.fill(testedOn);
+    await dialog.getByRole("button", { name: "Tigre OK" }).click();
+
+    await appPage.evaluate(() => {
+      const patchedWindow = window as typeof window & {
+        __textureSetOriginal?: (...args: any[]) => void;
+      };
+      if (!patchedWindow.__textureSetOriginal) {
+        patchedWindow.__textureSetOriginal = FormData.prototype.set as (...args: any[]) => void;
+      }
+
+      FormData.prototype.set = function patchedSet(...args: any[]) {
+        const [name] = args;
+        if (name === "textureLevel") {
+          return patchedWindow.__textureSetOriginal!.call(this, name, "1.5");
+        }
+        return patchedWindow.__textureSetOriginal!.apply(this, args);
+      };
+    });
+
+    try {
+      await addButton.click();
+      await expect(dialog.getByText("Texture invalide.")).toBeVisible();
+    } finally {
+      await appPage.evaluate(() => {
+        const patchedWindow = window as typeof window & {
+          __textureSetOriginal?: (...args: any[]) => void;
+        };
+        if (patchedWindow.__textureSetOriginal) {
+          FormData.prototype.set = patchedWindow.__textureSetOriginal as typeof FormData.prototype.set;
+        }
+      });
+    }
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastingCount ?? 0)
+      .toBe(0);
   });
 
   test("hides foods already at 3/3 in quick add panel", async ({ appPage, db }) => {

@@ -3,41 +3,32 @@
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import {
-  TEXTURE_NONE_ICON_SRC,
   TEXTURE_OPTIONS,
   getTextureOption,
   type TextureLevel
 } from "@/lib/tasting-metadata";
 
 type TextureSegmentedControlProps = {
-  value: TextureLevel | null;
-  onChange: (value: TextureLevel | null) => void;
+  value: TextureLevel;
+  onChange: (value: TextureLevel) => void;
   disabled?: boolean;
   idPrefix?: string;
-  allowClear?: boolean;
 };
 
 export function TextureSegmentedControl({
   value,
   onChange,
   disabled = false,
-  idPrefix = "texture-segmented",
-  allowClear = false
+  idPrefix = "texture-segmented"
 }: TextureSegmentedControlProps) {
-  const [hintedLevel, setHintedLevel] = useState<TextureLevel | "none" | null>(null);
+  const [hintedLevel, setHintedLevel] = useState<TextureLevel | null>(null);
 
   const progressPercent = (() => {
-    const normalizedValue = hintedLevel === "none" ? 0 : hintedLevel ?? value;
-    if (normalizedValue === null) return 0;
+    const normalizedValue = hintedLevel ?? value;
     return (normalizedValue / TEXTURE_OPTIONS.length) * 100;
   })();
 
-  const highlightedOption = useMemo(
-    () => (hintedLevel === "none" ? null : getTextureOption(hintedLevel ?? value)),
-    [hintedLevel, value]
-  );
-
-  const displayedHint = hintedLevel === "none" ? "Aucune texture" : null;
+  const highlightedOption = useMemo(() => getTextureOption(hintedLevel ?? value), [hintedLevel, value]);
 
   return (
     <div className="texture-segmented-control">
@@ -47,38 +38,6 @@ export function TextureSegmentedControl({
         </div>
 
         <div className="texture-segmented-steps" role="group" aria-label="Niveau de texture">
-          {allowClear ? (
-            <div className="texture-segmented-step">
-              <button
-                id={`${idPrefix}-none`}
-                type="button"
-                disabled={disabled}
-                aria-pressed={value === null}
-                aria-label="Aucune texture"
-                className={`texture-segmented-btn ${value === null ? "is-current" : "is-inactive"}`}
-                onClick={() => onChange(null)}
-                onMouseEnter={() => setHintedLevel("none")}
-                onMouseLeave={() => setHintedLevel((current) => (current === "none" ? null : current))}
-                onFocus={() => setHintedLevel("none")}
-                onBlur={() => setHintedLevel((current) => (current === "none" ? null : current))}
-                title="Aucune texture"
-              >
-                <Image
-                  src={TEXTURE_NONE_ICON_SRC}
-                  alt=""
-                  aria-hidden="true"
-                  width={77}
-                  height={77}
-                  className="texture-segmented-icon"
-                />
-              </button>
-
-              <div className={`texture-segmented-tooltip ${hintedLevel === "none" ? "is-visible" : ""}`} role="tooltip">
-                Aucune texture
-              </div>
-            </div>
-          ) : null}
-
           {TEXTURE_OPTIONS.map((option) => {
             const isCurrent = value === option.level;
             const stateClass = isCurrent ? "is-current" : "is-inactive";
@@ -121,11 +80,7 @@ export function TextureSegmentedControl({
       </div>
 
       <p className="texture-segmented-mobile-description" aria-live="polite">
-        {value === null
-          ? "Aucune texture"
-          : highlightedOption
-            ? highlightedOption.description
-            : displayedHint ?? "Choisis une texture pour afficher sa description."}
+        {highlightedOption.description}
       </p>
     </div>
   );
