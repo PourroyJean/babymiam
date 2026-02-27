@@ -31,27 +31,40 @@ async function openMagicLogin(page: Page, token: string) {
   });
 }
 
-async function getSharedTestTokenForDefaultUser(db: {
+async function getSharedTestTokenSeedForDefaultUser(db: {
   queryOne: (text: string, values?: unknown[]) => Promise<unknown>;
 }) {
   const user = (await db.queryOne(
     `
-      SELECT id, session_version
+      SELECT
+        id,
+        FLOOR(EXTRACT(EPOCH FROM shared_test_link_issued_at))::bigint AS issued_at_epoch_seconds
       FROM users
       WHERE email = $1
       LIMIT 1;
     `,
     [AUTH_EMAIL.toLowerCase()]
-  )) as { id?: number; session_version?: number } | null;
+  )) as { id?: number; issued_at_epoch_seconds?: number } | null;
 
   const userId = Number(user?.id || 0);
-  const sessionVersion = Number(user?.session_version || 0);
+  const issuedAtEpochSeconds = Number(user?.issued_at_epoch_seconds || 0);
   expect(userId).toBeGreaterThan(0);
-  expect(sessionVersion).toBeGreaterThan(0);
+  expect(issuedAtEpochSeconds).toBeGreaterThan(0);
+
+  return {
+    userId,
+    issuedAtEpochSeconds
+  };
+}
+
+async function getSharedTestTokenForDefaultUser(db: {
+  queryOne: (text: string, values?: unknown[]) => Promise<unknown>;
+}) {
+  const tokenSeed = await getSharedTestTokenSeedForDefaultUser(db);
 
   return createSharedTestLoginToken({
-    userId,
-    sessionVersion,
+    userId: tokenSeed.userId,
+    issuedAtEpochSeconds: tokenSeed.issuedAtEpochSeconds,
     secret: getPrimaryE2EAuthSecret()
   });
 }
@@ -99,23 +112,32 @@ test.describe("auth and guards", () => {
   });
 
   test("rejects expired shared test magic link token", async ({ page, db }) => {
-    const token = await getSharedTestTokenForDefaultUser(db);
+    const tokenSeed = await getSharedTestTokenSeedForDefaultUser(db);
+    const expiredIssuedAtEpochSeconds = Math.floor(Date.now() / 1000) - 32 * 24 * 60 * 60;
 
     await db.queryOne(
       `
         UPDATE users
-        SET shared_test_link_issued_at = NOW() - INTERVAL '32 days'
-        WHERE email = $1
+        SET
+          shared_test_link_issued_at = TO_TIMESTAMP($2),
+          updated_at = NOW()
+        WHERE id = $1
         RETURNING shared_test_link_issued_at;
       `,
-      [AUTH_EMAIL.toLowerCase()]
+      [tokenSeed.userId, expiredIssuedAtEpochSeconds]
     );
+
+    const token = createSharedTestLoginToken({
+      userId: tokenSeed.userId,
+      issuedAtEpochSeconds: expiredIssuedAtEpochSeconds,
+      secret: getPrimaryE2EAuthSecret()
+    });
 
     await openMagicLogin(page, token);
     await expect(page).toHaveURL(/\/login\?error=1$/);
   });
 
-  test("invalidates previous shared test magic link token after session rotation", async ({ page, db }) => {
+  test("keeps shared test magic link token valid after session rotation", async ({ page, db }) => {
     const token = await getSharedTestTokenForDefaultUser(db);
 
     await db.queryOne(
@@ -128,6 +150,27 @@ test.describe("auth and guards", () => {
         RETURNING session_version;
       `,
       [AUTH_EMAIL.toLowerCase()]
+    );
+
+    await openMagicLogin(page, token);
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { name: /Les premiers aliments/i })).toBeVisible();
+  });
+
+  test("invalidates previous shared test magic link token when issued-at changes", async ({ page, db }) => {
+    const token = await getSharedTestTokenForDefaultUser(db);
+    const tokenSeed = await getSharedTestTokenSeedForDefaultUser(db);
+
+    await db.queryOne(
+      `
+        UPDATE users
+        SET
+          shared_test_link_issued_at = TO_TIMESTAMP($2),
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING shared_test_link_issued_at;
+      `,
+      [tokenSeed.userId, tokenSeed.issuedAtEpochSeconds + 60]
     );
 
     await openMagicLogin(page, token);

@@ -12,8 +12,7 @@ const {
   loadSharedTestAccessUser,
   resolveAppBaseUrl,
   resolvePrimaryAuthSecret,
-  resolveSharedTestAccessEmail,
-  rotateSessionVersionForUser
+  resolveSharedTestAccessEmail
 } = require("./_shared-test-link");
 
 async function run() {
@@ -25,42 +24,44 @@ async function run() {
 
   try {
     const user = await loadSharedTestAccessUser(pool, email);
-    let tokenSessionVersion = user.sessionVersion;
     let tokenUserShape = user;
     let initializedIssuedAt = false;
     let regenerated = false;
+    let tokenIssuedAtEpochSeconds = getSharedTestTokenIssuedAtEpochSeconds(user);
 
-    if (!getSharedTestTokenIssuedAtEpochSeconds(user)) {
+    if (!tokenIssuedAtEpochSeconds) {
       const initialized = await ensureSharedTestLinkIssuedAtNow(pool, user.id);
-      if (!initialized.sessionVersion) {
+      if (!initialized.sharedTestLinkIssuedAt) {
         throw new Error("[users:test-link:generate] Failed to initialize shared test link validity window.");
       }
 
-      tokenSessionVersion = initialized.sessionVersion;
       tokenUserShape = {
         ...user,
-        sessionVersion: initialized.sessionVersion,
         sharedTestLinkIssuedAt: initialized.sharedTestLinkIssuedAt
       };
       initializedIssuedAt = true;
+      tokenIssuedAtEpochSeconds = getSharedTestTokenIssuedAtEpochSeconds(tokenUserShape);
     } else if (isSharedTestTokenExpiredForUser(user)) {
-      const rotated = await rotateSessionVersionForUser(pool, user.id, { issueNow: true });
-      if (!rotated.sessionVersion) {
-        throw new Error("[users:test-link:generate] Failed to rotate session version.");
+      const refreshed = await ensureSharedTestLinkIssuedAtNow(pool, user.id, { forceNow: true });
+      if (!refreshed.sharedTestLinkIssuedAt) {
+        throw new Error("[users:test-link:generate] Failed to refresh shared test link validity window.");
       }
 
-      tokenSessionVersion = rotated.sessionVersion;
       tokenUserShape = {
         ...user,
-        sessionVersion: rotated.sessionVersion,
-        sharedTestLinkIssuedAt: rotated.sharedTestLinkIssuedAt
+        sharedTestLinkIssuedAt: refreshed.sharedTestLinkIssuedAt
       };
       regenerated = true;
+      tokenIssuedAtEpochSeconds = getSharedTestTokenIssuedAtEpochSeconds(tokenUserShape);
+    }
+
+    if (!tokenIssuedAtEpochSeconds) {
+      throw new Error("[users:test-link:generate] Failed to resolve shared test token issued-at timestamp.");
     }
 
     const token = createSharedTestLoginToken({
       userId: user.id,
-      sessionVersion: tokenSessionVersion,
+      issuedAtEpochSeconds: tokenIssuedAtEpochSeconds,
       secret
     });
     const link = buildSharedTestMagicLoginUrl(baseUrl, token);
@@ -68,13 +69,11 @@ async function run() {
 
     if (regenerated) {
       console.log("[users:test-link:generate] Shared test magic link regenerated (previous token expired).");
-      console.log("[users:test-link:generate] Old links invalidated and active sessions logged out.");
+      console.log("[users:test-link:generate] Old links invalidated.");
     } else if (initializedIssuedAt) {
       console.log("[users:test-link:generate] Shared test magic link initialized.");
-      console.log("[users:test-link:generate] No session invalidation performed.");
     } else {
       console.log("[users:test-link:generate] Shared test magic link still valid; existing token reused.");
-      console.log("[users:test-link:generate] No session invalidation performed.");
     }
     if (expiresAtIso) {
       console.log(`[users:test-link:generate] Expires at: ${expiresAtIso}`);

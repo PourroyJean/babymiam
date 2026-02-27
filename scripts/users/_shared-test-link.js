@@ -84,7 +84,6 @@ async function loadSharedTestAccessUser(pool, email) {
       SELECT
         id,
         email::text AS email,
-        session_version,
         status,
         shared_test_link_issued_at::text AS shared_test_link_issued_at
       FROM users
@@ -106,7 +105,6 @@ async function loadSharedTestAccessUser(pool, email) {
   return {
     id: Number(row.id),
     email: row.email,
-    sessionVersion: Number(row.session_version),
     status: row.status,
     sharedTestLinkIssuedAt: row.shared_test_link_issued_at
   };
@@ -147,16 +145,20 @@ async function rotateSessionVersionForUser(pool, userId, options = {}) {
   };
 }
 
-async function ensureSharedTestLinkIssuedAtNow(pool, userId) {
+async function ensureSharedTestLinkIssuedAtNow(pool, userId, options = {}) {
+  const forceNow = options?.forceNow === true;
+  const issuedAtAssignment = forceNow
+    ? "shared_test_link_issued_at = NOW(),"
+    : "shared_test_link_issued_at = COALESCE(shared_test_link_issued_at, NOW()),";
+
   const result = await pool.query(
     `
       UPDATE users
       SET
-        shared_test_link_issued_at = COALESCE(shared_test_link_issued_at, NOW()),
+        ${issuedAtAssignment}
         updated_at = NOW()
       WHERE id = $1
       RETURNING
-        session_version,
         shared_test_link_issued_at::text AS shared_test_link_issued_at;
     `,
     [userId]
@@ -164,7 +166,6 @@ async function ensureSharedTestLinkIssuedAtNow(pool, userId) {
 
   const row = result.rows[0];
   return {
-    sessionVersion: Number(row?.session_version || 0),
     sharedTestLinkIssuedAt: row?.shared_test_link_issued_at
   };
 }

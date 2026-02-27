@@ -506,10 +506,10 @@ export async function verifySharedTestAccessToken(token: string) {
   if (!user) return null;
 
   if (verifiedToken.userId !== user.id) return null;
-  if (verifiedToken.sessionVersion !== user.sessionVersion) return null;
 
   const issuedAtEpochSeconds = toEpochSeconds(user.sharedTestLinkIssuedAt);
   if (!issuedAtEpochSeconds) return null;
+  if (verifiedToken.issuedAtEpochSeconds !== issuedAtEpochSeconds) return null;
 
   if (
     isSharedTestLoginTokenExpiredValue({

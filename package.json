@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev/dev-with-shared-link.js",
+    "dev:raw": "next dev",
     "db:migrate": "node scripts/db/migrate-runner.js up",
     "db:migrate:down": "node scripts/db/migrate-runner.js down 1",
     "db:migrate:new": "node scripts/db/migrate-runner.js create",

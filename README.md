@@ -70,8 +70,9 @@ Authentification session:
   npm run users:test-link:revoke
   ```
 - `users:test-link:generate` affiche toujours le lien courant.
-- Si le lien courant a moins de 31 jours, le même token est réutilisé (pas de déconnexion).
-- Si le lien courant est expiré (>31 jours), un nouveau token est généré (rotation `session_version`) et les sessions actives sont déconnectées.
+- Le token est dérivé de `shared_test_link_issued_at` (et non de `session_version`).
+- Si le lien courant a moins de 31 jours, le même token est réutilisé.
+- Si le lien courant est expiré (>31 jours), `shared_test_link_issued_at` est remis à `NOW()` et un nouveau token est généré.
 - `users:test-link:revoke` invalide les liens existants et déconnecte les sessions actives.
 - Le lien est valide 31 jours à partir de sa génération.
 - Traiter ce lien comme un secret (ne pas le publier dans des canaux ouverts).
@@ -159,6 +160,7 @@ Pour forcer un host distant: `E2E_ALLOW_REMOTE_DB_RESET=1`.
 6. Déployer le code applicatif.
 - Le déploiement prod standard se lance avec `npm run deploy:prod` (`vercel deploy . --prod -y`).
 - En build Vercel `preview` et `production`, le hook `postbuild` exécute automatiquement `users:test-link:generate`.
+- En local, `npm run dev` tente aussi `users:test-link:generate` au démarrage (best-effort) avant `next dev`.
 - Variables requises pour cette génération auto: `PERSONAL_ACCESS_EMAIL`, `AUTH_SECRET` (ou `AUTH_SECRETS`), `POSTGRES_URL` (ou `DATABASE_URL`).
 - `APP_BASE_URL` reste recommandé; en Vercel il est inféré depuis `VERCEL_URL` s'il est absent.
 - Le magic link courant (réutilisé ou régénéré si expiré) est affiché dans les logs de build Vercel à chaque déploiement.

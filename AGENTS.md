@@ -133,3 +133,14 @@
   - Ne pas activer la generation auto en preview/prod sans verifier les envs des deux scopes (`PERSONAL_ACCESS_EMAIL`, `AUTH_SECRET`/`AUTH_SECRETS`, `POSTGRES_URL`/`DATABASE_URL`).
   - Ne pas supposer qu'un echec `vercel env add` avec `ENOTFOUND` vient de Vercel; en sandbox, retenter en mode escalade.
   - Le magic link apparait dans les logs de build Vercel; eviter de partager ces logs dans des canaux publics.
+
+## Session Lessons (2026-02-27)
+- Lessons learned:
+  - Pour que le lien magic login affiche dans les logs reste valide apres des rotations de session utilisateur, il faut signer le token avec `shared_test_link_issued_at` (epoch) et verifier cette valeur cote serveur, au lieu de `session_version`.
+  - Dans `users:test-link:generate`, si le lien est expire, il faut rafraichir `shared_test_link_issued_at = NOW()` sans rotation de `session_version`; la revocation explicite garde le role d'invalidation forte.
+  - En local, un wrapper `npm run dev` qui genere le lien avant Next doit charger les `.env*` lui-meme; sinon `PERSONAL_ACCESS_EMAIL` peut etre absent meme si Next le charge ensuite.
+  - En local avec port/host custom (`--hostname/--port`), il faut calculer `APP_BASE_URL` depuis les args runtime pour que le lien logge pointe vers la bonne URL.
+- Safety rails / do-not-do:
+  - Ne pas conclure qu'un preview magic-link est casse si `curl` retourne `401` avec `_vercel_sso_nonce`: la protection Vercel peut bloquer avant d'atteindre la route applicative.
+  - Ne pas valider le flux localhost sans avoir applique la migration `1772800000000_add-shared-test-link-issued-at`; sinon la generation du lien echoue (colonne absente).
+  - Ne pas reutiliser un `APP_BASE_URL` statique en local quand le serveur tourne sur un port different; sinon le lien logge peut viser le mauvais port.

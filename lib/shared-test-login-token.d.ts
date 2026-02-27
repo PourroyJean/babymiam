@@ -1,19 +1,19 @@
 export type ParsedSharedTestLoginToken = {
   userId: number;
-  sessionVersion: number;
+  issuedAtEpochSeconds: number;
   signature: string;
 };
 
 export type VerifiedSharedTestLoginToken = {
   userId: number;
-  sessionVersion: number;
+  issuedAtEpochSeconds: number;
 };
 
 export const SHARED_TEST_LOGIN_TTL_SECONDS: number;
 
 export function createSharedTestLoginToken(params: {
   userId: number;
-  sessionVersion: number;
+  issuedAtEpochSeconds: number;
   secret: string;
 }): string;
 
