@@ -36,18 +36,33 @@ function normalizeIpCandidate(raw: string) {
   return isIP(candidate) > 0 ? candidate : null;
 }
 
+function getRightMostValidIp(candidates: string[]) {
+  // Read from right to reduce spoofing risk when upstream appends proxy chain values.
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
+    const normalized = normalizeIpCandidate(candidates[index]);
+    if (normalized) return normalized;
+  }
+
+  return null;
+}
+
 function getIpFromForwardedFor(value: string) {
   const candidates = value
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
 
-  for (const candidate of candidates) {
-    const normalized = normalizeIpCandidate(candidate);
-    if (normalized) return normalized;
-  }
+  return getRightMostValidIp(candidates);
+}
 
-  return null;
+function getIpFromForwardedHeader(value: string) {
+  const forDirectives = value
+    .split(",")
+    .flatMap((entry) => entry.split(";"))
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.toLowerCase().startsWith("for="));
+
+  return getRightMostValidIp(forDirectives);
 }
 
 export function getTrustedClientIpFromHeaders(requestHeaders: Headers) {
@@ -63,16 +78,5 @@ export function getTrustedClientIpFromHeaders(requestHeaders: Headers) {
   const forwardedHeader = requestHeaders.get("forwarded") || "";
   if (!forwardedHeader) return null;
 
-  const forwardedParts = forwardedHeader
-    .split(",")
-    .flatMap((part) => part.split(";"))
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  for (const part of forwardedParts) {
-    const normalized = normalizeIpCandidate(part);
-    if (normalized) return normalized;
-  }
-
-  return null;
+  return getIpFromForwardedHeader(forwardedHeader);
 }

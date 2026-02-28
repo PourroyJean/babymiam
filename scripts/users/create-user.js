@@ -8,6 +8,7 @@ function parseArgs(argv) {
   const parsed = {
     email: "",
     password: "",
+    passwordStdin: false,
     status: "active",
     verifyEmail: false
   };
@@ -25,6 +26,11 @@ function parseArgs(argv) {
     if (arg === "--password" && next) {
       parsed.password = String(next);
       i += 1;
+      continue;
+    }
+
+    if (arg === "--password-stdin") {
+      parsed.passwordStdin = true;
       continue;
     }
 
@@ -49,19 +55,50 @@ function assertPasswordPolicy(password) {
   }
 }
 
+function normalizePasswordFromStdin(rawValue) {
+  const value = String(rawValue);
+  if (value.endsWith("\r\n")) return value.slice(0, -2);
+  if (value.endsWith("\n")) return value.slice(0, -1);
+  return value;
+}
+
+async function readPasswordFromStdin() {
+  if (process.stdin.isTTY) {
+    throw new Error(
+      "Aucun mot de passe reçu via stdin. Utilise --password ou pipe une valeur avec --password-stdin."
+    );
+  }
+
+  const chunks = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+  }
+
+  if (chunks.length === 0) {
+    throw new Error("Flux stdin vide. Fournis un mot de passe avec --password-stdin.");
+  }
+
+  return normalizePasswordFromStdin(Buffer.concat(chunks).toString("utf8"));
+}
+
 async function run() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.email) {
     throw new Error("Argument manquant: --email");
   }
 
-  if (!args.password) {
-    throw new Error("Argument manquant: --password");
+  if (args.passwordStdin && args.password) {
+    throw new Error("Utilise soit --password soit --password-stdin, pas les deux.");
   }
 
-  assertPasswordPolicy(args.password);
+  if (!args.passwordStdin && !args.password) {
+    throw new Error("Argument manquant: --password (ou --password-stdin).");
+  }
 
-  const passwordHash = await argon2.hash(args.password, {
+  const password = args.passwordStdin ? await readPasswordFromStdin() : args.password;
+  assertPasswordPolicy(password);
+
+  const passwordHash = await argon2.hash(password, {
     type: argon2.argon2id,
     memoryCost: 19_456,
     timeCost: 2,
