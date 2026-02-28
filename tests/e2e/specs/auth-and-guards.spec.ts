@@ -262,10 +262,42 @@ test.describe("auth and guards", () => {
   test("logout clears session and blocks protected pages", async ({ page, loginAsDefaultUser }) => {
     await loginAsDefaultUser();
 
-    await page.getByRole("button", { name: "Déconnexion" }).click();
+    await page.getByRole("button", { name: "Mon compte" }).click();
+    const dialog = page.getByRole("dialog", { name: "Mon compte" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Se déconnecter" }).click();
+    await dialog.getByRole("button", { name: "Se déconnecter maintenant" }).click();
     await expect(page).toHaveURL(/\/login$/);
 
     await page.goto("/");
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
+  test("unverified user can logout from Mon compte", async ({ page, db, loginAsDefaultUser }) => {
+    await loginAsDefaultUser();
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany(
+      `
+        UPDATE users
+        SET email_verified_at = NULL,
+            updated_at = NOW()
+        WHERE id = $1;
+      `,
+      [ownerId]
+    );
+
+    await page.reload();
+
+    await page.getByRole("button", { name: "Mon compte" }).click();
+    const dialog = page.getByRole("dialog", { name: "Mon compte" });
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByText("Vérifie ton email pour modifier le mot de passe et gérer les sessions.")
+    ).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Déconnecter les autres appareils" })).toHaveCount(0);
+
+    await dialog.getByRole("button", { name: "Se déconnecter" }).click();
+    await dialog.getByRole("button", { name: "Se déconnecter maintenant" }).click();
     await expect(page).toHaveURL(/\/login$/);
   });
 

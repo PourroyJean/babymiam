@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   createShareSnapshotAction,
+  logoutAction,
   revokeShareSnapshotAction,
   saveChildProfileAction,
   trackShareEventAction
@@ -24,7 +25,7 @@ type ProfileMenuProps = {
   progressSummary?: ProgressSummary | null;
 };
 
-type ShareFeedbackTone = "success" | "error" | "info";
+type FeedbackTone = "success" | "error" | "info";
 
 type GetAccountOverviewOkResult = Extract<
   Awaited<ReturnType<typeof getAccountOverviewAction>>,
@@ -32,7 +33,6 @@ type GetAccountOverviewOkResult = Extract<
 >;
 
 type AccountOverviewDTO = NonNullable<GetAccountOverviewOkResult["overview"]>;
-
 type ActiveShareLink = {
   shareId: string;
   shareUrl: string;
@@ -141,6 +141,29 @@ function buildMilestoneRecap(params: {
   ].join("\n");
 }
 
+function formatAccountDate(value: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function formatShareExpiryDate(value: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function getAccountErrorMessage(code?: string) {
+  if (code === "missing_fields") return "Tous les champs sont obligatoires.";
+  if (code === "weak_password") return "Le mot de passe doit contenir au moins 8 caractères.";
+  if (code === "password_mismatch") return "Les deux mots de passe ne correspondent pas.";
+  if (code === "bad_password") return "Mot de passe actuel incorrect.";
+  if (code === "unknown") return "Une erreur est survenue. Réessaie plus tard.";
+  return "Une erreur est survenue.";
+}
+
 export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileMenuProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -151,19 +174,19 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
   const [isSharePending, setIsSharePending] = useState(false);
   const [activeMilestone, setActiveMilestone] = useState<number | null>(null);
   const [shareFeedback, setShareFeedback] = useState<{
-    tone: ShareFeedbackTone;
+    tone: FeedbackTone;
     message: string;
   } | null>(null);
   const [activeShareLink, setActiveShareLink] = useState<ActiveShareLink | null>(null);
   const [isRevokingShare, setIsRevokingShare] = useState(false);
   const shareFeedbackTimeoutRef = useRef<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"child" | "account">("child");
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   const [accountUserEmail, setAccountUserEmail] = useState("");
   const [accountOverview, setAccountOverview] = useState<AccountOverviewDTO | null>(null);
   const [accountLoadError, setAccountLoadError] = useState("");
   const [accountFeedback, setAccountFeedback] = useState<{
-    tone: ShareFeedbackTone;
+    tone: FeedbackTone;
     message: string;
   } | null>(null);
   const accountLoadedRef = useRef(false);
@@ -185,7 +208,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
       setIsSharePending(false);
       setIsRevokingShare(false);
       setActiveMilestone(null);
-      setActiveTab("child");
+      setIsLogoutConfirmOpen(false);
       setAccountLoadError("");
       setAccountFeedback(null);
     }
@@ -225,7 +248,38 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
   const isSummaryAvailable = progressSummary !== null;
   const canShareProgress = isSummaryAvailable && shareSnapshot.totalFoods > 0;
 
-  function showShareFeedback(tone: ShareFeedbackTone, message: string) {
+  const ensureAccountLoaded = useCallback(() => {
+    if (accountLoadedRef.current || accountLoadingRef.current) return;
+    accountLoadingRef.current = true;
+    setAccountLoadError("");
+
+    startAccountTransition(async () => {
+      try {
+        const result = await getAccountOverviewAction();
+        if (!result.ok) {
+          setAccountLoadError("Impossible de charger les infos du compte.");
+          accountLoadedRef.current = false;
+          return;
+        }
+
+        accountLoadedRef.current = true;
+        setAccountUserEmail(result.userEmail);
+        setAccountOverview(result.overview);
+      } catch {
+        setAccountLoadError("Impossible de charger les infos du compte.");
+        accountLoadedRef.current = false;
+      } finally {
+        accountLoadingRef.current = false;
+      }
+    });
+  }, [startAccountTransition]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    ensureAccountLoaded();
+  }, [ensureAccountLoaded, isOpen]);
+
+  function showShareFeedback(tone: FeedbackTone, message: string) {
     if (shareFeedbackTimeoutRef.current !== null) {
       window.clearTimeout(shareFeedbackTimeoutRef.current);
     }
@@ -276,68 +330,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     void trackShareEventAction(formData);
   }
 
-  function formatAccountDate(value: string | null) {
-    if (!value) return null;
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return parsed.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
-  }
-
-  function formatShareExpiryDate(value: string | null) {
-    if (!value) return null;
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return null;
-    return parsed.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
-  }
-
-  function getAccountErrorMessage(code?: string) {
-    if (code === "missing_fields") return "Tous les champs sont obligatoires.";
-    if (code === "weak_password") return "Le mot de passe doit contenir au moins 8 caractères.";
-    if (code === "password_mismatch") return "Les deux mots de passe ne correspondent pas.";
-    if (code === "bad_password") return "Mot de passe actuel incorrect.";
-    if (code === "unknown") return "Une erreur est survenue. Réessaie plus tard.";
-    return "Une erreur est survenue.";
-  }
-
-  function ensureAccountLoaded() {
-    if (accountLoadedRef.current || accountLoadingRef.current) return;
-    accountLoadingRef.current = true;
-    setAccountLoadError("");
-
-    startAccountTransition(async () => {
-      try {
-        const result = await getAccountOverviewAction();
-        if (!result.ok) {
-          setAccountLoadError("Impossible de charger les infos du compte.");
-          accountLoadedRef.current = false;
-          return;
-        }
-
-        accountLoadedRef.current = true;
-        setAccountUserEmail(result.userEmail);
-        setAccountOverview(result.overview);
-      } catch {
-        setAccountLoadError("Impossible de charger les infos du compte.");
-        accountLoadedRef.current = false;
-      } finally {
-        accountLoadingRef.current = false;
-      }
-    });
-  }
-
-  function onSelectChildTab() {
-    setAccountFeedback(null);
-    setAccountLoadError("");
-    setActiveTab("child");
-  }
-
-  function onSelectAccountTab() {
-    setProfileErrorMessage("");
-    setActiveTab("account");
-    ensureAccountLoaded();
-  }
-
-  function showAccountFeedback(tone: ShareFeedbackTone, message: string) {
+  function showAccountFeedback(tone: FeedbackTone, message: string) {
     setAccountFeedback({ tone, message });
   }
 
@@ -361,10 +354,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
           return;
         }
 
-        showAccountFeedback(
-          "success",
-          "Email de vérification envoyé."
-        );
+        showAccountFeedback("success", "Email de vérification envoyé.");
       } catch {
         showAccountFeedback("error", getAccountErrorMessage("unknown"));
       }
@@ -640,193 +630,150 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
   }
 
   const isAccountEmailVerified = Boolean(accountOverview?.emailVerifiedAt);
+  const isUiBusy = isAccountPending || isProfilePending;
+
+  function renderShareSection() {
+    return (
+      <section className="profile-progress-section" aria-label="Récapitulatif des progrès">
+        <h3>Récap des progrès</h3>
+        <p className="profile-progress-stats">
+          {shareSnapshot.introducedCount}/{shareSnapshot.totalFoods} aliments testés • {shareSnapshot.likedCount}{" "}
+          appréciés
+        </p>
+
+        {isSummaryAvailable ? (
+          shareSnapshot.recentFoodNames.length > 0 ? (
+            <p className="profile-progress-recent">Derniers essais: {shareSnapshot.recentFoodNames.join(", ")}</p>
+          ) : (
+            <p className="profile-progress-note">Aucun essai récent pour le moment.</p>
+          )
+        ) : (
+          <p className="profile-progress-note">Ouvre l&apos;onglet Suivi pour charger ce récap.</p>
+        )}
+
+        <button
+          type="button"
+          className="profile-share-btn"
+          onClick={onShareProgress}
+          disabled={!canShareProgress || isSharePending}
+        >
+          {isSharePending ? "Partage..." : "Partager les progrès"}
+        </button>
+
+        {activeShareLink ? (
+          <section className="profile-progress-note" aria-live="polite">
+            <p>
+              Lien actif créé.
+              {formatShareExpiryDate(activeShareLink.expiresAt)
+                ? ` Expire le ${formatShareExpiryDate(activeShareLink.expiresAt)}.`
+                : ""}
+            </p>
+            <p>
+              <a href={activeShareLink.shareUrl} target="_blank" rel="noreferrer">
+                Ouvrir le lien de partage
+              </a>
+            </p>
+            <button
+              type="button"
+              className="profile-share-btn"
+              onClick={onRevokeActiveShareLink}
+              disabled={isRevokingShare || isSharePending}
+            >
+              {isRevokingShare ? "Révocation..." : "Révoquer ce lien"}
+            </button>
+          </section>
+        ) : null}
+
+        <div className="profile-milestone-badges" aria-label="Paliers de progression">
+          {MILESTONE_THRESHOLDS.map((milestone) => {
+            const isUnlocked = shareSnapshot.introducedCount >= milestone;
+            const isCurrentPending = activeMilestone === milestone;
+
+            return (
+              <button
+                key={milestone}
+                type="button"
+                className={`profile-milestone-badge ${isUnlocked ? "is-unlocked" : "is-locked"}`}
+                onClick={() => onShareMilestone(milestone)}
+                disabled={!isUnlocked || activeMilestone !== null}
+                aria-label={
+                  isUnlocked
+                    ? `Partager le palier ${milestone} aliments`
+                    : `Palier ${milestone} aliments verrouillé`
+                }
+                title={isUnlocked ? `Partager le palier ${milestone}` : `Palier ${milestone} verrouillé`}
+              >
+                {isCurrentPending ? "..." : milestone}
+              </button>
+            );
+          })}
+        </div>
+
+        {shareFeedback ? (
+          <p
+            className={`share-feedback share-feedback-${shareFeedback.tone} profile-share-feedback`}
+            role="status"
+            aria-live="polite"
+          >
+            {shareFeedback.message}
+          </p>
+        ) : null}
+      </section>
+    );
+  }
+
+  function renderCurrentSessionLogoutSection() {
+    if (isLogoutConfirmOpen) {
+      return (
+        <section className="profile-logout-confirm" aria-live="polite">
+          <p className="account-muted">Tu vas être déconnecté(e). Tu pourras te reconnecter à tout moment.</p>
+          <div className="profile-logout-confirm-actions">
+            <button
+              type="button"
+              className="profile-logout-cancel-btn"
+              onClick={() => setIsLogoutConfirmOpen(false)}
+              disabled={isUiBusy}
+            >
+              Annuler
+            </button>
+            <form action={logoutAction}>
+              <button type="submit" className="account-btn account-btn-danger">
+                Se déconnecter maintenant
+              </button>
+            </form>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        className="account-btn account-btn-secondary"
+        onClick={() => setIsLogoutConfirmOpen(true)}
+        disabled={isUiBusy}
+      >
+        Se déconnecter
+      </button>
+    );
+  }
 
   const modal = isOpen ? (
     <div className="profile-modal-overlay" onClick={onClose} role="presentation">
       <section
-        className={`profile-modal ${activeTab === "account" ? "is-wide" : ""}`}
+        className="profile-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="profile-modal-title"
+        aria-label="Mon compte"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id="profile-modal-title">Profil</h2>
+        <section className="profile-content-grid">
+          <section className="profile-tabpanel" aria-label="Informations du profil">
+            <article className="account-card">
+              <h2>Mon Compte</h2>
 
-        <div className="profile-tabs" role="tablist" aria-label="Paramètres profil et compte">
-          <button
-            type="button"
-            role="tab"
-            id="profile-tab-child"
-            aria-selected={activeTab === "child"}
-            aria-controls="profile-tabpanel-child"
-            className={`profile-tab ${activeTab === "child" ? "is-active" : ""}`}
-            onClick={onSelectChildTab}
-          >
-            Profil enfant
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="profile-tab-account"
-            aria-selected={activeTab === "account"}
-            aria-controls="profile-tabpanel-account"
-            className={`profile-tab ${activeTab === "account" ? "is-active" : ""}`}
-            onClick={onSelectAccountTab}
-          >
-            Compte
-          </button>
-        </div>
-
-        {activeTab === "child" ? (
-          <section
-            id="profile-tabpanel-child"
-            role="tabpanel"
-            aria-labelledby="profile-tab-child"
-            className="profile-tabpanel"
-          >
-            <div className="profile-form">
-              <label htmlFor="child-first-name">Prénom</label>
-              <input
-                id="child-first-name"
-                type="text"
-                value={firstName}
-                onChange={(event) => setFirstName(event.currentTarget.value)}
-                placeholder="Ex: Louise"
-                autoComplete="off"
-              />
-
-              <label htmlFor="child-birth-date">Date de naissance</label>
-              <input
-                id="child-birth-date"
-                type="date"
-                value={birthDate}
-                onChange={(event) => setBirthDate(event.currentTarget.value)}
-              />
-
-              <section className="profile-progress-section" aria-label="Récapitulatif des progrès">
-                <h3>Récap des progrès</h3>
-                <p className="profile-progress-stats">
-                  {shareSnapshot.introducedCount}/{shareSnapshot.totalFoods} aliments testés •{" "}
-                  {shareSnapshot.likedCount} appréciés
-                </p>
-
-                {isSummaryAvailable ? (
-                  shareSnapshot.recentFoodNames.length > 0 ? (
-                    <p className="profile-progress-recent">
-                      Derniers essais: {shareSnapshot.recentFoodNames.join(", ")}
-                    </p>
-                  ) : (
-                    <p className="profile-progress-note">Aucun essai récent pour le moment.</p>
-                  )
-                ) : (
-                  <p className="profile-progress-note">
-                    Ouvre l&apos;onglet Suivi pour charger ce récap.
-                  </p>
-                )}
-
-                <button
-                  type="button"
-                  className="profile-share-btn"
-                  onClick={onShareProgress}
-                  disabled={!canShareProgress || isSharePending}
-                >
-                  {isSharePending ? "Partage..." : "Partager les progrès"}
-                </button>
-
-                {activeShareLink ? (
-                  <section className="profile-progress-note" aria-live="polite">
-                    <p>
-                      Lien actif créé.
-                      {formatShareExpiryDate(activeShareLink.expiresAt)
-                        ? ` Expire le ${formatShareExpiryDate(activeShareLink.expiresAt)}.`
-                        : ""}
-                    </p>
-                    <p>
-                      <a href={activeShareLink.shareUrl} target="_blank" rel="noreferrer">
-                        Ouvrir le lien de partage
-                      </a>
-                    </p>
-                    <button
-                      type="button"
-                      className="profile-share-btn"
-                      onClick={onRevokeActiveShareLink}
-                      disabled={isRevokingShare || isSharePending}
-                    >
-                      {isRevokingShare ? "Révocation..." : "Révoquer ce lien"}
-                    </button>
-                  </section>
-                ) : null}
-
-                <div className="profile-milestone-badges" aria-label="Paliers de progression">
-                  {MILESTONE_THRESHOLDS.map((milestone) => {
-                    const isUnlocked = shareSnapshot.introducedCount >= milestone;
-                    const isCurrentPending = activeMilestone === milestone;
-
-                    return (
-                      <button
-                        key={milestone}
-                        type="button"
-                        className={`profile-milestone-badge ${
-                          isUnlocked ? "is-unlocked" : "is-locked"
-                        }`}
-                        onClick={() => onShareMilestone(milestone)}
-                        disabled={!isUnlocked || activeMilestone !== null}
-                        aria-label={
-                          isUnlocked
-                            ? `Partager le palier ${milestone} aliments`
-                            : `Palier ${milestone} aliments verrouillé`
-                        }
-                        title={
-                          isUnlocked
-                            ? `Partager le palier ${milestone}`
-                            : `Palier ${milestone} verrouillé`
-                        }
-                      >
-                        {isCurrentPending ? "..." : milestone}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {shareFeedback ? (
-                  <p
-                    className={`share-feedback share-feedback-${shareFeedback.tone} profile-share-feedback`}
-                    role="status"
-                    aria-live="polite"
-                  >
-                    {shareFeedback.message}
-                  </p>
-                ) : null}
-              </section>
-            </div>
-
-            {profileErrorMessage ? <p className="profile-error">{profileErrorMessage}</p> : null}
-
-            <div className="profile-actions">
-              <button type="button" onClick={onClose} disabled={isProfilePending}>
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={onSave}
-                disabled={!isDirty || !isValid || isProfilePending}
-              >
-                Enregistrer
-              </button>
-            </div>
-          </section>
-        ) : null}
-
-        {activeTab === "account" ? (
-          <section
-            id="profile-tabpanel-account"
-            role="tabpanel"
-            aria-labelledby="profile-tab-account"
-            className="profile-tabpanel"
-          >
-            <section className="account-grid" aria-label="Paramètres du compte">
-              <article className="account-card">
-                <h2>Adresse email</h2>
+              <section className="profile-subcard" aria-label="Informations du profil parent">
+                <h3>Profil</h3>
                 <p className="account-kv">
                   <span>Email</span>
                   <strong>{accountOverview?.email || accountUserEmail || "—"}</strong>
@@ -838,8 +785,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
                 <p className="account-kv">
                   <span>Vérifié</span>
                   <strong>
-                    {formatAccountDate(accountOverview?.emailVerifiedAt ?? null) ||
-                      (accountOverview ? "Non" : "—")}
+                    {formatAccountDate(accountOverview?.emailVerifiedAt ?? null) || (accountOverview ? "Non" : "—")}
                   </strong>
                 </p>
 
@@ -851,85 +797,114 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
                     </button>
                   </form>
                 ) : null}
-              </article>
+              </section>
+
+              <section className="profile-subcard" aria-label="Informations enfant">
+                <h3>Enfant</h3>
+                <div className="profile-form">
+                  <label htmlFor="child-first-name">Prénom</label>
+                  <input
+                    id="child-first-name"
+                    type="text"
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.currentTarget.value)}
+                    placeholder="Ex: Louise"
+                    autoComplete="off"
+                  />
+
+                  <label htmlFor="child-birth-date">Date de naissance</label>
+                  <input
+                    id="child-birth-date"
+                    type="date"
+                    value={birthDate}
+                    onChange={(event) => setBirthDate(event.currentTarget.value)}
+                  />
+                </div>
+              </section>
+
+              {renderShareSection()}
+
+              {profileErrorMessage ? <p className="profile-error">{profileErrorMessage}</p> : null}
+
+              <div className="profile-actions">
+                <button type="button" onClick={onClose} disabled={isUiBusy}>
+                  Annuler
+                </button>
+                <button type="button" onClick={onSave} disabled={!isDirty || !isValid || isUiBusy}>
+                  Enregistrer
+                </button>
+              </div>
+            </article>
+          </section>
+
+          <section className="profile-tabpanel" aria-label="Sécurité du compte">
+            <article className="account-card">
+              <h2>Sécurité</h2>
+
+              <p className="account-muted">
+                Mot de passe oublié ? <Link href="/forgot-password">Réinitialiser</Link>.
+              </p>
 
               {isAccountEmailVerified ? (
-                <>
-                  <article className="account-card">
-                    <h2>Sécurité</h2>
-                    <p className="account-muted">Change ton mot de passe (8 caractères minimum).</p>
+                <form onSubmit={onChangePassword} className="account-form">
+                  <input type="hidden" name="__mode" value="modal" />
 
-                    <form onSubmit={onChangePassword} className="account-form">
-                      <input type="hidden" name="__mode" value="modal" />
+                  <label>
+                    Mot de passe actuel
+                    <input
+                      name="currentPassword"
+                      type="password"
+                      placeholder="••••••••"
+                      required
+                      autoComplete="current-password"
+                    />
+                  </label>
 
-                      <label>
-                        Mot de passe actuel
-                        <input
-                          name="currentPassword"
-                          type="password"
-                          placeholder="••••••••"
-                          required
-                          autoComplete="current-password"
-                        />
-                      </label>
+                  <label>
+                    Nouveau mot de passe
+                    <input
+                      name="password"
+                      type="password"
+                      placeholder="••••••••"
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                  </label>
 
-                      <label>
-                        Nouveau mot de passe
-                        <input
-                          name="password"
-                          type="password"
-                          placeholder="••••••••"
-                          required
-                          minLength={8}
-                          autoComplete="new-password"
-                        />
-                      </label>
+                  <label>
+                    Confirmer le mot de passe
+                    <input
+                      name="confirmPassword"
+                      type="password"
+                      placeholder="••••••••"
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                  </label>
 
-                      <label>
-                        Confirmer le mot de passe
-                        <input
-                          name="confirmPassword"
-                          type="password"
-                          placeholder="••••••••"
-                          required
-                          minLength={8}
-                          autoComplete="new-password"
-                        />
-                      </label>
+                  <button type="submit" className="account-btn" disabled={isAccountPending}>
+                    Mettre à jour
+                  </button>
+                </form>
+              ) : (
+                <p className="account-muted">Vérifie ton email pour modifier le mot de passe et gérer les sessions.</p>
+              )}
 
-                      <button type="submit" className="account-btn" disabled={isAccountPending}>
-                        Mettre à jour
-                      </button>
-                    </form>
-                  </article>
+              <section className="profile-security-actions" aria-label="Actions de session">
+                {isAccountEmailVerified ? (
+                  <form onSubmit={onLogoutEverywhere} className="account-inline-form">
+                    <input type="hidden" name="__mode" value="modal" />
+                    <button type="submit" className="account-btn account-btn-secondary" disabled={isAccountPending}>
+                      Déconnecter les autres appareils
+                    </button>
+                  </form>
+                ) : null}
 
-                  <article className="account-card">
-                    <h2>Sessions</h2>
-                    <p className="account-muted">
-                      Si tu as oublié de te déconnecter ailleurs, tu peux invalider toutes les sessions.
-                    </p>
-
-                    <form onSubmit={onLogoutEverywhere} className="account-inline-form">
-                      <input type="hidden" name="__mode" value="modal" />
-                      <button
-                        type="submit"
-                        className="account-btn account-btn-secondary"
-                        disabled={isAccountPending}
-                      >
-                        Déconnecter les autres appareils
-                      </button>
-                    </form>
-                  </article>
-
-                  <article className="account-card">
-                    <h2>Aide</h2>
-                    <p className="account-muted">
-                      Mot de passe oublié ? <Link href="/forgot-password">Réinitialiser</Link>.
-                    </p>
-                  </article>
-                </>
-              ) : null}
-            </section>
+                {renderCurrentSessionLogoutSection()}
+              </section>
+            </article>
 
             {accountLoadError ? <p className="error-text account-global-error">{accountLoadError}</p> : null}
             {accountFeedback ? (
@@ -941,14 +916,8 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
                 {accountFeedback.message}
               </p>
             ) : null}
-
-            <div className="profile-actions">
-              <button type="button" onClick={onClose} disabled={isAccountPending}>
-                Fermer
-              </button>
-            </div>
           </section>
-        ) : null}
+        </section>
       </section>
     </div>
   ) : null;
@@ -956,7 +925,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
   return (
     <div className="profile-menu">
       <button type="button" className="profile-btn" onClick={() => setIsOpen(true)}>
-        Profil
+        Mon compte
       </button>
       {isMounted && modal ? createPortal(modal, document.body) : null}
     </div>

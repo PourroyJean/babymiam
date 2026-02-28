@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { logoutAction } from "@/app/actions";
 import { ProfileMenu } from "@/components/profile-menu";
 import type { ChildProfile, ProgressSummary } from "@/lib/types";
 
@@ -63,23 +62,6 @@ export function SiteNav({
 
       <div className="site-account-actions">
         <ProfileMenu initialProfile={childProfile} progressSummary={progressSummary} />
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="logout-btn logout-icon-btn"
-            aria-label="Déconnexion"
-            title="Déconnexion"
-          >
-            <Image
-              src="/images/brand/logout-grrrignote.webp"
-              alt=""
-              aria-hidden="true"
-              width={40}
-              height={40}
-              className="logout-icon"
-            />
-          </button>
-        </form>
       </div>
     </header>
   );

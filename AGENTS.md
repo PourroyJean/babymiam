@@ -156,3 +156,17 @@
   - `vercel deploy . --prod -y`
 - Safety rails / do-not-do:
   - Ne pas lancer `git checkout`, `git merge` et `git push` en parallele sur la meme branche: executer ces etapes en sequence puis verifier l'ancestry avant de deployer.
+
+## Session Lessons (2026-02-27)
+- Lessons learned:
+  - Les actions compte sensibles (changement mot de passe, logout des autres appareils) doivent verifier `email_verified_at` cote serveur (`requireVerifiedAuth`), meme si la UI masque deja ces actions.
+  - Quand `proxy.ts` porte deja les headers securite des pages, limiter `next.config.mjs` a `/api/:path*` reduit la duplication et le risque de drift entre politiques.
+  - Le scenario E2E "user non verifie peut se deconnecter depuis Mon compte" est un garde-fou utile apres refonte du modal profil.
+- Reliable commands:
+  - `npm run test:users`
+  - `npm run test:e2e -- tests/e2e/specs/auth-and-guards.spec.ts tests/e2e/specs/profile-account.spec.ts`
+  - `npm run test:e2e -- tests/e2e/specs/auth-and-guards.spec.ts tests/e2e/specs/pediatric-report.spec.ts`
+- Safety rails / do-not-do:
+  - Ne pas remettre en question l'affichage du magic link de test dans les logs de build: decision produit explicite.
+  - Ne pas remettre en question le fallback premium par defaut: decision produit explicite.
+  - Ne pas conditionner la deconnexion de la session courante a `email_verified_at`; garder ce chemin disponible.

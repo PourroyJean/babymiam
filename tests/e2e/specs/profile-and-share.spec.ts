@@ -34,9 +34,9 @@ async function setupClipboardMock(page: Page) {
 
 test.describe("profile and share", () => {
   test("blocks save when profile inputs are invalid", async ({ appPage }) => {
-    await appPage.getByRole("button", { name: "Profil" }).click();
+    await appPage.getByRole("button", { name: "Mon compte" }).click();
 
-    const dialog = appPage.getByRole("dialog", { name: "Profil" });
+    const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
     await expect(dialog).toBeVisible();
 
     const firstNameInput = dialog.getByLabel("Prénom");
@@ -53,9 +53,9 @@ test.describe("profile and share", () => {
   });
 
   test("saves child profile and persists values", async ({ appPage, db }) => {
-    await appPage.getByRole("button", { name: "Profil" }).click();
+    await appPage.getByRole("button", { name: "Mon compte" }).click();
 
-    const dialog = appPage.getByRole("dialog", { name: "Profil" });
+    const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
     await expect(dialog).toBeVisible();
 
     await dialog.getByLabel("Prénom").fill("Louise");
@@ -81,8 +81,8 @@ test.describe("profile and share", () => {
       })
       .toBe("Louise|2024-02-15");
 
-    await appPage.getByRole("button", { name: "Profil" }).click();
-    const reopenedDialog = appPage.getByRole("dialog", { name: "Profil" });
+    await appPage.getByRole("button", { name: "Mon compte" }).click();
+    const reopenedDialog = appPage.getByRole("dialog", { name: "Mon compte" });
     await expect(reopenedDialog.getByLabel("Prénom")).toHaveValue("Louise");
     await expect(reopenedDialog.getByLabel("Date de naissance")).toHaveValue("2024-02-15");
   });
@@ -111,8 +111,8 @@ test.describe("profile and share", () => {
     await setupClipboardMock(appPage);
     await appPage.reload();
 
-    await appPage.getByRole("button", { name: "Profil" }).click();
-    const dialog = appPage.getByRole("dialog", { name: "Profil" });
+    await appPage.getByRole("button", { name: "Mon compte" }).click();
+    const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
 
     await dialog.getByRole("button", { name: "Partager les progrès" }).click();
     await expect(dialog.getByText("Récap copié.")).toBeVisible();
@@ -180,8 +180,8 @@ test.describe("profile and share", () => {
     await setupClipboardMock(appPage);
     await appPage.reload();
 
-    await appPage.getByRole("button", { name: "Profil" }).click();
-    const dialog = appPage.getByRole("dialog", { name: "Profil" });
+    await appPage.getByRole("button", { name: "Mon compte" }).click();
+    const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
 
     const milestoneButton = dialog.getByRole("button", {
       name: "Partager le palier 10 aliments"
@@ -215,8 +215,8 @@ test.describe("profile and share", () => {
     await setupClipboardMock(appPage);
     await appPage.reload();
 
-    await appPage.getByRole("button", { name: "Profil" }).click();
-    const dialog = appPage.getByRole("dialog", { name: "Profil" });
+    await appPage.getByRole("button", { name: "Mon compte" }).click();
+    const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
 
     await dialog.getByRole("button", { name: "Partager les progrès" }).click();
     await expect(dialog.getByText("Récap copié.")).toBeVisible();

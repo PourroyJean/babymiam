@@ -8,6 +8,7 @@ import {
   getUserPasswordHashById,
   hashPassword,
   requireAuth,
+  requireVerifiedAuth,
   rotateSessionVersionForUser,
   updateUserPassword,
   validatePasswordPolicy,
@@ -62,7 +63,7 @@ export async function getAccountOverviewAction(): Promise<GetAccountOverviewActi
 
 export async function changePasswordAction(formData: FormData): Promise<ChangePasswordActionResult> {
   const modal = isModalAction(formData);
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
   const currentPassword = String(formData.get("currentPassword") || "");
   const password = String(formData.get("password") || "");
   const confirmPassword = String(formData.get("confirmPassword") || "");
@@ -159,7 +160,7 @@ export async function logoutEverywhereAction(
   formData?: FormData
 ): Promise<LogoutEverywhereActionResult> {
   const modal = isModalAction(formData);
-  const user = await requireAuth();
+  const user = await requireVerifiedAuth();
 
   let nextSessionVersion = 0;
   try {

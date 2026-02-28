@@ -4,12 +4,10 @@ const AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test").toL
 
 test.describe("profile account", () => {
   test("shows account overview and blocks password update when confirmation mismatches", async ({ appPage }) => {
-    await appPage.getByRole("button", { name: "Profil" }).click();
+    await appPage.getByRole("button", { name: "Mon compte" }).click();
 
-    const dialog = appPage.getByRole("dialog", { name: "Profil" });
+    const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
     await expect(dialog).toBeVisible();
-
-    await dialog.getByRole("tab", { name: "Compte" }).click();
 
     await expect(dialog.getByText(AUTH_EMAIL)).toBeVisible();
 

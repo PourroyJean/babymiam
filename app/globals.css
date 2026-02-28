@@ -540,6 +540,14 @@ a {
   background: #ecd9b2;
 }
 
+.account-btn-danger {
+  background: #b64f44;
+}
+
+.account-btn-danger:hover {
+  background: #a6463c;
+}
+
 .account-feedback {
   margin: 10px 0 0;
 }
@@ -701,8 +709,7 @@ a {
   color: #6f6557;
 }
 
-.profile-btn,
-.logout-btn {
+.profile-btn {
   border: 1px solid #d7c4aa;
   background: #fff7eb;
   border-radius: 999px;
@@ -713,26 +720,9 @@ a {
   font-weight: 700;
 }
 
-.profile-btn:focus-visible,
-.logout-btn:focus-visible {
+.profile-btn:focus-visible {
   outline: 2px solid #9b7a3d;
   outline-offset: 2px;
-}
-
-.logout-icon-btn {
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  display: grid;
-  place-items: center;
-}
-
-.logout-icon {
-  width: 100%;
-  height: 100%;
-  display: block;
 }
 
 .profile-modal-overlay {
@@ -746,7 +736,7 @@ a {
 }
 
 .profile-modal {
-  width: min(100%, 420px);
+  width: min(100%, 860px);
   max-height: min(88vh, 860px);
   overflow-y: auto;
   border-radius: 20px;
@@ -756,57 +746,26 @@ a {
   padding: 18px;
 }
 
-.profile-modal.is-wide {
-  width: min(100%, 780px);
-}
-
 .profile-modal h2 {
   margin: 0 0 10px;
   font-size: 1.2rem;
 }
 
-.profile-tabs {
-  margin: 8px 0 14px;
-  display: flex;
-  gap: 6px;
-  padding: 4px;
-  border: 1px solid #e2d2bb;
-  border-radius: 999px;
-  background: #fff8ec;
-}
-
-.profile-tab {
-  flex: 1;
-  border: 0;
-  border-radius: 999px;
-  padding: 9px 12px;
-  background: transparent;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  color: #5c4a33;
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
-}
-
-.profile-tab:hover {
-  transform: translateY(-1px);
-}
-
-.profile-tab.is-active {
-  background: #b99a52;
-  color: #fff;
-}
-
-.profile-tab:focus-visible {
-  outline: 2px solid #9b7a3d;
-  outline-offset: 2px;
+.profile-content-grid {
+  display: grid;
+  gap: 14px;
 }
 
 .profile-tabpanel {
   display: grid;
   gap: 10px;
+}
+
+@media (min-width: 960px) {
+  .profile-content-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
 }
 
 .profile-form {
@@ -832,6 +791,19 @@ a {
 .profile-actions button:focus-visible {
   outline: 2px solid #9b7a3d;
   outline-offset: 2px;
+}
+
+.profile-subcard {
+  margin-top: 8px;
+  border: 1px solid #e2d2bb;
+  border-radius: 14px;
+  background: #fff8ec;
+  padding: 10px;
+}
+
+.profile-subcard h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
 }
 
 .profile-progress-section {
@@ -961,6 +933,50 @@ a {
 }
 
 .profile-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.profile-logout-confirm {
+  margin-top: 10px;
+  border: 1px solid #e2d2bb;
+  border-radius: 14px;
+  background: #fff8ec;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.profile-security-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-logout-confirm .account-muted {
+  margin-bottom: 0;
+}
+
+.profile-logout-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.profile-logout-confirm-actions form {
+  width: 100%;
+}
+
+.profile-logout-cancel-btn {
+  border: 1px solid #dcccb7;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-logout-cancel-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -1414,6 +1430,32 @@ a {
   outline-offset: 2px;
 }
 
+.pediatric-report-trigger-btn:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.pediatric-report-loading-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pediatric-report-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #3c6ea1;
+  border-top-color: transparent;
+  border-radius: 999px;
+  animation: pediatric-report-spin 0.7s linear infinite;
+}
+
+@keyframes pediatric-report-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .pediatric-report-badge {
   border: 1px solid #7f99bc;
   border-radius: 999px;
@@ -1424,6 +1466,13 @@ a {
   background: #ffffff;
   color: #2a4868;
   font-weight: 900;
+}
+
+.pediatric-report-error {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #9e3728;
 }
 
 .share-feedback {
@@ -2359,6 +2408,12 @@ a {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 10px 0 0;
+  border-top: 1px solid #eadcc8;
+  background: #fffdf8;
 }
 
 .quick-add-cancel,
@@ -2840,12 +2895,6 @@ a {
     padding: 7px 10px;
     font-size: 0.86rem;
     white-space: nowrap;
-  }
-
-  .logout-icon-btn {
-    width: 32px;
-    height: 32px;
-    flex: 0 0 auto;
   }
 
   .page-hero h1,

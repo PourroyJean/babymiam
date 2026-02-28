@@ -9,6 +9,34 @@ function getIsoDateDaysAgo(daysAgo: number) {
 }
 
 test.describe("pediatric report", () => {
+  test("downloads from toolbar without opening a new tab", async ({ appPage }) => {
+    await appPage.route(
+      "**/api/pediatric-report?*",
+      async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 220));
+        await route.continue();
+      },
+      { times: 1 }
+    );
+
+    const reportButton = appPage.getByRole("button", { name: /Télécharger le rapport pédiatre en PDF/i });
+    await expect(reportButton).toBeVisible();
+
+    const urlBeforeDownload = appPage.url();
+    const pageCountBeforeDownload = appPage.context().pages().length;
+    const downloadPromise = appPage.waitForEvent("download");
+
+    await reportButton.click();
+    await expect(reportButton).toContainText("Génération...");
+
+    const download = await downloadPromise;
+    await expect(reportButton).toContainText("Rapport pédiatre PDF");
+
+    expect(appPage.url()).toBe(urlBeforeDownload);
+    expect(appPage.context().pages().length).toBe(pageCountBeforeDownload);
+    expect(download.suggestedFilename()).toMatch(/^grrrignote-rapport-pediatre-.*\.pdf$/);
+  });
+
   test("includes the detailed allergen consultation table in the PDF", async ({ appPage, db }) => {
     const ownerId = await db.getDefaultOwnerId();
     const birthDate = getIsoDateDaysAgo(220);

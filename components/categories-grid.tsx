@@ -94,6 +94,35 @@ function getCategoryPictogram(categoryName: string) {
   return getCategoryUi(categoryName).pictogram;
 }
 
+function getAttachmentFilename(contentDisposition: string | null) {
+  if (!contentDisposition) return null;
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim());
+    } catch {
+      return utf8Match[1].trim();
+    }
+  }
+
+  const fallbackMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  return fallbackMatch?.[1]?.trim() || null;
+}
+
+function triggerFileDownload(blob: Blob, filename: string) {
+  const objectUrl = window.URL.createObjectURL(blob);
+  const downloadLink = document.createElement("a");
+  downloadLink.href = objectUrl;
+  downloadLink.download = filename;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+  window.setTimeout(() => {
+    window.URL.revokeObjectURL(objectUrl);
+  }, 150);
+}
+
 export function CategoriesGrid({
   categories,
   toneByCategory,
@@ -107,6 +136,8 @@ export function CategoriesGrid({
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
   const [summaryFoodId, setSummaryFoodId] = useState<number | null>(null);
   const [showTestedOnly, setShowTestedOnly] = useState(false);
+  const [isPediatricReportPending, setIsPediatricReportPending] = useState(false);
+  const [pediatricReportError, setPediatricReportError] = useState("");
   const [finalPreferenceOverridesByFoodId, setFinalPreferenceOverridesByFoodId] = useState<
     Record<number, FinalPreferenceValue>
   >({});
@@ -180,6 +211,49 @@ export function CategoriesGrid({
     setIsTimelineOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(true);
+  }
+
+  async function downloadPediatricReport() {
+    if (isPediatricReportPending) return;
+
+    setPediatricReportError("");
+    setIsPediatricReportPending(true);
+
+    try {
+      const query = new URLSearchParams();
+      query.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
+      const reportUrl = `/api/pediatric-report?${query.toString()}`;
+
+      const response = await fetch(reportUrl, {
+        method: "GET",
+        credentials: "same-origin"
+      });
+
+      if (!response.ok) {
+        const errorText = (await response.text()).trim();
+        if (response.status === 402 && errorText) {
+          setPediatricReportError(errorText);
+        } else {
+          setPediatricReportError("Impossible de télécharger le rapport pour le moment.");
+        }
+        return;
+      }
+
+      const contentType = (response.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("application/pdf")) {
+        setPediatricReportError("Impossible de télécharger le rapport pour le moment.");
+        return;
+      }
+
+      const blob = await response.blob();
+      const filename =
+        getAttachmentFilename(response.headers.get("content-disposition")) || "grrrignote-rapport-pediatre.pdf";
+      triggerFileDownload(blob, filename);
+    } catch {
+      setPediatricReportError("Impossible de télécharger le rapport pour le moment.");
+    } finally {
+      setIsPediatricReportPending(false);
+    }
   }
 
   const isSummaryOpen = summaryFoodId !== null;
@@ -595,20 +669,27 @@ export function CategoriesGrid({
             <button
               type="button"
               className="pediatric-report-trigger-btn"
-              onClick={() => {
-                const query = new URLSearchParams();
-                query.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
-                const reportUrl = `/api/pediatric-report?${query.toString()}`;
-                const popup = window.open(reportUrl, "_blank", "noopener,noreferrer");
-                if (!popup) {
-                  window.location.assign(reportUrl);
-                }
-              }}
+              onClick={downloadPediatricReport}
+              disabled={isPediatricReportPending}
               aria-label="Télécharger le rapport pédiatre en PDF"
             >
-              <span>Rapport pédiatre PDF</span>
-              <span className="pediatric-report-badge">Premium</span>
+              {isPediatricReportPending ? (
+                <span className="pediatric-report-loading-indicator">
+                  <span className="pediatric-report-spinner" aria-hidden="true" />
+                  <span>Génération...</span>
+                </span>
+              ) : (
+                <>
+                  <span>Rapport pédiatre PDF</span>
+                  <span className="pediatric-report-badge">Premium</span>
+                </>
+              )}
             </button>
+            {pediatricReportError ? (
+              <p className="pediatric-report-error" role="status" aria-live="polite">
+                {pediatricReportError}
+              </p>
+            ) : null}
 
             <label className="toolbox-toggle">
               <input

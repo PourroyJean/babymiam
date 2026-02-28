@@ -19,9 +19,11 @@ if (isProduction) {
 const nextConfig = {
   ...(e2eDistDir ? { distDir: e2eDistDir } : {}),
   async headers() {
+    // `proxy.ts` already applies these headers on non-API routes.
+    // Keep this rule for API endpoints to avoid duplicated policy definitions.
     return [
       {
-        source: "/:path*",
+        source: "/api/:path*",
         headers: securityHeaders
       }
     ];
