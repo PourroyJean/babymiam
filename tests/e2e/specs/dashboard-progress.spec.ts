@@ -11,6 +11,14 @@ function getTodayLocalIsoDate() {
   return localDate.toISOString().slice(0, 10);
 }
 
+function getIsoDateDaysAgo(daysAgo: number) {
+  const normalizedDaysAgo = Math.max(0, Math.trunc(daysAgo));
+  const now = new Date();
+  now.setDate(now.getDate() - normalizedDaysAgo);
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
 function formatDateToFr(value: string) {
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
@@ -36,6 +44,13 @@ async function openQuickAddPanel(page: Page) {
   const addButton = dialog.getByRole("button", { name: "Ajouter" });
 
   return { dialog, searchInput, dateInput, noteInput, addButton };
+}
+
+async function openAntiForgetPanel(page: Page) {
+  await page.getByRole("button", { name: /Radar anti-oubli/i }).click();
+  const dialog = page.getByRole("dialog", { name: /Radar anti-oubli/i });
+  await expect(dialog).toBeVisible();
+  return { dialog };
 }
 
 function getSlotButton(scope: Locator, foodName: string, slot: 1 | 2 | 3) {
@@ -374,7 +389,52 @@ test.describe("dashboard progression", () => {
     await expect(reopenedDialog.getByText("Aucun aliment trouvé.")).toBeVisible();
   });
 
-  test("keeps overlays exclusive between Search, Timeline and Quick Add", async ({ appPage }) => {
+  test("anti forget radar prioritizes blocked foods and opens the food summary from reprendre", async ({
+    appPage,
+    db
+  }) => {
+    await db.setFoodTastingsByName("Carotte", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(19) }]);
+    await db.setFoodTastingsByName("Épinard", [
+      { slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(16) },
+      { slot: 2, liked: false, tastedOn: getIsoDateDaysAgo(15) }
+    ]);
+    await db.setFoodTastingsByName("Banane", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(8) }]);
+    await db.setFoodTastingsByName("Pomme", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(2) }]);
+
+    await appPage.reload();
+
+    const radarTrigger = appPage.getByRole("button", { name: /Radar anti-oubli/i });
+    await expect(radarTrigger).toContainText("3 bloqués");
+    await expect(radarTrigger).toContainText("2 urgents");
+    await expect(radarTrigger).toContainText("4 en cours");
+
+    const { dialog } = await openAntiForgetPanel(appPage);
+    await expect(dialog.locator(".anti-forget-stat-card").nth(0)).toContainText("Bloqués");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(0)).toContainText("3");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(1)).toContainText("Urgents");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(1)).toContainText("2");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(2)).toContainText("En cours");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(2)).toContainText("4");
+
+    const prioritizedItems = dialog.locator(".anti-forget-item");
+    await expect(prioritizedItems).toHaveCount(3);
+    await expect(prioritizedItems.nth(0)).toContainText("Carotte");
+    await expect(prioritizedItems.nth(1)).toContainText("Épinard");
+    await expect(prioritizedItems.nth(2)).toContainText("Banane");
+    await expect(prioritizedItems.nth(0).locator(".anti-forget-status")).toContainText("Urgent");
+    await expect(prioritizedItems.nth(1).locator(".anti-forget-status")).toContainText("Urgent");
+    await expect(prioritizedItems.nth(2).locator(".anti-forget-status")).toContainText("Bloqué");
+
+    await dialog.getByRole("button", { name: /Reprendre Banane/i }).click();
+    const summaryDialog = appPage.getByRole("dialog", { name: "Banane" });
+    await expect(summaryDialog).toBeVisible();
+
+    await appPage.keyboard.press("Escape");
+    await expect(summaryDialog).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+  });
+
+  test("keeps overlays exclusive between Search, Timeline, Radar and Quick Add", async ({ appPage }) => {
     await appPage.getByRole("button", { name: /Carnets de bords/i }).click();
     await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toBeVisible();
 
@@ -382,6 +442,13 @@ test.describe("dashboard progression", () => {
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
     await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toHaveCount(0);
 
+    await appPage.keyboard.press("Escape");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
+
+    await openAntiForgetPanel(appPage);
+    await appPage.keyboard.press("Control+k");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
+    await expect(appPage.getByRole("dialog", { name: /Radar anti-oubli/i })).toHaveCount(0);
     await appPage.keyboard.press("Escape");
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
 

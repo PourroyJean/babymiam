@@ -65,6 +65,7 @@ export default defineConfig({
       PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS: "2",
       PREMIUM_GATE_MODE: "on",
       PEDIATRIC_REPORT_PREMIUM_USER_EMAILS: authEmail,
+      ANTI_FORGET_RADAR_PREMIUM_USER_EMAILS: authEmail,
       E2E_DIST_DIR: ".next-e2e"
     }
   }

@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setFinalPreferenceAction } from "@/app/actions";
 import { AddFoodPanel } from "@/components/add-food-panel";
+import { AntiForgetPanel } from "@/components/anti-forget-panel";
 import { FoodSummaryModal } from "@/components/food-summary-modal";
 import { QuickAddPanel } from "@/components/quick-add-panel";
 import { SearchPanel } from "@/components/search-panel";
 import { TimelinePanel } from "@/components/timeline-panel";
 import { VegetableRow } from "@/components/vegetable-row";
+import { buildAntiForgetRadar } from "@/lib/anti-forget-radar";
 import { getCategoryUi } from "@/lib/category-ui";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { DashboardCategory, DashboardFood, FinalPreferenceValue, FoodTimelineEntry } from "@/lib/types";
@@ -18,6 +20,7 @@ type CategoriesGridProps = {
   toneByCategory: Record<string, string>;
   childFirstName?: string | null;
   timelineEntries: FoodTimelineEntry[];
+  hasAntiForgetPremiumAccess: boolean;
 };
 
 type SearchFood = DashboardFood & {
@@ -127,11 +130,13 @@ export function CategoriesGrid({
   categories,
   toneByCategory,
   childFirstName = null,
-  timelineEntries
+  timelineEntries,
+  hasAntiForgetPremiumAccess
 }: CategoriesGridProps) {
   const [openByCategoryId, setOpenByCategoryId] = useState<Record<number, boolean>>({});
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isAntiForgetOpen, setIsAntiForgetOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
   const [summaryFoodId, setSummaryFoodId] = useState<number | null>(null);
@@ -143,6 +148,7 @@ export function CategoriesGrid({
   >({});
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineTriggerRef = useRef<HTMLButtonElement>(null);
+  const antiForgetTriggerRef = useRef<HTMLButtonElement>(null);
   const quickAddTriggerRef = useRef<HTMLButtonElement>(null);
   const addFoodTriggerRef = useRef<HTMLButtonElement>(null);
   const summaryTriggerRef = useRef<HTMLElement | null>(null);
@@ -152,6 +158,7 @@ export function CategoriesGrid({
   const finalPreferenceOverridesRef = useRef<Record<number, FinalPreferenceValue>>({});
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const wasTimelineOpenRef = useRef(false);
+  const wasAntiForgetOpenRef = useRef(false);
   const wasQuickAddOpenRef = useRef(false);
   const wasAddFoodOpenRef = useRef(false);
   const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
@@ -175,6 +182,7 @@ export function CategoriesGrid({
 
   function openSearch() {
     setIsTimelineOpen(false);
+    setIsAntiForgetOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
     setIsSearchOpen(true);
@@ -186,9 +194,22 @@ export function CategoriesGrid({
 
   function openTimeline() {
     setIsSearchOpen(false);
+    setIsAntiForgetOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
     setIsTimelineOpen(true);
+  }
+
+  function closeAntiForget() {
+    setIsAntiForgetOpen(false);
+  }
+
+  function openAntiForget() {
+    setIsSearchOpen(false);
+    setIsTimelineOpen(false);
+    setIsQuickAddOpen(false);
+    setIsAddFoodOpen(false);
+    setIsAntiForgetOpen(true);
   }
 
   function closeQuickAdd() {
@@ -198,6 +219,7 @@ export function CategoriesGrid({
   function openQuickAdd() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
+    setIsAntiForgetOpen(false);
     setIsAddFoodOpen(false);
     setIsQuickAddOpen(true);
   }
@@ -209,6 +231,7 @@ export function CategoriesGrid({
   function openAddFood() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
+    setIsAntiForgetOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(true);
   }
@@ -431,6 +454,7 @@ export function CategoriesGrid({
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setIsTimelineOpen(false);
+        setIsAntiForgetOpen(false);
         setIsQuickAddOpen(false);
         setIsAddFoodOpen(false);
         setIsSearchOpen(true);
@@ -446,6 +470,7 @@ export function CategoriesGrid({
 
         setIsSearchOpen(false);
         setIsTimelineOpen(false);
+        setIsAntiForgetOpen(false);
         setIsQuickAddOpen(false);
         setIsAddFoodOpen(false);
       }
@@ -498,6 +523,18 @@ export function CategoriesGrid({
   }, [isTimelineOpen]);
 
   useEffect(() => {
+    if (isAntiForgetOpen) {
+      wasAntiForgetOpenRef.current = true;
+      return;
+    }
+
+    if (wasAntiForgetOpenRef.current) {
+      antiForgetTriggerRef.current?.focus();
+      wasAntiForgetOpenRef.current = false;
+    }
+  }, [isAntiForgetOpen]);
+
+  useEffect(() => {
     if (isQuickAddOpen) {
       wasQuickAddOpenRef.current = true;
       return;
@@ -522,7 +559,8 @@ export function CategoriesGrid({
   }, [isAddFoodOpen]);
 
   useEffect(() => {
-    const hasOverlayOpen = isSearchOpen || isTimelineOpen || isQuickAddOpen || isAddFoodOpen || isSummaryOpen;
+    const hasOverlayOpen =
+      isSearchOpen || isTimelineOpen || isAntiForgetOpen || isQuickAddOpen || isAddFoodOpen || isSummaryOpen;
     if (!hasOverlayOpen) return;
 
     const previousOverflow = document.body.style.overflow;
@@ -531,7 +569,7 @@ export function CategoriesGrid({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isSearchOpen, isTimelineOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
+  }, [isSearchOpen, isTimelineOpen, isAntiForgetOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -614,6 +652,9 @@ export function CategoriesGrid({
     [categories]
   );
 
+  const antiForgetRadar = useMemo(() => buildAntiForgetRadar(categories), [categories]);
+  const antiForgetStats = antiForgetRadar.stats;
+  const antiForgetToolbarSummary = `${antiForgetStats.blockedCount} bloqués · ${antiForgetStats.urgentCount} urgents · ${antiForgetStats.inProgressCount} en cours`;
 
 
   const finalPreferenceByFoodId = useMemo(() => {
@@ -656,6 +697,24 @@ export function CategoriesGrid({
 
             <button ref={timelineTriggerRef} type="button" className="timeline-trigger-btn" onClick={openTimeline}>
               <span>Carnets de bords</span>
+            </button>
+
+            <button
+              ref={antiForgetTriggerRef}
+              type="button"
+              className={`anti-forget-trigger-btn ${antiForgetStats.blockedCount > 0 ? "is-alert" : ""}`}
+              onClick={openAntiForget}
+              aria-label={`Radar anti-oubli : ${antiForgetToolbarSummary}`}
+            >
+              <span>Radar anti-oubli</span>
+              <span className="anti-forget-trigger-kpis" aria-hidden="true">
+                <span className="anti-forget-trigger-chip is-blocked">{antiForgetStats.blockedCount} bloqués</span>
+                <span className="anti-forget-trigger-chip is-urgent">{antiForgetStats.urgentCount} urgents</span>
+                <span className="anti-forget-trigger-chip is-progress">
+                  {antiForgetStats.inProgressCount} en cours
+                </span>
+              </span>
+              <span className="anti-forget-badge">Premium</span>
             </button>
 
             <button ref={quickAddTriggerRef} type="button" className="quick-add-trigger-btn" onClick={openQuickAdd}>
@@ -829,6 +888,17 @@ export function CategoriesGrid({
         finalPreferenceByFoodId={finalPreferenceByFoodId}
         openFoodSummary={openFoodSummary}
         toneByCategory={toneByCategory}
+        childFirstName={childFirstName}
+      />
+
+      <AntiForgetPanel
+        isOpen={isAntiForgetOpen}
+        isSummaryOpen={isSummaryOpen}
+        onClose={closeAntiForget}
+        hasPremiumAccess={hasAntiForgetPremiumAccess}
+        stats={antiForgetStats}
+        blockedFoods={antiForgetRadar.blockedFoods}
+        openFoodSummary={openFoodSummary}
         childFirstName={childFirstName}
       />
 

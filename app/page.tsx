@@ -2,6 +2,7 @@ import { requireVerifiedAuth } from "@/lib/auth";
 import { CATEGORY_TONE_BY_NAME } from "@/lib/category-ui";
 import { getChildProfile, getDashboardData, getFoodTimeline } from "@/lib/data";
 import { CategoriesGrid } from "@/components/categories-grid";
+import { hasPremiumFeatureAccess } from "@/lib/premium-features";
 import { SiteNav } from "@/components/site-nav";
 import type { DashboardCategory, FoodTimelineEntry, ProgressSummary } from "@/lib/types";
 
@@ -31,6 +32,7 @@ function buildProgressSummary(categories: DashboardCategory[]): ProgressSummary 
 
 export default async function DashboardPage() {
   const user = await requireVerifiedAuth();
+  const hasAntiForgetPremiumAccess = hasPremiumFeatureAccess(user, "anti_forget_radar");
   let childProfile: Awaited<ReturnType<typeof getChildProfile>> = null;
 
   let categories: Awaited<ReturnType<typeof getDashboardData>> = [];
@@ -73,6 +75,7 @@ export default async function DashboardPage() {
         toneByCategory={CATEGORY_TONE_BY_NAME}
         childFirstName={childProfile?.firstName ?? null}
         timelineEntries={timelineEntries}
+        hasAntiForgetPremiumAccess={hasAntiForgetPremiumAccess}
       />
     </main>
   );
