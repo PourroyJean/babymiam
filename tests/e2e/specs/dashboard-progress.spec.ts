@@ -53,6 +53,13 @@ async function openAntiForgetPanel(page: Page) {
   return { dialog };
 }
 
+async function openTimelinePanel(page: Page) {
+  await page.getByRole("button", { name: /Carnets de bords/i }).click();
+  const dialog = page.getByRole("dialog", { name: /Carnets de bords/i });
+  await expect(dialog).toBeVisible();
+  return { dialog };
+}
+
 function getSlotButton(scope: Locator, foodName: string, slot: 1 | 2 | 3) {
   return scope.getByRole("button", {
     name: new RegExp(
@@ -387,6 +394,38 @@ test.describe("dashboard progression", () => {
 
     await reopenedDialog.getByRole("textbox", { name: "Recherche d'aliment" }).fill("aliment-introuvable");
     await expect(reopenedDialog.getByText("Aucun aliment trouvé.")).toBeVisible();
+  });
+
+  test("timeline sorts by day desc, slot desc, then food name asc (fr)", async ({ appPage, db }) => {
+    await db.setFoodTastingsByName("Banane", [{ slot: 3, liked: true, tastedOn: "2025-01-12" }]);
+    await db.setFoodTastingsByName("Brocoli", [{ slot: 2, liked: false, tastedOn: "2025-01-12" }]);
+    await db.setFoodTastingsByName("Carotte", [{ slot: 2, liked: true, tastedOn: "2025-01-12" }]);
+    await db.setFoodTastingsByName("Épinard", [{ slot: 1, liked: true, tastedOn: "2025-01-10" }]);
+
+    await appPage.reload();
+
+    const { dialog } = await openTimelinePanel(appPage);
+    const dayItems = dialog.locator(".food-timeline-day-item");
+    const foodButtons = dialog.locator(".food-timeline-entry .food-timeline-food-name");
+    const entryCards = dialog.locator(".food-timeline-entry");
+
+    await expect(dayItems).toHaveCount(2);
+    await expect(foodButtons).toHaveCount(4);
+
+    await expect(foodButtons.nth(0)).toHaveText("Banane");
+    await expect(foodButtons.nth(1)).toHaveText("Brocoli");
+    await expect(foodButtons.nth(2)).toHaveText("Carotte");
+    await expect(foodButtons.nth(3)).toHaveText("Épinard");
+
+    await expect(entryCards.nth(0)).toContainText("3/3");
+    await expect(entryCards.nth(1)).toContainText("2/3");
+    await expect(entryCards.nth(2)).toContainText("2/3");
+    await expect(entryCards.nth(3)).toContainText("1/3");
+
+    await expect(dayItems.nth(0)).toContainText("Banane");
+    await expect(dayItems.nth(0)).toContainText("Brocoli");
+    await expect(dayItems.nth(0)).toContainText("Carotte");
+    await expect(dayItems.nth(1)).toContainText("Épinard");
   });
 
   test("anti forget radar prioritizes blocked foods, explains why, and supports tester maintenant", async ({

@@ -22,6 +22,16 @@ const PASSWORD_RESET_RATE_LIMIT_LOCK_NAMESPACE = 21731;
 const SIGNUP_RATE_LIMIT_WINDOW_MINUTES = 30;
 const SIGNUP_RATE_LIMIT_MAX_FAILURES = 5;
 const EMAIL_VERIFICATION_DEFAULT_TTL_MINUTES = 3 * 24 * 60;
+const AUTH_ATTEMPTS_RETENTION_DEFAULT_DAYS = 90;
+const AUTH_ATTEMPTS_PRUNE_INTERVAL_DEFAULT_MINUTES = 60;
+const AUTH_ATTEMPT_TABLES = [
+  "auth_login_attempts",
+  "auth_signup_attempts",
+  "auth_password_reset_attempts"
+] as const;
+
+let lastAuthAttemptsPruneAt = 0;
+let authAttemptsPruneInFlight: Promise<void> | null = null;
 
 type SessionPayload = {
   uid: number;
@@ -101,6 +111,71 @@ function getPasswordResetRateLimitIdentity(emailNorm: string, ip: string | null)
   const normalizedIp = String(ip || "").trim();
   if (!normalizedIp) return emailNorm;
   return `${emailNorm}|${normalizedIp}`;
+}
+
+function getAuthAttemptsRetentionDays() {
+  return getPositiveIntegerEnv("AUTH_ATTEMPTS_RETENTION_DAYS", AUTH_ATTEMPTS_RETENTION_DEFAULT_DAYS, 1, 3650);
+}
+
+function getAuthAttemptsPruneIntervalMinutes() {
+  return getPositiveIntegerEnv(
+    "AUTH_ATTEMPTS_PRUNE_INTERVAL_MINUTES",
+    AUTH_ATTEMPTS_PRUNE_INTERVAL_DEFAULT_MINUTES,
+    1,
+    24 * 60
+  );
+}
+
+function isUndefinedTableError(error: unknown) {
+  if (typeof error !== "object" || error === null || !("code" in error)) return false;
+  return (error as { code?: unknown }).code === "42P01";
+}
+
+async function pruneAuthAttemptTables(retentionDays: number) {
+  for (const tableName of AUTH_ATTEMPT_TABLES) {
+    try {
+      await query(
+        `
+          DELETE FROM ${tableName}
+          WHERE created_at < NOW() - ($1::text || ' days')::interval;
+        `,
+        [retentionDays]
+      );
+    } catch (error) {
+      if (isUndefinedTableError(error)) continue;
+      throw error;
+    }
+  }
+}
+
+function isAuthAttemptsPruneDue(now: number) {
+  if (lastAuthAttemptsPruneAt <= 0) return true;
+  const minIntervalMs = getAuthAttemptsPruneIntervalMinutes() * 60 * 1000;
+  return now - lastAuthAttemptsPruneAt >= minIntervalMs;
+}
+
+async function pruneAuthAttemptsIfDue() {
+  const now = Date.now();
+  if (!isAuthAttemptsPruneDue(now)) return;
+  if (authAttemptsPruneInFlight) return authAttemptsPruneInFlight;
+
+  authAttemptsPruneInFlight = (async () => {
+    const retentionDays = getAuthAttemptsRetentionDays();
+    await pruneAuthAttemptTables(retentionDays);
+    lastAuthAttemptsPruneAt = Date.now();
+  })()
+    .catch(() => {
+      // Best-effort cleanup only.
+    })
+    .finally(() => {
+      authAttemptsPruneInFlight = null;
+    });
+
+  return authAttemptsPruneInFlight;
+}
+
+function scheduleAuthAttemptsPrune() {
+  void pruneAuthAttemptsIfDue();
 }
 
 function getSessionSecrets() {
@@ -588,6 +663,7 @@ export async function recordLoginAttempt(emailNorm: string, ip: string | null, s
 }
 
 export async function isLoginRateLimited(emailNorm: string, ip: string | null) {
+  scheduleAuthAttemptsPrune();
   const result = await query<{ failed_attempts: number }>(
     `
       SELECT COUNT(*)::int AS failed_attempts
@@ -616,6 +692,7 @@ export async function recordSignupAttempt(emailNorm: string, ip: string | null, 
 }
 
 export async function isSignupRateLimited(emailNorm: string, ip: string | null) {
+  scheduleAuthAttemptsPrune();
   const result = await query<{ failed_attempts: number }>(
     `
       SELECT COUNT(*)::int AS failed_attempts
@@ -634,6 +711,7 @@ export async function isSignupRateLimited(emailNorm: string, ip: string | null) 
 }
 
 export async function recordAndCheckPasswordResetRateLimit(emailNorm: string, ip: string | null) {
+  scheduleAuthAttemptsPrune();
   const windowMinutes = getPasswordResetRateLimitWindowMinutes();
   const maxAttempts = getPasswordResetRateLimitMaxAttempts();
   const identity = getPasswordResetRateLimitIdentity(emailNorm, ip);

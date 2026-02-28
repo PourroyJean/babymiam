@@ -1,7 +1,18 @@
 import { isIP } from "node:net";
 
+const TRUST_PROXY_IP_HEADER_HOPS_DEFAULT = 1;
+
 function trustProxyHeadersEnabled() {
   return process.env.TRUST_PROXY_IP_HEADERS === "1";
+}
+
+function getTrustedProxyIpHeaderHops() {
+  const parsed = Number(process.env.TRUST_PROXY_IP_HEADER_HOPS || TRUST_PROXY_IP_HEADER_HOPS_DEFAULT);
+  if (!Number.isFinite(parsed)) return TRUST_PROXY_IP_HEADER_HOPS_DEFAULT;
+
+  const normalized = Math.trunc(parsed);
+  if (normalized < 0 || normalized > 5) return TRUST_PROXY_IP_HEADER_HOPS_DEFAULT;
+  return normalized;
 }
 
 function normalizeIpCandidate(raw: string) {
@@ -36,14 +47,24 @@ function normalizeIpCandidate(raw: string) {
   return isIP(candidate) > 0 ? candidate : null;
 }
 
-function getRightMostValidIp(candidates: string[]) {
-  // Read from right to reduce spoofing risk when upstream appends proxy chain values.
+function getTrustedClientIpFromCandidates(candidates: string[]) {
+  let remainingTrustedHops = getTrustedProxyIpHeaderHops();
+  let leftMostValidIp: string | null = null;
+
   for (let index = candidates.length - 1; index >= 0; index -= 1) {
     const normalized = normalizeIpCandidate(candidates[index]);
-    if (normalized) return normalized;
+    if (!normalized) continue;
+
+    leftMostValidIp = normalized;
+
+    if (remainingTrustedHops === 0) {
+      return normalized;
+    }
+
+    remainingTrustedHops -= 1;
   }
 
-  return null;
+  return leftMostValidIp;
 }
 
 function getIpFromForwardedFor(value: string) {
@@ -52,7 +73,7 @@ function getIpFromForwardedFor(value: string) {
     .map((part) => part.trim())
     .filter(Boolean);
 
-  return getRightMostValidIp(candidates);
+  return getTrustedClientIpFromCandidates(candidates);
 }
 
 function getIpFromForwardedHeader(value: string) {
@@ -62,7 +83,7 @@ function getIpFromForwardedHeader(value: string) {
     .map((entry) => entry.trim())
     .filter((entry) => entry.toLowerCase().startsWith("for="));
 
-  return getRightMostValidIp(forDirectives);
+  return getTrustedClientIpFromCandidates(forDirectives);
 }
 
 export function getTrustedClientIpFromHeaders(requestHeaders: Headers) {

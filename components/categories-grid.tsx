@@ -19,7 +19,6 @@ type CategoriesGridProps = {
   categories: DashboardCategory[];
   toneByCategory: Record<string, string>;
   childFirstName?: string | null;
-  timelineEntries: FoodTimelineEntry[];
   hasAntiForgetPremiumAccess: boolean;
 };
 
@@ -98,6 +97,31 @@ function buildCategoryKpi(foods: DashboardFood[]): CategoryKpi {
   };
 }
 
+function buildTimelineEntries(categories: DashboardCategory[]): FoodTimelineEntry[] {
+  const entries: FoodTimelineEntry[] = [];
+
+  for (const category of categories) {
+    for (const food of category.foods) {
+      for (const tasting of food.tastings) {
+        entries.push({
+          foodId: food.id,
+          foodName: food.name,
+          categoryName: category.name,
+          slot: tasting.slot,
+          tastedOn: tasting.tastedOn,
+          liked: tasting.liked,
+          note: tasting.note,
+          textureLevel: tasting.textureLevel,
+          reactionType: tasting.reactionType
+        });
+      }
+    }
+  }
+
+  // Keep this list unsorted: TimelinePanel is the single owner of display ordering.
+  return entries;
+}
+
 function getCategoryPictogram(categoryName: string) {
   return getCategoryUi(categoryName).pictogram;
 }
@@ -135,7 +159,6 @@ export function CategoriesGrid({
   categories,
   toneByCategory,
   childFirstName = null,
-  timelineEntries,
   hasAntiForgetPremiumAccess
 }: CategoriesGridProps) {
   const [openByCategoryId, setOpenByCategoryId] = useState<Record<number, boolean>>({});
@@ -297,6 +320,7 @@ export function CategoriesGrid({
   }
 
   const isSummaryOpen = summaryFoodId !== null;
+  const timelineEntries = useMemo(() => buildTimelineEntries(categories), [categories]);
 
   const openFoodSummary = useCallback((foodId: number, triggerEl: HTMLElement) => {
     summaryTriggerRef.current = triggerEl;

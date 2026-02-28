@@ -118,6 +118,9 @@ Nous utilisons `node-pg-migrate` pour versionner le schéma.
 - `SHARE_SNAPSHOT_TTL_DAYS` (défaut `30`, durée de validité des nouveaux liens publics)
 - `MAINTENANCE_MODE` (`true|false`)
 - `TRUST_PROXY_IP_HEADERS` (`0` par défaut, `1` uniquement derrière un proxy de confiance)
+- `TRUST_PROXY_IP_HEADER_HOPS` (défaut `1`, nombre de proxys de confiance à ignorer en partant de la droite)
+- `AUTH_ATTEMPTS_RETENTION_DAYS` (défaut `90`, purge des tables `auth_*_attempts`)
+- `AUTH_ATTEMPTS_PRUNE_INTERVAL_MINUTES` (défaut `60`, fréquence minimale de purge opportuniste)
 - `PREMIUM_GATE_MODE` (`auto|on|off`)
 - `PREMIUM_FEATURE_USER_IDS`
 - `PREMIUM_FEATURE_USER_EMAILS`
