@@ -389,7 +389,7 @@ test.describe("dashboard progression", () => {
     await expect(reopenedDialog.getByText("Aucun aliment trouvé.")).toBeVisible();
   });
 
-  test("anti forget radar prioritizes blocked foods and opens the food summary from reprendre", async ({
+  test("anti forget radar prioritizes blocked foods, explains why, and supports tester maintenant", async ({
     appPage,
     db
   }) => {
@@ -424,14 +424,27 @@ test.describe("dashboard progression", () => {
     await expect(prioritizedItems.nth(0).locator(".anti-forget-status")).toContainText("Urgent");
     await expect(prioritizedItems.nth(1).locator(".anti-forget-status")).toContainText("Urgent");
     await expect(prioritizedItems.nth(2).locator(".anti-forget-status")).toContainText("Bloqué");
+    await expect(prioritizedItems.nth(1).locator(".anti-forget-food-meta")).toContainText("2/3, dernier essai le");
+    await expect(prioritizedItems.nth(1).locator(".anti-forget-food-meta")).toContainText(/\+\d+\sjours\./);
 
-    await dialog.getByRole("button", { name: /Reprendre Banane/i }).click();
+    await dialog.getByRole("button", { name: /Tester maintenant Banane/i }).click();
+    const quickAddDialog = appPage.getByRole("dialog", { name: "Ajout rapide" });
+    await expect(quickAddDialog).toBeVisible();
+    await expect(quickAddDialog.getByRole("textbox", { name: "Rechercher un aliment" })).toHaveValue("Banane");
+    await expect(quickAddDialog.getByText("Sélectionné: Banane (1/3)")).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+
+    await quickAddDialog.getByRole("button", { name: "Annuler" }).click();
+    await expect(quickAddDialog).toHaveCount(0);
+
+    const reopenedRadar = await openAntiForgetPanel(appPage);
+    await reopenedRadar.dialog.getByRole("button", { name: /Reprendre Banane/i }).click();
     const summaryDialog = appPage.getByRole("dialog", { name: "Banane" });
     await expect(summaryDialog).toBeVisible();
 
     await appPage.keyboard.press("Escape");
     await expect(summaryDialog).toHaveCount(0);
-    await expect(dialog).toBeVisible();
+    await expect(reopenedRadar.dialog).toBeVisible();
   });
 
   test("keeps overlays exclusive between Search, Timeline, Radar and Quick Add", async ({ appPage }) => {

@@ -14,6 +14,7 @@ type AntiForgetPanelProps = {
   stats: AntiForgetRadarStats;
   blockedFoods: AntiForgetRadarItem[];
   openFoodSummary: (foodId: number, triggerEl: HTMLElement) => void;
+  openQuickAddForFood: (foodId: number, foodName: string) => void;
   childFirstName?: string | null;
 };
 
@@ -33,6 +34,7 @@ export function AntiForgetPanel({
   stats,
   blockedFoods,
   openFoodSummary,
+  openQuickAddForFood,
   childFirstName
 }: AntiForgetPanelProps) {
   const modalRef = useRef<HTMLElement>(null);
@@ -159,7 +161,8 @@ export function AntiForgetPanel({
                       <div className="anti-forget-food-copy">
                         <p className="anti-forget-food-name">{food.foodName}</p>
                         <p className="anti-forget-food-meta">
-                          {food.tastingCount}/3 • Dernier essai le {formatDate(food.lastTastedOn)}
+                          {food.tastingCount}/3, dernier essai le {formatDate(food.lastTastedOn)}, +
+                          {food.daysSinceLastTasting} jours.
                         </p>
                       </div>
                     </div>
@@ -171,14 +174,24 @@ export function AntiForgetPanel({
                       >
                         {getStatusLabel(food)}
                       </span>
-                      <button
-                        type="button"
-                        className="anti-forget-resume-btn"
-                        onClick={(event) => openFoodSummary(food.foodId, event.currentTarget)}
-                        aria-label={`Reprendre ${food.foodName} (ouvrir le résumé)`}
-                      >
-                        Reprendre
-                      </button>
+                      <div className="anti-forget-item-cta-group">
+                        <button
+                          type="button"
+                          className="anti-forget-test-now-btn"
+                          onClick={() => openQuickAddForFood(food.foodId, food.foodName)}
+                          aria-label={`Tester maintenant ${food.foodName} (pré-remplir l'ajout rapide)`}
+                        >
+                          Tester maintenant
+                        </button>
+                        <button
+                          type="button"
+                          className="anti-forget-resume-btn"
+                          onClick={(event) => openFoodSummary(food.foodId, event.currentTarget)}
+                          aria-label={`Reprendre ${food.foodName} (ouvrir le résumé)`}
+                        >
+                          Reprendre
+                        </button>
+                      </div>
                     </div>
                   </article>
                 </li>

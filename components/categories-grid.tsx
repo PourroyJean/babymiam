@@ -37,6 +37,11 @@ type QuickAddFood = {
   exposureCount: number;
 };
 
+type QuickAddPrefill = {
+  foodId: number;
+  foodName: string;
+};
+
 type FoodIndexEntry = {
   food: DashboardFood;
   categoryName: string;
@@ -138,6 +143,7 @@ export function CategoriesGrid({
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isAntiForgetOpen, setIsAntiForgetOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [quickAddPrefill, setQuickAddPrefill] = useState<QuickAddPrefill | null>(null);
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
   const [summaryFoodId, setSummaryFoodId] = useState<number | null>(null);
   const [showTestedOnly, setShowTestedOnly] = useState(false);
@@ -214,6 +220,7 @@ export function CategoriesGrid({
 
   function closeQuickAdd() {
     setIsQuickAddOpen(false);
+    setQuickAddPrefill(null);
   }
 
   function openQuickAdd() {
@@ -221,6 +228,16 @@ export function CategoriesGrid({
     setIsTimelineOpen(false);
     setIsAntiForgetOpen(false);
     setIsAddFoodOpen(false);
+    setQuickAddPrefill(null);
+    setIsQuickAddOpen(true);
+  }
+
+  function openQuickAddForFood(foodId: number, foodName: string) {
+    setIsSearchOpen(false);
+    setIsTimelineOpen(false);
+    setIsAntiForgetOpen(false);
+    setIsAddFoodOpen(false);
+    setQuickAddPrefill({ foodId, foodName });
     setIsQuickAddOpen(true);
   }
 
@@ -899,10 +916,16 @@ export function CategoriesGrid({
         stats={antiForgetStats}
         blockedFoods={antiForgetRadar.blockedFoods}
         openFoodSummary={openFoodSummary}
+        openQuickAddForFood={openQuickAddForFood}
         childFirstName={childFirstName}
       />
 
-      <QuickAddPanel isOpen={isQuickAddOpen} foods={quickAddEligibleFoods} onClose={closeQuickAdd} />
+      <QuickAddPanel
+        isOpen={isQuickAddOpen}
+        foods={quickAddEligibleFoods}
+        onClose={closeQuickAdd}
+        prefillFood={quickAddPrefill}
+      />
       <AddFoodPanel isOpen={isAddFoodOpen} categories={addFoodCategories} onClose={closeAddFood} />
       <FoodSummaryModal
         isOpen={summaryFoodId !== null && summaryFood !== null}

@@ -1783,6 +1783,16 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.anti-forget-item-cta-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .anti-forget-status {
@@ -1817,6 +1827,27 @@ a {
   font-weight: 800;
   cursor: pointer;
   min-height: 44px;
+}
+
+.anti-forget-test-now-btn {
+  border: 1px solid #b56f33;
+  border-radius: 999px;
+  background: linear-gradient(165deg, #ffe0bd 0%, #ffeedb 100%);
+  color: #5a3515;
+  padding: 8px 12px;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.anti-forget-test-now-btn:hover {
+  background: linear-gradient(165deg, #ffd2a2 0%, #ffe4c9 100%);
+}
+
+.anti-forget-test-now-btn:focus-visible {
+  outline: 2px solid #bc7131;
+  outline-offset: 2px;
 }
 
 .anti-forget-resume-btn:hover {
@@ -3373,6 +3404,12 @@ a {
   .anti-forget-item-actions {
     width: 100%;
     justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .anti-forget-item-cta-group {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .food-timeline-overlay {
