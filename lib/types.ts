@@ -4,7 +4,7 @@ export type FinalPreferenceValue = -1 | 0 | 1;
 
 export type FoodTastingEntry = {
   slot: 1 | 2 | 3;
-  liked: boolean;
+  liked: boolean | null;
   tastedOn: string;
   note: string;
   textureLevel: TextureLevel;
@@ -48,7 +48,7 @@ export type FoodTimelineEntry = {
   categoryName: string;
   slot: 1 | 2 | 3;
   tastedOn: string;
-  liked: boolean;
+  liked: boolean | null;
   note: string;
   textureLevel: TextureLevel;
   reactionType: ReactionType | null;

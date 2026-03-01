@@ -372,7 +372,7 @@ export type FoodProgressState = {
   foodName: string;
   tastings: Array<{
     slot: 1 | 2 | 3;
-    liked: boolean;
+    liked: boolean | null;
     tastedOn: string;
     note: string;
     textureLevel: 1 | 2 | 3 | 4;
@@ -477,7 +477,7 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
             : null;
 
         if (![1, 2, 3].includes(slot)) return null;
-        if (typeof liked !== "boolean") return null;
+        if (liked !== null && typeof liked !== "boolean") return null;
         if (!tastedOn) return null;
 
         return {
@@ -494,7 +494,7 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
           entry
         ): entry is {
           slot: 1 | 2 | 3;
-          liked: boolean;
+          liked: boolean | null;
           tastedOn: string;
           note: string;
           textureLevel: 1 | 2 | 3 | 4;
@@ -544,7 +544,7 @@ export async function upsertFoodProgressByName(
 
   const targetTastings: Array<{
     slot: 1 | 2 | 3;
-    liked: boolean;
+    liked: boolean | null;
     tastedOn: string;
     note: string;
     textureLevel: 1 | 2 | 3 | 4;
@@ -634,7 +634,7 @@ export async function setFoodTastingsByName(
   foodName: string,
   tastings: Array<{
     slot: 1 | 2 | 3;
-    liked: boolean;
+    liked: boolean | null;
     tastedOn: string;
     note?: string;
     textureLevel?: 1 | 2 | 3 | 4;
@@ -658,7 +658,7 @@ export async function setFoodTastingsByName(
     .slice(0, 3)
     .map((entry) => ({
       slot: entry.slot,
-      liked: Boolean(entry.liked),
+      liked: entry.liked ?? null,
       tastedOn: entry.tastedOn,
       note: entry.note ?? "",
       textureLevel: entry.textureLevel ?? DEFAULT_TEXTURE_LEVEL,
@@ -747,7 +747,7 @@ export async function replaceFoodTastingsByName(
   foodName: string,
   entries: Array<{
     slot: 1 | 2 | 3;
-    liked: boolean;
+    liked: boolean | null;
     tastedOn: string;
     note?: string;
     textureLevel?: 1 | 2 | 3 | 4;

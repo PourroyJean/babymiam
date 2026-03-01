@@ -59,7 +59,8 @@ test.describe("pediatric report", () => {
 
     await db.setFoodTastingsByName("Carotte", [
       { slot: 1, liked: true, tastedOn: recentDay3, reactionType: 0 },
-      { slot: 2, liked: false, tastedOn: recentDay2, reactionType: 4 }
+      { slot: 2, liked: null, tastedOn: recentDay2, reactionType: 0 },
+      { slot: 3, liked: false, tastedOn: recentDay1, reactionType: 4 }
     ]);
     await db.setFoodTastingsByName("Arachides", [{ slot: 1, liked: true, tastedOn: recentDay1, reactionType: 1 }]);
 
@@ -82,6 +83,9 @@ test.describe("pediatric report", () => {
     expect(pdfText).toContain("Dernière");
     expect(pdfText).toContain("Réaction");
     expect(pdfText).toMatch(/Arachides\s+\|\s+1\/3\s+\|\s+\d{2}\/\d{2}\/\d{4}\s+\|\s+Cutanée/i);
+    expect(pdfText).toMatch(/Acceptation globale \\\(hors indécis\\\): 2\/3/);
+    expect(pdfText).toMatch(/Acceptation 14 jours \\\(hors indécis\\\): 2\/3/);
+    expect(pdfText).toContain("indécis");
     expect(pdfText).toContain("Avec symptôme observé");
     expect(pdfText).toContain("SIGNAUX DE VIGILANCE À DISCUTER");
     expect(pdfText).toContain("Respiratoire");

@@ -39,7 +39,7 @@ const SHARE_ID_PATTERN = /^[a-zA-Z0-9_-]{8,80}$/;
 
 type FoodSummaryDraftEntry = {
   slot: 1 | 2 | 3;
-  liked: boolean;
+  liked: boolean | null;
   tastedOn: string;
   note: string;
   textureLevel: TextureLevel;
@@ -118,6 +118,18 @@ function parseReactionType(formData: FormData): ReactionType | null {
   return isReactionType(parsed) ? parsed : null;
 }
 
+function parseTastingLikedValue(rawValue: string, options: { allowYesNo: boolean; allowTrueFalse: boolean }) {
+  const raw = rawValue.trim().toLowerCase();
+  if (raw === "ok") return { ok: true as const, value: true as boolean | null };
+  if (raw === "indecis") return { ok: true as const, value: null as boolean | null };
+  if (raw === "ko") return { ok: true as const, value: false as boolean | null };
+  if (options.allowYesNo && raw === "yes") return { ok: true as const, value: true as boolean | null };
+  if (options.allowYesNo && raw === "no") return { ok: true as const, value: false as boolean | null };
+  if (options.allowTrueFalse && raw === "true") return { ok: true as const, value: true as boolean | null };
+  if (options.allowTrueFalse && raw === "false") return { ok: true as const, value: false as boolean | null };
+  return { ok: false as const };
+}
+
 export async function logoutAction() {
   await clearSession();
   redirect("/login");
@@ -130,6 +142,7 @@ export async function saveTastingEntryAction(formData: FormData) {
   const foodId = Number(formData.get("foodId"));
   const slot = Number(formData.get("slot"));
   const likedRaw = String(formData.get("liked") || "").trim().toLowerCase();
+  const parsedLiked = parseTastingLikedValue(likedRaw, { allowYesNo: true, allowTrueFalse: false });
   const tastedOnRaw = String(formData.get("tastedOn") || "").trim();
   const tastedOn = tastedOnRaw || todayIsoDate;
   const note = String(formData.get("note") || "").trim();
@@ -140,8 +153,8 @@ export async function saveTastingEntryAction(formData: FormData) {
     return { ok: false, error: "Entrée invalide." };
   }
 
-  if (likedRaw !== "yes" && likedRaw !== "no") {
-    return { ok: false, error: "Choisis si bébé a aimé ou non." };
+  if (!parsedLiked.ok) {
+    return { ok: false, error: "Choisis une réaction: OK, Indécis ou KO." };
   }
 
   if (!parsedTextureLevel.ok) {
@@ -160,7 +173,7 @@ export async function saveTastingEntryAction(formData: FormData) {
     user.id,
     foodId,
     slot as 1 | 2 | 3,
-    likedRaw === "yes",
+    parsedLiked.value,
     tastedOn,
     note,
     parsedTextureLevel.value,
@@ -217,6 +230,7 @@ export async function addQuickEntryAction(formData: FormData) {
   const foodId = Number(formData.get("foodId"));
   const tastedOn = String(formData.get("tastedOn") || "").trim();
   const likedRaw = String(formData.get("liked") || "").trim().toLowerCase();
+  const parsedLiked = parseTastingLikedValue(likedRaw, { allowYesNo: false, allowTrueFalse: true });
   const note = String(formData.get("note") || "").trim();
   const parsedTextureLevel = parseTextureLevel(formData);
   const reactionType = parseReactionType(formData) ?? DEFAULT_REACTION_TYPE;
@@ -233,8 +247,8 @@ export async function addQuickEntryAction(formData: FormData) {
     return { ok: false, error: "La date de dégustation ne peut pas être dans le futur." };
   }
 
-  if (likedRaw !== "true" && likedRaw !== "false") {
-    return { ok: false, error: "Préférence invalide." };
+  if (!parsedLiked.ok) {
+    return { ok: false, error: "Réaction invalide." };
   }
 
   if (!parsedTextureLevel.ok) {
@@ -244,7 +258,7 @@ export async function addQuickEntryAction(formData: FormData) {
   const result = await appendQuickEntry(user.id, {
     foodId,
     tastedOn,
-    liked: likedRaw === "true",
+    liked: parsedLiked.value,
     note,
     textureLevel: parsedTextureLevel.value,
     reactionType
@@ -391,7 +405,7 @@ export async function saveFoodSummaryAction(formData: FormData) {
     }
     slots.add(slot);
 
-    if (typeof liked !== "boolean") {
+    if (liked !== null && typeof liked !== "boolean") {
       return { ok: false, error: "Historique invalide." };
     }
 

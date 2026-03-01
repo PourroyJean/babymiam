@@ -43,7 +43,7 @@ export type UpsertShareSnapshotResult = {
 type AppendQuickEntryInput = {
   foodId: number;
   tastedOn: string;
-  liked: boolean;
+  liked: boolean | null;
   note: string;
   textureLevel: TextureLevel;
   reactionType: ReactionType | null;
@@ -51,7 +51,7 @@ type AppendQuickEntryInput = {
 
 export type SaveFoodSummaryInput = {
   slot: 1 | 2 | 3;
-  liked: boolean;
+  liked: boolean | null;
   tastedOn: string;
   note: string;
   textureLevel: TextureLevel;
@@ -444,7 +444,7 @@ export async function getDashboardData(ownerId: number): Promise<DashboardCatego
                 : null;
 
             if (![1, 2, 3].includes(slot)) return null;
-            if (typeof liked !== "boolean") return null;
+            if (liked !== null && typeof liked !== "boolean") return null;
             if (!tastedOn) return null;
 
             return {
@@ -490,7 +490,7 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
     food_name: string;
     category_name: string;
     slot: number;
-    liked: boolean;
+    liked: boolean | null;
     tasted_on: string;
     note: string | null;
     texture_level: number | null;
@@ -532,7 +532,7 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
         categoryName: row.category_name,
         slot: slot as 1 | 2 | 3,
         tastedOn: row.tasted_on,
-        liked: Boolean(row.liked),
+        liked: typeof row.liked === "boolean" ? row.liked : null,
         note: row.note ?? "",
         textureLevel: isTextureLevel(row.texture_level) ? row.texture_level : DEFAULT_TEXTURE_LEVEL,
         reactionType:
@@ -559,7 +559,7 @@ export async function upsertFoodTastingEntry(
   ownerId: number,
   foodId: number,
   slot: 1 | 2 | 3,
-  liked: boolean,
+  liked: boolean | null,
   tastedOn: string,
   note: string,
   textureLevel: TextureLevel,
