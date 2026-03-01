@@ -104,6 +104,54 @@ test.describe("dashboard progression", () => {
       .toBe(3);
   });
 
+  test("shows tri-state tiger choices with indecis centered in tasting editor and quick add", async ({ appPage }) => {
+    const { dialog, searchInput } = await openSearchOverlay(appPage);
+    await searchInput.fill("banane");
+    await getFirstBiteButton(dialog, "Banane").click();
+
+    const editor = getTastingEditor(appPage, "Banane", 1);
+    await expect(editor).toBeVisible();
+
+    const editorChoices = await editor
+      .locator(".quick-add-tiger-choice button")
+      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
+    expect(editorChoices).toEqual(["Oui", "Indécis", "Non"]);
+    await editor.getByRole("button", { name: "Annuler" }).click();
+    await expect(editor).toBeHidden();
+    await appPage.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+
+    const quickAdd = await openQuickAddPanel(appPage);
+    const quickAddChoices = await quickAdd.dialog
+      .locator(".quick-add-tiger-choice button")
+      .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
+    expect(quickAddChoices).toEqual(["Tigre OK", "Tigre indécis", "Tigre KO"]);
+  });
+
+  test("persists indecis as NULL from tasting editor and shows the indecis tiger", async ({ appPage, db }) => {
+    const foodName = "Banane";
+    const todayIsoDate = getTodayLocalIsoDate();
+
+    const { dialog, searchInput } = await openSearchOverlay(appPage);
+    await searchInput.fill(foodName);
+    await getFirstBiteButton(dialog, foodName).click();
+
+    const editor = getTastingEditor(appPage, foodName, 1);
+    await expect(editor).toBeVisible();
+    await editor.getByRole("button", { name: "Indécis" }).click();
+    await editor.getByLabel("Date de dégustation").fill(todayIsoDate);
+    await editor.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(editor).toBeHidden();
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.liked)
+      .toBe(null);
+
+    const slot1Button = getSlotButton(dialog, foodName, 1);
+    await expect(slot1Button).toHaveAttribute("aria-label", /indécis/i);
+    await expect(slot1Button.locator('img[src*="smiley-indecis.webp"]')).toHaveCount(1);
+  });
+
   test("uses child first name in tasting popup when profile exists", async ({ appPage, db }) => {
     const ownerId = await db.getDefaultOwnerId();
     await db.queryMany(
@@ -465,6 +513,21 @@ test.describe("dashboard progression", () => {
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.textureLevel ?? 0)
       .toBe(1);
+  });
+
+  test("quick add persists indecis as NULL", async ({ appPage, db }) => {
+    const foodName = "Banane";
+    const { dialog, searchInput, dateInput, addButton } = await openQuickAddPanel(appPage);
+
+    await searchInput.fill(foodName);
+    await dialog.locator(".quick-add-food-option", { hasText: foodName }).first().click();
+    await dateInput.fill("2026-02-21");
+    await dialog.getByRole("button", { name: "Tigre indécis" }).click();
+    await addButton.click();
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.liked)
+      .toBe(null);
   });
 
   test("quick add rejects non-integer texture level payload", async ({ appPage, db }) => {

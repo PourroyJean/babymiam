@@ -352,7 +352,7 @@ function buildRecentHistoryTableLines(entries: FoodTimelineEntry[]) {
   for (const entry of entries.slice(0, MAX_RECENT_ITEMS)) {
     const reaction = getReactionOption((entry.reactionType ?? 0) as 0 | 1 | 2 | 3 | 4);
     const reactionLabel = reaction?.label || "Aucun symptôme";
-    const outcomeLabel = entry.liked ? "aimé" : "refusé";
+    const outcomeLabel = entry.liked === true ? "aimé" : entry.liked === false ? "refusé" : "indécis";
     const foodNameLabel = truncateWithEllipsis(entry.foodName, HISTORY_FOOD_NAME_MAX_LENGTH);
     const foodWithSlot = `${foodNameLabel} (${entry.slot}/3)`;
     lines.push(buildHistoryTableLine([formatDate(entry.tastedOn), foodWithSlot, outcomeLabel, reactionLabel]));
@@ -406,8 +406,10 @@ export function buildPediatricReportLines({
   const distinctRecentFoods = new Set(recentEntries.map((entry) => entry.foodId)).size;
   const distinctPreviousFoods = new Set(previousEntries.map((entry) => entry.foodId)).size;
 
-  const likedRecentCount = recentEntries.filter((entry) => entry.liked).length;
-  const likedTotalCount = sortedTimeline.filter((entry) => entry.liked).length;
+  const decidedRecentEntries = recentEntries.filter((entry) => entry.liked !== null);
+  const decidedTimelineEntries = sortedTimeline.filter((entry) => entry.liked !== null);
+  const likedRecentCount = decidedRecentEntries.filter((entry) => entry.liked === true).length;
+  const likedTotalCount = decidedTimelineEntries.filter((entry) => entry.liked === true).length;
 
   const recentReactionCounts = new Map<number, number>();
   for (const entry of recentEntries) {
@@ -483,7 +485,7 @@ export function buildPediatricReportLines({
     `- Aliments testés: ${introducedFoods}/${totalFoods} (${getPercentLabel(introducedFoods, totalFoods)})`,
     `- Aliments consolidés (3/3): ${completedFoods}`,
     `- Aliments en cours (1-2/3): ${inProgressFoods}`,
-    `- Acceptation globale: ${likedTotalCount}/${sortedTimeline.length} (${getPercentLabel(likedTotalCount, sortedTimeline.length)})`,
+    `- Acceptation globale (hors indécis): ${likedTotalCount}/${decidedTimelineEntries.length} (${getPercentLabel(likedTotalCount, decidedTimelineEntries.length)})`,
     `- Préférence finale: ${finalLikedFoods} aimé(s), ${finalRejectedFoods} refusé(s)`,
     "",
     "3) Dynamique récente",
@@ -494,7 +496,7 @@ export function buildPediatricReportLines({
     `- Cadence 4 semaines: ${pacePerWeek} dégustation(s)/semaine`,
     `- Dernière dégustation: ${latestTastingLabel}`,
     `- Symptômes 14 jours: ${getRecentReactionSummary(recentReactionCounts)}`,
-    `- Acceptation 14 jours: ${likedRecentCount}/${recentEntries.length} (${getPercentLabel(likedRecentCount, recentEntries.length)})`,
+    `- Acceptation 14 jours (hors indécis): ${likedRecentCount}/${decidedRecentEntries.length} (${getPercentLabel(likedRecentCount, decidedRecentEntries.length)})`,
     "",
     " ",
     "4) Tableau allergènes majeurs (consultation)",

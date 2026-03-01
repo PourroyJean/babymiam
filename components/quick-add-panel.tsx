@@ -27,7 +27,7 @@ type QuickAddPanelProps = {
   onClose: () => void;
 };
 
-type TigerChoice = "ok" | "ko" | null;
+type TigerChoice = "ok" | "indecis" | "ko" | null;
 
 const MAX_VISIBLE_RESULTS = 16;
 
@@ -137,7 +137,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     const formData = new FormData();
     formData.set("foodId", String(selectedFoodId));
     formData.set("tastedOn", tastedOn);
-    formData.set("liked", tigerChoice === "ok" ? "true" : "false");
+    formData.set("liked", tigerChoice);
     formData.set("note", note);
     formData.set("tzOffsetMinutes", String(getClientTimezoneOffsetMinutes()));
     formData.set("textureLevel", String(textureLevel));
@@ -239,7 +239,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
                 setTigerChoice(value);
                 clearErrorMessage();
               }}
-              likedGroupAriaLabel="Choix oui/non"
+              likedGroupAriaLabel="Choix de réaction"
               tastedOn={tastedOn}
               onTastedOnChange={(value) => {
                 setTastedOn(value);

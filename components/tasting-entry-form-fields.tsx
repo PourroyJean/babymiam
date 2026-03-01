@@ -8,13 +8,14 @@ import {
   type TextureLevel
 } from "@/lib/tasting-metadata";
 
-export type TigerLikedChoice = "ok" | "ko";
+export type TigerLikedChoice = "ok" | "indecis" | "ko";
 
 type TastingEntryFormFieldsProps = {
   liked: TigerLikedChoice | null;
   onLikedChange: (liked: TigerLikedChoice) => void;
   tigerAriaLabels?: {
     ok: string;
+    indecis: string;
     ko: string;
   };
   likedQuestionLabel?: string;
@@ -49,6 +50,12 @@ const TIGER_CHOICES: Array<{
     screenReaderText: "Oui"
   },
   {
+    value: "indecis",
+    image: "/images/reactions/smiley-indecis.webp",
+    alt: "Tigre indécis",
+    screenReaderText: "Indécis"
+  },
+  {
     value: "ko",
     image: "/images/reactions/smiley-ko.webp",
     alt: "Tigre KO",
@@ -61,6 +68,7 @@ export function TastingEntryFormFields({
   onLikedChange,
   tigerAriaLabels = {
     ok: "Tigre OK",
+    indecis: "Tigre indécis",
     ko: "Tigre KO"
   },
   likedQuestionLabel = "Comment c'était ?",
@@ -101,7 +109,7 @@ export function TastingEntryFormFields({
               <button
                 key={choice.value}
                 type="button"
-                aria-label={choice.value === "ok" ? tigerAriaLabels.ok : tigerAriaLabels.ko}
+                aria-label={tigerAriaLabels[choice.value]}
                 aria-pressed={isSelected}
                 className={`touch-manipulation inline-flex appearance-none border-0 bg-transparent p-0 min-h-[60px] items-center justify-center transition-all ${
                   isSelected ? "scale-110" : isOtherSelected ? "scale-95" : "scale-100"

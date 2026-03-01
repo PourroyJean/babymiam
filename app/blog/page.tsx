@@ -84,8 +84,8 @@ export default async function BlogPage() {
             <article>
               <h3>🥦 Pourquoi 3 ronds</h3>
               <p>
-                Coche un rond dès que bébé est en contact avec l&apos;aliment. Tu peux aussi utiliser + ou -
-                pour suivre si bébé a aimé.
+                Coche un rond dès que bébé est en contact avec l&apos;aliment. Tu peux noter la réaction en
+                OK, Indécis ou KO pour garder un suivi fidèle.
               </p>
               <p>
                 Introduis chaque aliment en petite quantité au début pour observer la réaction de bébé.

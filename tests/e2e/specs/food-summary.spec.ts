@@ -235,17 +235,35 @@ test.describe("food summary modal", () => {
     expect(state?.tastings.find((entry) => entry.slot === 1)?.note ?? "").toBe(initialSlot1Note);
   });
 
-  test("updates the main view after toggling tiger state from summary", async ({ appPage, db }) => {
+  test("cycles tiger state in summary (OK -> Indécis -> KO -> OK) and updates main view", async ({ appPage, db }) => {
     const foodName = "Brocoli";
     await db.setFoodTastingsByName(foodName, [{ slot: 1, liked: true, tastedOn: "2026-02-07" }]);
 
     await appPage.reload();
     await ensureCategoryExpanded(appPage, "Légumes");
+
     await getFoodSummaryTrigger(appPage, foodName).click();
-
-    const dialog = getFoodSummaryDialog(appPage, foodName);
+    let dialog = getFoodSummaryDialog(appPage, foodName);
     await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: /Basculer le résultat du tigre 1\/3/i }).click();
+    await expect(
+      dialog.getByRole("region", { name: /Historique des dégustations/i }).locator('img[src*="smiley-indecis.webp"]')
+    ).toHaveCount(1);
+    await dialog.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(dialog).toBeHidden();
 
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.liked)
+      .toBe(null);
+    await expect(
+      appPage.getByRole("button", {
+        name: new RegExp(`^${escapeRegExp(foodName)} - entrée 1 \\(indécis`, "i")
+      })
+    ).toBeVisible();
+
+    await getFoodSummaryTrigger(appPage, foodName).click();
+    dialog = getFoodSummaryDialog(appPage, foodName);
+    await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: /Basculer le résultat du tigre 1\/3/i }).click();
     await dialog.getByRole("button", { name: "Enregistrer" }).click();
     await expect(dialog).toBeHidden();
@@ -253,10 +271,25 @@ test.describe("food summary modal", () => {
     await expect
       .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.liked ?? null)
       .toBe(false);
-
     await expect(
       appPage.getByRole("button", {
         name: new RegExp(`^${escapeRegExp(foodName)} - entrée 1 \\(pas aimé`, "i")
+      })
+    ).toBeVisible();
+
+    await getFoodSummaryTrigger(appPage, foodName).click();
+    dialog = getFoodSummaryDialog(appPage, foodName);
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: /Basculer le résultat du tigre 1\/3/i }).click();
+    await dialog.getByRole("button", { name: "Enregistrer" }).click();
+    await expect(dialog).toBeHidden();
+
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(foodName))?.tastings?.[0]?.liked ?? null)
+      .toBe(true);
+    await expect(
+      appPage.getByRole("button", {
+        name: new RegExp(`^${escapeRegExp(foodName)} - entrée 1 \\(aimé`, "i")
       })
     ).toBeVisible();
   });
@@ -290,7 +323,7 @@ test.describe("food summary modal", () => {
     await db.setFoodTastingsByName(nonFinalFoodName, [
       {
         slot: 1,
-        liked: false,
+        liked: null,
         tastedOn: "2026-02-10",
         note: "note en cours pour valider l'alignement"
       }
@@ -349,6 +382,7 @@ test.describe("food summary modal", () => {
     await expect(finalNote).toHaveCount(1);
     await expect(nonFinalNote).toHaveCount(1);
     await expect(nonFinalEntry.locator('.food-timeline-cell--texture img[src*="texture-1-lisse.webp"]')).toHaveCount(1);
+    await expect(nonFinalEntry.locator('.food-timeline-cell--slot img[src*="smiley-indecis.webp"]')).toHaveCount(1);
     await expect(nonFinalEntry.locator('.food-timeline-cell--texture img[src*="texture-0-aucune.webp"]')).toHaveCount(0);
     await expect(dialog.locator("text=ø")).toHaveCount(0);
 

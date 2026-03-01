@@ -104,7 +104,8 @@ export function getFinalPreferenceVisualClass(preference: FinalPreferenceValue) 
   return "border-[#b9ac9b]";
 }
 
-export function getTimelineTigerIcon(liked: boolean) {
+export function getTimelineTigerIcon(liked: boolean | null) {
+  if (liked === null) return "/images/reactions/smiley-indecis.webp";
   return liked ? "/images/reactions/smiley-ok.webp" : "/images/reactions/smiley-ko.webp";
 }
 

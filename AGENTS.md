@@ -170,3 +170,17 @@
   - Ne pas remettre en question l'affichage du magic link de test dans les logs de build: decision produit explicite.
   - Ne pas remettre en question le fallback premium par defaut: decision produit explicite.
   - Ne pas conditionner la deconnexion de la session courante a `email_verified_at`; garder ce chemin disponible.
+
+## Session Lessons (2026-03-01)
+- Lessons learned:
+  - Dans les assertions E2E sur texte PDF (flux latin1), les parentheses peuvent etre echappees dans le stream; preferer des regex echappees plutot qu'un `toContain` literal pour ces lignes.
+  - La semantique tri-etat doit rester stricte dans les helpers DB E2E: supprimer les coercions `Boolean(...)` et valider `boolean | null` uniquement.
+  - Pour une nouvelle reaction imagee, aligner la taille de l'asset sur les icones existantes evite les regressions de layout (ici `539x457`).
+- Reliable commands:
+  - `cwebp -q 80 -resize 539 457 public/images/legacy/indecisive.png -o public/images/reactions/smiley-indecis.webp`
+  - `sips -g pixelWidth -g pixelHeight public/images/reactions/smiley-indecis.webp`
+  - `npm run test:e2e -- tests/e2e/specs/pediatric-report.spec.ts`
+  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts tests/e2e/specs/food-summary.spec.ts tests/e2e/specs/pediatric-report.spec.ts`
+  - `npm run lint -- --max-warnings=0 && npm exec tsc -- --noEmit && npm run build`
+- Safety rails / do-not-do:
+  - Ne pas committer un `next-env.d.ts` modifie uniquement par les runs outillage/e2e s'il est hors scope fonctionnel du changement.

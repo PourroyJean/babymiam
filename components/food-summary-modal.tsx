@@ -42,8 +42,22 @@ type FoodSummaryModalProps = {
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-function getTastingIconSrc(liked: boolean) {
-  return liked ? "/images/reactions/smiley-ok.webp" : "/images/reactions/smiley-ko.webp";
+function getTastingIconSrc(liked: boolean | null) {
+  if (liked === true) return "/images/reactions/smiley-ok.webp";
+  if (liked === false) return "/images/reactions/smiley-ko.webp";
+  return "/images/reactions/smiley-indecis.webp";
+}
+
+function getTastingLikedLabel(liked: boolean | null) {
+  if (liked === true) return "aimé";
+  if (liked === false) return "pas aimé";
+  return "indécis";
+}
+
+function getNextTastingLikedValue(current: boolean | null): boolean | null {
+  if (current === true) return null;
+  if (current === null) return false;
+  return true;
 }
 
 export function FoodSummaryModal({
@@ -64,7 +78,7 @@ export function FoodSummaryModal({
   const [isMounted, setIsMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [draftNote, setDraftNote] = useState(initialNote);
-  const [draftTastingLiked, setDraftTastingLiked] = useState<Record<number, boolean>>({});
+  const [draftTastingLiked, setDraftTastingLiked] = useState<Record<number, boolean | null>>({});
   const [draftTastingNotes, setDraftTastingNotes] = useState<Record<number, string>>({});
   const [draftTastingDates, setDraftTastingDates] = useState<Record<number, string>>({});
   const [draftTastingTextures, setDraftTastingTextures] = useState<Record<number, TextureLevel>>({});
@@ -168,9 +182,10 @@ export function FoodSummaryModal({
           "tastings",
           JSON.stringify(
             tastings.map((tasting) => {
+              const hasDraftLiked = Object.prototype.hasOwnProperty.call(draftTastingLiked, tasting.slot);
               return {
                 slot: tasting.slot,
-                liked: draftTastingLiked[tasting.slot] ?? tasting.liked,
+                liked: hasDraftLiked ? draftTastingLiked[tasting.slot] : tasting.liked,
                 tastedOn: (draftTastingDates[tasting.slot] || tasting.tastedOn).trim(),
                 note: String(draftTastingNotes[tasting.slot] ?? tasting.note).trim(),
                 textureLevel: draftTastingTextures[tasting.slot] ?? tasting.textureLevel ?? DEFAULT_TEXTURE_LEVEL,
@@ -279,12 +294,14 @@ export function FoodSummaryModal({
           ) : (
             <ol className="m-0 grid list-none gap-2 p-0">
               {tastings.slice(0, 3).map((tasting) => {
-                const liked = draftTastingLiked[tasting.slot] ?? tasting.liked;
+                const hasDraftLiked = Object.prototype.hasOwnProperty.call(draftTastingLiked, tasting.slot);
+                const liked = hasDraftLiked ? draftTastingLiked[tasting.slot] : tasting.liked;
                 const textureLevel =
                   draftTastingTextures[tasting.slot] ?? tasting.textureLevel ?? DEFAULT_TEXTURE_LEVEL;
                 const reactionType =
                   draftTastingReactions[tasting.slot] ?? tasting.reactionType ?? DEFAULT_REACTION_TYPE;
 
+                const nextLiked = getNextTastingLikedValue(liked);
                 return (
                   <li
                     key={`${foodId}-${tasting.slot}-${tasting.tastedOn}`}
@@ -297,17 +314,17 @@ export function FoodSummaryModal({
                           onClick={() => {
                             setDraftTastingLiked((current) => ({
                               ...current,
-                              [tasting.slot]: !liked
+                              [tasting.slot]: nextLiked
                             }));
                           }}
                           disabled={isPending}
                           aria-label={`Basculer le résultat du tigre ${tasting.slot}/3`}
-                          title={`Passer à ${liked ? "pas aimé" : "aimé"}`}
+                          title={`Passer à ${getTastingLikedLabel(nextLiked)}`}
                           className="touch-manipulation inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#dacbb6] bg-[#fffbf4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9b7a3d] focus-visible:ring-offset-2 disabled:opacity-60"
                         >
                           <Image
                             src={getTastingIconSrc(liked)}
-                            alt={liked ? "Tigre OK" : "Tigre KO"}
+                            alt={liked === true ? "Tigre OK" : liked === false ? "Tigre KO" : "Tigre indécis"}
                             width={28}
                             height={28}
                             className="h-7 w-7 object-contain"

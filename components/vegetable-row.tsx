@@ -8,7 +8,7 @@ import { deleteTastingEntryAction, saveTastingEntryAction } from "@/app/actions"
 import { CheckCircle } from "lucide-react";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import type { FoodTastingEntry } from "@/lib/types";
-import { TastingEntryFormFields } from "@/components/tasting-entry-form-fields";
+import { TastingEntryFormFields, type TigerLikedChoice } from "@/components/tasting-entry-form-fields";
 import {
   DEFAULT_TEXTURE_LEVEL,
   DEFAULT_REACTION_TYPE,
@@ -82,7 +82,7 @@ export const VegetableRow = memo(function VegetableRow({
   const [isMounted, setIsMounted] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorSlot, setEditorSlot] = useState<1 | 2 | 3 | null>(null);
-  const [editorLiked, setEditorLiked] = useState<"yes" | "no" | null>(null);
+  const [editorLiked, setEditorLiked] = useState<TigerLikedChoice | null>(null);
   const [editorDate, setEditorDate] = useState("");
   const [editorTextureLevel, setEditorTextureLevel] = useState<TextureLevel>(DEFAULT_TEXTURE_LEVEL);
   const [editorReactionType, setEditorReactionType] = useState<ReactionType>(DEFAULT_REACTION_TYPE);
@@ -154,11 +154,29 @@ export const VegetableRow = memo(function VegetableRow({
   const canShowFinalPreference = tastingCount === 3;
   const childLabel = childFirstName?.trim() || "bébé";
 
+  function getChoiceFromLiked(liked: boolean | null): TigerLikedChoice {
+    if (liked === true) return "ok";
+    if (liked === false) return "ko";
+    return "indecis";
+  }
+
+  function getFilledSlotIcon(liked: boolean | null) {
+    if (liked === true) return "/images/reactions/smiley-ok.webp";
+    if (liked === false) return "/images/reactions/smiley-ko.webp";
+    return "/images/reactions/smiley-indecis.webp";
+  }
+
+  function getFilledSlotLabel(liked: boolean | null) {
+    if (liked === true) return "aimé";
+    if (liked === false) return "pas aimé";
+    return "indécis";
+  }
+
   function openEditor(slot: 1 | 2 | 3) {
     const existing = tastingsBySlot.get(slot);
 
     setEditorSlot(slot);
-    setEditorLiked(existing ? (existing.liked ? "yes" : "no") : null);
+    setEditorLiked(existing ? getChoiceFromLiked(existing.liked) : null);
     setEditorDate(existing?.tastedOn || getTodayIsoDate());
     setEditorTextureLevel(existing?.textureLevel ?? DEFAULT_TEXTURE_LEVEL);
     setEditorReactionType(existing?.reactionType ?? DEFAULT_REACTION_TYPE);
@@ -181,7 +199,7 @@ export const VegetableRow = memo(function VegetableRow({
   function saveEntry() {
     if (!editorSlot) return;
     if (!editorLiked) {
-      setEditorError(`Choisis si ${childLabel} a aimé ou non.`);
+      setEditorError(`Choisis une réaction pour ${childLabel}: OK, Indécis ou KO.`);
       return;
     }
 
@@ -255,11 +273,9 @@ export const VegetableRow = memo(function VegetableRow({
         <div className="grid gap-4">
           <div className="quick-add-right-column">
             <TastingEntryFormFields
-              liked={editorLiked === "yes" ? "ok" : editorLiked === "no" ? "ko" : null}
-              onLikedChange={(value) => {
-                setEditorLiked(value === "ok" ? "yes" : "no");
-              }}
-              tigerAriaLabels={{ ok: "Oui", ko: "Non" }}
+              liked={editorLiked}
+              onLikedChange={setEditorLiked}
+              tigerAriaLabels={{ ok: "Oui", indecis: "Indécis", ko: "Non" }}
               likedQuestionLabel={`${childLabel} a aimé ?`}
               likedGroupAriaLabel={`Choix de réaction pour ${childLabel}`}
               tastedOn={editorDate}
@@ -364,14 +380,12 @@ export const VegetableRow = memo(function VegetableRow({
                   const tasting = tastingsBySlot.get(slot);
                   const isLockedNeutral = !tasting && nextCreatableSlot !== null && slot !== nextCreatableSlot;
                   const iconSrc = tasting
-                    ? tasting.liked
-                      ? "/images/reactions/smiley-ok.webp"
-                      : "/images/reactions/smiley-ko.webp"
+                    ? getFilledSlotIcon(tasting.liked)
                     : "/images/reactions/smiley-neutral.webp";
-                  const iconAlt = tasting ? (tasting.liked ? "Aimé" : "Pas aimé") : "À remplir";
+                  const iconAlt = tasting ? getFilledSlotLabel(tasting.liked) : "À remplir";
 
                   const ariaLabel = tasting
-                    ? `${name} - entrée ${slot} (${tasting.liked ? "aimé" : "pas aimé"} le ${formatDate(
+                    ? `${name} - entrée ${slot} (${getFilledSlotLabel(tasting.liked)} le ${formatDate(
                       tasting.tastedOn
                     )}). Modifier`
                     : `${name} - ajouter l'entrée ${slot}`;
