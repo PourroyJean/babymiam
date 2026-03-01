@@ -171,6 +171,20 @@
   - Ne pas remettre en question le fallback premium par defaut: decision produit explicite.
   - Ne pas conditionner la deconnexion de la session courante a `email_verified_at`; garder ce chemin disponible.
 
+## Session Lessons (2026-02-28)
+- Lessons learned:
+  - Pour eviter le drift de rendu timeline, conserver un seul tri d'affichage dans `components/timeline-panel.tsx` et laisser `buildTimelineEntries` (dans `components/categories-grid.tsx`) faire uniquement le flatten brut.
+  - Le tri timeline attendu en UI est: date desc, puis slot desc, puis nom aliment asc (`fr`); verrouiller cet ordre avec un test E2E dedie.
+  - Le filtre `-g` de Playwright est une regex: un pattern trop litteral (ex avec parenthese non echappee) peut retourner `No tests found`.
+- Reliable commands:
+  - `npm run lint -- --max-warnings=0`
+  - `npm exec tsc -- --noEmit`
+  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts -g "timeline"`
+  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts -g "anti forget radar prioritizes blocked foods, explains why, and supports tester maintenant"`
+- Safety rails / do-not-do:
+  - Ne pas laisser deux endroits trier la timeline (producer + consumer): definir une source unique pour l'ordre final.
+  - Ne pas valider un `-g` Playwright sans verifier le nombre de tests executes (un motif large comme `timeline` peut matcher plusieurs specs).
+
 ## Session Lessons (2026-03-01)
 - Lessons learned:
   - Dans les assertions E2E sur texte PDF (flux latin1), les parentheses peuvent etre echappees dans le stream; preferer des regex echappees plutot qu'un `toContain` literal pour ces lignes.

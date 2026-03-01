@@ -1,9 +1,10 @@
 import { requireVerifiedAuth } from "@/lib/auth";
 import { CATEGORY_TONE_BY_NAME } from "@/lib/category-ui";
-import { getChildProfile, getDashboardData, getFoodTimeline } from "@/lib/data";
+import { getChildProfile, getDashboardData } from "@/lib/data";
 import { CategoriesGrid } from "@/components/categories-grid";
+import { hasPremiumFeatureAccess } from "@/lib/premium-features";
 import { SiteNav } from "@/components/site-nav";
-import type { DashboardCategory, FoodTimelineEntry, ProgressSummary } from "@/lib/types";
+import type { DashboardCategory, ProgressSummary } from "@/lib/types";
 
 function getUpdatedTimestamp(updatedAt: string | null) {
   if (!updatedAt) return 0;
@@ -31,22 +32,20 @@ function buildProgressSummary(categories: DashboardCategory[]): ProgressSummary 
 
 export default async function DashboardPage() {
   const user = await requireVerifiedAuth();
+  const hasAntiForgetPremiumAccess = hasPremiumFeatureAccess(user, "anti_forget_radar");
   let childProfile: Awaited<ReturnType<typeof getChildProfile>> = null;
 
   let categories: Awaited<ReturnType<typeof getDashboardData>> = [];
-  let timelineEntries: FoodTimelineEntry[] = [];
   let dbError: string | null = null;
   try {
-    [childProfile, categories, timelineEntries] = await Promise.all([
+    [childProfile, categories] = await Promise.all([
       getChildProfile(user.id),
-      getDashboardData(user.id),
-      getFoodTimeline(user.id)
+      getDashboardData(user.id)
     ]);
   } catch (error) {
     console.error("[dashboard] Failed to load data.", error);
     dbError = "Impossible de charger les données pour le moment.";
     categories = [];
-    timelineEntries = [];
   }
 
   const progressSummary = buildProgressSummary(categories);
@@ -72,7 +71,7 @@ export default async function DashboardPage() {
         categories={categories}
         toneByCategory={CATEGORY_TONE_BY_NAME}
         childFirstName={childProfile?.firstName ?? null}
-        timelineEntries={timelineEntries}
+        hasAntiForgetPremiumAccess={hasAntiForgetPremiumAccess}
       />
     </main>
   );

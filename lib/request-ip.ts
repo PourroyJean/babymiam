@@ -1,7 +1,18 @@
 import { isIP } from "node:net";
 
+const TRUST_PROXY_IP_HEADER_HOPS_DEFAULT = 1;
+
 function trustProxyHeadersEnabled() {
   return process.env.TRUST_PROXY_IP_HEADERS === "1";
+}
+
+function getTrustedProxyIpHeaderHops() {
+  const parsed = Number(process.env.TRUST_PROXY_IP_HEADER_HOPS || TRUST_PROXY_IP_HEADER_HOPS_DEFAULT);
+  if (!Number.isFinite(parsed)) return TRUST_PROXY_IP_HEADER_HOPS_DEFAULT;
+
+  const normalized = Math.trunc(parsed);
+  if (normalized < 0 || normalized > 5) return TRUST_PROXY_IP_HEADER_HOPS_DEFAULT;
+  return normalized;
 }
 
 function normalizeIpCandidate(raw: string) {
@@ -36,18 +47,43 @@ function normalizeIpCandidate(raw: string) {
   return isIP(candidate) > 0 ? candidate : null;
 }
 
+function getTrustedClientIpFromCandidates(candidates: string[]) {
+  let remainingTrustedHops = getTrustedProxyIpHeaderHops();
+  let leftMostValidIp: string | null = null;
+
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
+    const normalized = normalizeIpCandidate(candidates[index]);
+    if (!normalized) continue;
+
+    leftMostValidIp = normalized;
+
+    if (remainingTrustedHops === 0) {
+      return normalized;
+    }
+
+    remainingTrustedHops -= 1;
+  }
+
+  return leftMostValidIp;
+}
+
 function getIpFromForwardedFor(value: string) {
   const candidates = value
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
 
-  for (const candidate of candidates) {
-    const normalized = normalizeIpCandidate(candidate);
-    if (normalized) return normalized;
-  }
+  return getTrustedClientIpFromCandidates(candidates);
+}
 
-  return null;
+function getIpFromForwardedHeader(value: string) {
+  const forDirectives = value
+    .split(",")
+    .flatMap((entry) => entry.split(";"))
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.toLowerCase().startsWith("for="));
+
+  return getTrustedClientIpFromCandidates(forDirectives);
 }
 
 export function getTrustedClientIpFromHeaders(requestHeaders: Headers) {
@@ -63,16 +99,5 @@ export function getTrustedClientIpFromHeaders(requestHeaders: Headers) {
   const forwardedHeader = requestHeaders.get("forwarded") || "";
   if (!forwardedHeader) return null;
 
-  const forwardedParts = forwardedHeader
-    .split(",")
-    .flatMap((part) => part.split(";"))
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  for (const part of forwardedParts) {
-    const normalized = normalizeIpCandidate(part);
-    if (normalized) return normalized;
-  }
-
-  return null;
+  return getIpFromForwardedHeader(forwardedHeader);
 }

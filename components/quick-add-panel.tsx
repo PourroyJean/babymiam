@@ -25,13 +25,17 @@ type QuickAddPanelProps = {
   isOpen: boolean;
   foods: QuickAddFood[];
   onClose: () => void;
+  prefillFood?: {
+    foodId: number;
+    foodName: string;
+  } | null;
 };
 
 type TigerChoice = "ok" | "indecis" | "ko" | null;
 
 const MAX_VISIBLE_RESULTS = 16;
 
-export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
+export function QuickAddPanel({ isOpen, foods, onClose, prefillFood = null }: QuickAddPanelProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedFoodId, setSelectedFoodId] = useState<number | null>(null);
@@ -45,6 +49,7 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
   const [isPending, startTransition] = useTransition();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const wasOpenRef = useRef(false);
+  const appliedPrefillRef = useRef<string | null>(null);
 
   function clearErrorMessage() {
     setErrorMessage("");
@@ -77,8 +82,29 @@ export function QuickAddPanel({ isOpen, foods, onClose }: QuickAddPanelProps) {
     setTigerChoice(null);
     setNote("");
     clearErrorMessage();
+    appliedPrefillRef.current = null;
     wasOpenRef.current = false;
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !prefillFood) return;
+
+    const prefillKey = `${prefillFood.foodId}:${prefillFood.foodName}`;
+    if (appliedPrefillRef.current === prefillKey) return;
+    appliedPrefillRef.current = prefillKey;
+
+    const matchingFood = foods.find((food) => food.id === prefillFood.foodId) ?? null;
+    if (matchingFood) {
+      setSelectedFoodId(matchingFood.id);
+      setQuery(matchingFood.name);
+      clearErrorMessage();
+      return;
+    }
+
+    setSelectedFoodId(null);
+    setQuery(prefillFood.foodName);
+    clearErrorMessage();
+  }, [foods, isOpen, prefillFood]);
 
   useEffect(() => {
     if (!isOpen) return;

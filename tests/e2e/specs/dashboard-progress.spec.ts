@@ -11,6 +11,14 @@ function getTodayLocalIsoDate() {
   return localDate.toISOString().slice(0, 10);
 }
 
+function getIsoDateDaysAgo(daysAgo: number) {
+  const normalizedDaysAgo = Math.max(0, Math.trunc(daysAgo));
+  const now = new Date();
+  now.setDate(now.getDate() - normalizedDaysAgo);
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
 function formatDateToFr(value: string) {
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
@@ -36,6 +44,20 @@ async function openQuickAddPanel(page: Page) {
   const addButton = dialog.getByRole("button", { name: "Ajouter" });
 
   return { dialog, searchInput, dateInput, noteInput, addButton };
+}
+
+async function openAntiForgetPanel(page: Page) {
+  await page.getByRole("button", { name: /Radar anti-oubli/i }).click();
+  const dialog = page.getByRole("dialog", { name: /Radar anti-oubli/i });
+  await expect(dialog).toBeVisible();
+  return { dialog };
+}
+
+async function openTimelinePanel(page: Page) {
+  await page.getByRole("button", { name: /Carnets de bords/i }).click();
+  const dialog = page.getByRole("dialog", { name: /Carnets de bords/i });
+  await expect(dialog).toBeVisible();
+  return { dialog };
 }
 
 function getSlotButton(scope: Locator, foodName: string, slot: 1 | 2 | 3) {
@@ -422,7 +444,97 @@ test.describe("dashboard progression", () => {
     await expect(reopenedDialog.getByText("Aucun aliment trouvé.")).toBeVisible();
   });
 
-  test("keeps overlays exclusive between Search, Timeline and Quick Add", async ({ appPage }) => {
+  test("timeline sorts by day desc, slot desc, then food name asc (fr)", async ({ appPage, db }) => {
+    await db.setFoodTastingsByName("Banane", [{ slot: 3, liked: true, tastedOn: "2025-01-12" }]);
+    await db.setFoodTastingsByName("Brocoli", [{ slot: 2, liked: false, tastedOn: "2025-01-12" }]);
+    await db.setFoodTastingsByName("Carotte", [{ slot: 2, liked: true, tastedOn: "2025-01-12" }]);
+    await db.setFoodTastingsByName("Épinard", [{ slot: 1, liked: true, tastedOn: "2025-01-10" }]);
+
+    await appPage.reload();
+
+    const { dialog } = await openTimelinePanel(appPage);
+    const dayItems = dialog.locator(".food-timeline-day-item");
+    const foodButtons = dialog.locator(".food-timeline-entry .food-timeline-food-name");
+    const entryCards = dialog.locator(".food-timeline-entry");
+
+    await expect(dayItems).toHaveCount(2);
+    await expect(foodButtons).toHaveCount(4);
+
+    await expect(foodButtons.nth(0)).toHaveText("Banane");
+    await expect(foodButtons.nth(1)).toHaveText("Brocoli");
+    await expect(foodButtons.nth(2)).toHaveText("Carotte");
+    await expect(foodButtons.nth(3)).toHaveText("Épinard");
+
+    await expect(entryCards.nth(0)).toContainText("3/3");
+    await expect(entryCards.nth(1)).toContainText("2/3");
+    await expect(entryCards.nth(2)).toContainText("2/3");
+    await expect(entryCards.nth(3)).toContainText("1/3");
+
+    await expect(dayItems.nth(0)).toContainText("Banane");
+    await expect(dayItems.nth(0)).toContainText("Brocoli");
+    await expect(dayItems.nth(0)).toContainText("Carotte");
+    await expect(dayItems.nth(1)).toContainText("Épinard");
+  });
+
+  test("anti forget radar prioritizes blocked foods, explains why, and supports tester maintenant", async ({
+    appPage,
+    db
+  }) => {
+    await db.setFoodTastingsByName("Carotte", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(19) }]);
+    await db.setFoodTastingsByName("Épinard", [
+      { slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(16) },
+      { slot: 2, liked: false, tastedOn: getIsoDateDaysAgo(15) }
+    ]);
+    await db.setFoodTastingsByName("Banane", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(8) }]);
+    await db.setFoodTastingsByName("Pomme", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(2) }]);
+
+    await appPage.reload();
+
+    const radarTrigger = appPage.getByRole("button", { name: /Radar anti-oubli/i });
+    await expect(radarTrigger).toContainText("3 bloqués");
+    await expect(radarTrigger).toContainText("2 urgents");
+    await expect(radarTrigger).toContainText("4 en cours");
+
+    const { dialog } = await openAntiForgetPanel(appPage);
+    await expect(dialog.locator(".anti-forget-stat-card").nth(0)).toContainText("Bloqués");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(0)).toContainText("3");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(1)).toContainText("Urgents");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(1)).toContainText("2");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(2)).toContainText("En cours");
+    await expect(dialog.locator(".anti-forget-stat-card").nth(2)).toContainText("4");
+
+    const prioritizedItems = dialog.locator(".anti-forget-item");
+    await expect(prioritizedItems).toHaveCount(3);
+    await expect(prioritizedItems.nth(0)).toContainText("Carotte");
+    await expect(prioritizedItems.nth(1)).toContainText("Épinard");
+    await expect(prioritizedItems.nth(2)).toContainText("Banane");
+    await expect(prioritizedItems.nth(0).locator(".anti-forget-status")).toContainText("Urgent");
+    await expect(prioritizedItems.nth(1).locator(".anti-forget-status")).toContainText("Urgent");
+    await expect(prioritizedItems.nth(2).locator(".anti-forget-status")).toContainText("Bloqué");
+    await expect(prioritizedItems.nth(1).locator(".anti-forget-food-meta")).toContainText("2/3, dernier essai le");
+    await expect(prioritizedItems.nth(1).locator(".anti-forget-food-meta")).toContainText(/\+\d+\sjours\./);
+
+    await dialog.getByRole("button", { name: /Tester maintenant Banane/i }).click();
+    const quickAddDialog = appPage.getByRole("dialog", { name: "Ajout rapide" });
+    await expect(quickAddDialog).toBeVisible();
+    await expect(quickAddDialog.getByRole("textbox", { name: "Rechercher un aliment" })).toHaveValue("Banane");
+    await expect(quickAddDialog.getByText("Sélectionné: Banane (1/3)")).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+
+    await quickAddDialog.getByRole("button", { name: "Annuler" }).click();
+    await expect(quickAddDialog).toHaveCount(0);
+
+    const reopenedRadar = await openAntiForgetPanel(appPage);
+    await reopenedRadar.dialog.getByRole("button", { name: /Reprendre Banane/i }).click();
+    const summaryDialog = appPage.getByRole("dialog", { name: "Banane" });
+    await expect(summaryDialog).toBeVisible();
+
+    await appPage.keyboard.press("Escape");
+    await expect(summaryDialog).toHaveCount(0);
+    await expect(reopenedRadar.dialog).toBeVisible();
+  });
+
+  test("keeps overlays exclusive between Search, Timeline, Radar and Quick Add", async ({ appPage }) => {
     await appPage.getByRole("button", { name: /Carnets de bords/i }).click();
     await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toBeVisible();
 
@@ -430,6 +542,13 @@ test.describe("dashboard progression", () => {
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
     await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toHaveCount(0);
 
+    await appPage.keyboard.press("Escape");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
+
+    await openAntiForgetPanel(appPage);
+    await appPage.keyboard.press("Control+k");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
+    await expect(appPage.getByRole("dialog", { name: /Radar anti-oubli/i })).toHaveCount(0);
     await appPage.keyboard.press("Escape");
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
 

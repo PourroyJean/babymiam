@@ -28,7 +28,7 @@ MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-use
    ```
 5. (Optionnel) Créer un compte local supplémentaire:
    ```bash
-   npm run users:create -- --email "dev@example.com" --password "change-me-now" --status active --verify-email
+   printf "change-me-now" | npm run users:create -- --email "dev@example.com" --password-stdin --status active --verify-email
    ```
 6. Démarrer l'app:
    ```bash
@@ -118,6 +118,16 @@ Nous utilisons `node-pg-migrate` pour versionner le schéma.
 - `SHARE_SNAPSHOT_TTL_DAYS` (défaut `30`, durée de validité des nouveaux liens publics)
 - `MAINTENANCE_MODE` (`true|false`)
 - `TRUST_PROXY_IP_HEADERS` (`0` par défaut, `1` uniquement derrière un proxy de confiance)
+- `TRUST_PROXY_IP_HEADER_HOPS` (défaut `1`, nombre de proxys de confiance à ignorer en partant de la droite)
+- `AUTH_ATTEMPTS_RETENTION_DAYS` (défaut `90`, purge des tables `auth_*_attempts`)
+- `AUTH_ATTEMPTS_PRUNE_INTERVAL_MINUTES` (défaut `60`, fréquence minimale de purge opportuniste)
+- `PREMIUM_GATE_MODE` (`auto|on|off`)
+- `PREMIUM_FEATURE_USER_IDS`
+- `PREMIUM_FEATURE_USER_EMAILS`
+- `PEDIATRIC_REPORT_PREMIUM_USER_IDS`
+- `PEDIATRIC_REPORT_PREMIUM_USER_EMAILS`
+- `ANTI_FORGET_RADAR_PREMIUM_USER_IDS`
+- `ANTI_FORGET_RADAR_PREMIUM_USER_EMAILS`
 - `ALLOW_MIGRATE_SKIP` (`1` pour autoriser explicitement un skip manuel de migration en local)
 - `E2E_ALLOW_REMOTE_DB_RESET` (`1` pour autoriser un reset destructif E2E sur host non local)
 
