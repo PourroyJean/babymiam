@@ -138,7 +138,7 @@ Pour forcer un host distant: `E2E_ALLOW_REMOTE_DB_RESET=1`.
 ## Garde-fous obligatoires
 - `SKIP_DB_SETUP=1` bloque `npm run db:migrate` par défaut.
 - Pour skip explicite en local: `ALLOW_MIGRATE_SKIP=1 SKIP_DB_SETUP=1 npm run db:migrate`.
-- En prod/CI, demander un skip (`SKIP_DB_SETUP=1`) provoque un échec explicite pour migration, seed et sync allergènes.
+- En prod/CI, demander un skip (`SKIP_DB_SETUP=1`) provoque un échec explicite pour migration et seed.
 - `npm run db:preflight` échoue si `SKIP_DB_SETUP=1`, si l'URL DB est absente, ou si la connexion DB est indisponible.
 
 ## Runbook déploiement (Clean Start)

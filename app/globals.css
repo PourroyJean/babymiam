@@ -2580,46 +2580,6 @@ a {
   line-height: 1;
 }
 
-.allergen-focus-summary {
-  margin: 0 0 10px;
-  border: 1px solid #efcca5;
-  border-radius: 14px;
-  background: #fff4ea;
-  padding: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.allergen-focus-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.allergen-focus-stat {
-  margin: 0;
-  border: 1px solid #e8c59f;
-  border-radius: 10px;
-  background: #fff9f1;
-  padding: 6px 8px;
-  text-align: center;
-  display: grid;
-  gap: 2px;
-}
-
-.allergen-focus-stat span {
-  font-size: 0.72rem;
-  color: #7b6246;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.allergen-focus-stat strong {
-  font-size: 1rem;
-  color: #5f4323;
-  line-height: 1;
-}
-
 .category-pill {
   margin: 0;
   width: fit-content;
@@ -2984,10 +2944,6 @@ a {
   .pediatric-report-trigger-btn {
     width: 100%;
     justify-content: space-between;
-  }
-
-  .allergen-focus-stats {
-    grid-template-columns: 1fr;
   }
 
   .food-search-overlay {
