@@ -12,14 +12,17 @@ import { VegetableRow } from "@/components/vegetable-row";
 import { buildAntiForgetRadar } from "@/lib/anti-forget-radar";
 import { getCategoryUi } from "@/lib/category-ui";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
+import { buildWeeklyDiscoveryPlan } from "@/lib/weekly-discovery-plan";
 import type { DashboardCategory, DashboardFood, FinalPreferenceValue, FoodTimelineEntry } from "@/lib/types";
 import { getNextFinalPreference, getRedirectUrlFromError, normalizeSearchValue } from "@/lib/ui-utils";
+import { WeeklyPlanPanel } from "@/components/weekly-plan-panel";
 
 type CategoriesGridProps = {
   categories: DashboardCategory[];
   toneByCategory: Record<string, string>;
   childFirstName?: string | null;
   hasAntiForgetPremiumAccess: boolean;
+  hasWeeklyPlanPremiumAccess: boolean;
 };
 
 type SearchFood = DashboardFood & {
@@ -159,12 +162,14 @@ export function CategoriesGrid({
   categories,
   toneByCategory,
   childFirstName = null,
-  hasAntiForgetPremiumAccess
+  hasAntiForgetPremiumAccess,
+  hasWeeklyPlanPremiumAccess
 }: CategoriesGridProps) {
   const [openByCategoryId, setOpenByCategoryId] = useState<Record<number, boolean>>({});
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isAntiForgetOpen, setIsAntiForgetOpen] = useState(false);
+  const [isWeeklyPlanOpen, setIsWeeklyPlanOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddPrefill, setQuickAddPrefill] = useState<QuickAddPrefill | null>(null);
   const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
@@ -178,6 +183,7 @@ export function CategoriesGrid({
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineTriggerRef = useRef<HTMLButtonElement>(null);
   const antiForgetTriggerRef = useRef<HTMLButtonElement>(null);
+  const weeklyPlanTriggerRef = useRef<HTMLButtonElement>(null);
   const quickAddTriggerRef = useRef<HTMLButtonElement>(null);
   const addFoodTriggerRef = useRef<HTMLButtonElement>(null);
   const summaryTriggerRef = useRef<HTMLElement | null>(null);
@@ -188,6 +194,7 @@ export function CategoriesGrid({
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const wasTimelineOpenRef = useRef(false);
   const wasAntiForgetOpenRef = useRef(false);
+  const wasWeeklyPlanOpenRef = useRef(false);
   const wasQuickAddOpenRef = useRef(false);
   const wasAddFoodOpenRef = useRef(false);
   const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
@@ -212,6 +219,7 @@ export function CategoriesGrid({
   function openSearch() {
     setIsTimelineOpen(false);
     setIsAntiForgetOpen(false);
+    setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
     setIsSearchOpen(true);
@@ -224,6 +232,7 @@ export function CategoriesGrid({
   function openTimeline() {
     setIsSearchOpen(false);
     setIsAntiForgetOpen(false);
+    setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
     setIsTimelineOpen(true);
@@ -236,9 +245,23 @@ export function CategoriesGrid({
   function openAntiForget() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
+    setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
     setIsAntiForgetOpen(true);
+  }
+
+  function closeWeeklyPlan() {
+    setIsWeeklyPlanOpen(false);
+  }
+
+  function openWeeklyPlan() {
+    setIsSearchOpen(false);
+    setIsTimelineOpen(false);
+    setIsAntiForgetOpen(false);
+    setIsQuickAddOpen(false);
+    setIsAddFoodOpen(false);
+    setIsWeeklyPlanOpen(true);
   }
 
   function closeQuickAdd() {
@@ -250,6 +273,7 @@ export function CategoriesGrid({
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
     setIsAntiForgetOpen(false);
+    setIsWeeklyPlanOpen(false);
     setIsAddFoodOpen(false);
     setQuickAddPrefill(null);
     setIsQuickAddOpen(true);
@@ -259,6 +283,7 @@ export function CategoriesGrid({
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
     setIsAntiForgetOpen(false);
+    setIsWeeklyPlanOpen(false);
     setIsAddFoodOpen(false);
     setQuickAddPrefill({ foodId, foodName });
     setIsQuickAddOpen(true);
@@ -272,6 +297,7 @@ export function CategoriesGrid({
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
     setIsAntiForgetOpen(false);
+    setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(true);
   }
@@ -496,6 +522,7 @@ export function CategoriesGrid({
         event.preventDefault();
         setIsTimelineOpen(false);
         setIsAntiForgetOpen(false);
+        setIsWeeklyPlanOpen(false);
         setIsQuickAddOpen(false);
         setIsAddFoodOpen(false);
         setIsSearchOpen(true);
@@ -512,6 +539,7 @@ export function CategoriesGrid({
         setIsSearchOpen(false);
         setIsTimelineOpen(false);
         setIsAntiForgetOpen(false);
+        setIsWeeklyPlanOpen(false);
         setIsQuickAddOpen(false);
         setIsAddFoodOpen(false);
       }
@@ -576,6 +604,18 @@ export function CategoriesGrid({
   }, [isAntiForgetOpen]);
 
   useEffect(() => {
+    if (isWeeklyPlanOpen) {
+      wasWeeklyPlanOpenRef.current = true;
+      return;
+    }
+
+    if (wasWeeklyPlanOpenRef.current) {
+      weeklyPlanTriggerRef.current?.focus();
+      wasWeeklyPlanOpenRef.current = false;
+    }
+  }, [isWeeklyPlanOpen]);
+
+  useEffect(() => {
     if (isQuickAddOpen) {
       wasQuickAddOpenRef.current = true;
       return;
@@ -601,7 +641,13 @@ export function CategoriesGrid({
 
   useEffect(() => {
     const hasOverlayOpen =
-      isSearchOpen || isTimelineOpen || isAntiForgetOpen || isQuickAddOpen || isAddFoodOpen || isSummaryOpen;
+      isSearchOpen ||
+      isTimelineOpen ||
+      isAntiForgetOpen ||
+      isWeeklyPlanOpen ||
+      isQuickAddOpen ||
+      isAddFoodOpen ||
+      isSummaryOpen;
     if (!hasOverlayOpen) return;
 
     const previousOverflow = document.body.style.overflow;
@@ -610,7 +656,7 @@ export function CategoriesGrid({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isSearchOpen, isTimelineOpen, isAntiForgetOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
+  }, [isSearchOpen, isTimelineOpen, isAntiForgetOpen, isWeeklyPlanOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -696,6 +742,8 @@ export function CategoriesGrid({
   const antiForgetRadar = useMemo(() => buildAntiForgetRadar(categories), [categories]);
   const antiForgetStats = antiForgetRadar.stats;
   const antiForgetToolbarSummary = `${antiForgetStats.blockedCount} bloqués · ${antiForgetStats.urgentCount} urgents · ${antiForgetStats.inProgressCount} en cours`;
+  const weeklyPlan = useMemo(() => buildWeeklyDiscoveryPlan(categories), [categories]);
+  const weeklyPlanToolbarSummary = `${weeklyPlan.stats.abandonmentCount} abandons · ${weeklyPlan.stats.allergenPendingCount} allergènes · ${weeklyPlan.stats.consolidationCount} consolidations`;
 
 
   const finalPreferenceByFoodId = useMemo(() => {
@@ -756,6 +804,26 @@ export function CategoriesGrid({
                 </span>
               </span>
               <span className="anti-forget-badge">Premium</span>
+            </button>
+
+            <button
+              ref={weeklyPlanTriggerRef}
+              type="button"
+              className={`weekly-plan-trigger-btn ${weeklyPlan.stats.abandonmentCount > 0 ? "is-alert" : ""}`}
+              onClick={openWeeklyPlan}
+              aria-label={`Plan 7 jours : ${weeklyPlanToolbarSummary}`}
+            >
+              <span>Plan 7 jours</span>
+              <span className="weekly-plan-trigger-kpis" aria-hidden="true">
+                <span className="weekly-plan-trigger-chip is-abandon">{weeklyPlan.stats.abandonmentCount} abandons</span>
+                <span className="weekly-plan-trigger-chip is-allergen">
+                  {weeklyPlan.stats.allergenPendingCount} allergènes
+                </span>
+                <span className="weekly-plan-trigger-chip is-consolidation">
+                  {weeklyPlan.stats.consolidationCount} consolidations
+                </span>
+              </span>
+              <span className="weekly-plan-badge">Premium</span>
             </button>
 
             <button ref={quickAddTriggerRef} type="button" className="quick-add-trigger-btn" onClick={openQuickAdd}>
@@ -939,6 +1007,17 @@ export function CategoriesGrid({
         hasPremiumAccess={hasAntiForgetPremiumAccess}
         stats={antiForgetStats}
         blockedFoods={antiForgetRadar.blockedFoods}
+        openFoodSummary={openFoodSummary}
+        openQuickAddForFood={openQuickAddForFood}
+        childFirstName={childFirstName}
+      />
+
+      <WeeklyPlanPanel
+        isOpen={isWeeklyPlanOpen}
+        isSummaryOpen={isSummaryOpen}
+        onClose={closeWeeklyPlan}
+        hasPremiumAccess={hasWeeklyPlanPremiumAccess}
+        plan={weeklyPlan}
         openFoodSummary={openFoodSummary}
         openQuickAddForFood={openQuickAddForFood}
         childFirstName={childFirstName}

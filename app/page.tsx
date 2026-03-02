@@ -33,6 +33,7 @@ function buildProgressSummary(categories: DashboardCategory[]): ProgressSummary 
 export default async function DashboardPage() {
   const user = await requireVerifiedAuth();
   const hasAntiForgetPremiumAccess = hasPremiumFeatureAccess(user, "anti_forget_radar");
+  const hasWeeklyPlanPremiumAccess = hasPremiumFeatureAccess(user, "weekly_discovery_plan");
   let childProfile: Awaited<ReturnType<typeof getChildProfile>> = null;
 
   let categories: Awaited<ReturnType<typeof getDashboardData>> = [];
@@ -72,6 +73,7 @@ export default async function DashboardPage() {
         toneByCategory={CATEGORY_TONE_BY_NAME}
         childFirstName={childProfile?.firstName ?? null}
         hasAntiForgetPremiumAccess={hasAntiForgetPremiumAccess}
+        hasWeeklyPlanPremiumAccess={hasWeeklyPlanPremiumAccess}
       />
     </main>
   );
