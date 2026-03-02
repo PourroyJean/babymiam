@@ -197,3 +197,18 @@
   - `npm run lint -- --max-warnings=0 && npm exec tsc -- --noEmit && npm run build`
 - Safety rails / do-not-do:
   - Ne pas committer un `next-env.d.ts` modifie uniquement par les runs outillage/e2e s'il est hors scope fonctionnel du changement.
+
+## Session Lessons (2026-03-02)
+- Lessons learned:
+  - Pour rendre `scripts/db/seed.js` testable en unitaire via `require`, charger les dependances runtime lourdes (`pg`, `ensurePersonalAccess`) en lazy dans `runSeed` et garder `if (require.main === module)` pour eviter les effets de bord a l'import.
+  - Le script `db:preflight` est strict (`allowLocalFallback=false`): sans `POSTGRES_URL` ou `DATABASE_URL` explicite, il echoue meme en local.
+  - Le seed demo rejouable est stable apres rerun: `45` lignes `food_progress`, `108` lignes `food_tastings`, avec repartition des slots `45/36/27`.
+- Reliable commands:
+  - `docker compose up -d`
+  - `POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam npm run db:preflight`
+  - `POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam npm run db:migrate`
+  - `POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam PERSONAL_ACCESS_PASSWORD=<local-password> npm run db:seed`
+  - `POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam npm run db:assert-personal-access`
+- Safety rails / do-not-do:
+  - Ne pas diagnostiquer une panne DB locale sur un echec `db:preflight` tant que `POSTGRES_URL`/`DATABASE_URL` n'est pas defini explicitement dans le shell.
+  - Pour un seed demo deterministic/rejouable par user, supprimer d'abord `food_tastings`, `food_progress` et `foods` owner-scoped du user cible avant reinjection.
