@@ -41,13 +41,45 @@ MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-use
 - `email_verified_at` renseigné.
 
 Variables canoniques:
-- `PERSONAL_ACCESS_EMAIL`
+- `PERSONAL_ACCESS_EMAIL` (recommandé: `ljcls@gmail.com`)
 - `PERSONAL_ACCESS_PASSWORD`
 
 En `NODE_ENV=production` ou `CI=true`, credentials invalides/absents pour ce compte provoquent un échec explicite du seed.
 Le compte perso est traité premium par défaut, même sans allowlist explicite.
 
 Le seed charge les catégories/aliments depuis `aliments_categories.json`.
+Le seed recharge aussi un dataset de démonstration pour le compte perso (`PERSONAL_ACCESS_EMAIL`, recommandé: `ljcls@gmail.com`):
+- scope: `food_tastings`, `food_progress` et aliments personnalisés (`foods.owner_id = user_id`) du compte perso,
+- comportement: écrasement complet puis réinjection déterministe,
+- volume: `5` aliments globaux par catégorie (`9` catégories), soit `45` lignes `food_progress` et `108` lignes `food_tastings`,
+- profils injectés: mix `1/3`, `2/3`, `3/3`, likes/dislikes/indécis (`liked = null`), textures `1..3`, réactions `0..2`, notes courtes.
+
+Vérifications SQL utiles après `npm run db:seed`:
+```sql
+SELECT
+  c.name AS category_name,
+  COUNT(*)::int AS seeded_foods
+FROM food_progress p
+INNER JOIN foods f ON f.id = p.food_id
+INNER JOIN categories c ON c.id = f.category_id
+INNER JOIN users u ON u.id = p.owner_id
+WHERE u.email = 'ljcls@gmail.com'
+GROUP BY c.name, c.sort_order
+ORDER BY c.sort_order;
+```
+Résultat attendu: `9` lignes, chacune avec `seeded_foods = 5`.
+
+```sql
+SELECT
+  COUNT(*) FILTER (WHERE slot = 1) AS slot_1,
+  COUNT(*) FILTER (WHERE slot = 2) AS slot_2,
+  COUNT(*) FILTER (WHERE slot = 3) AS slot_3
+FROM food_tastings t
+INNER JOIN users u ON u.id = t.owner_id
+WHERE u.email = 'ljcls@gmail.com';
+```
+Résultat attendu: `slot_1 = 45`, `slot_2 = 36`, `slot_3 = 27`.
+
 Le runner de migration ne charge pas `.env.local` automatiquement: il lit
 `POSTGRES_URL`, sinon `DATABASE_URL`.
 En `NODE_ENV=production` ou `CI=true`, `POSTGRES_URL`/`DATABASE_URL` est obligatoire (échec immédiat sinon).
