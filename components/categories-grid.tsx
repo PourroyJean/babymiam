@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setFinalPreferenceAction } from "@/app/actions";
 import { AddFoodPanel } from "@/components/add-food-panel";
-import { AntiForgetPanel } from "@/components/anti-forget-panel";
 import { FoodSummaryModal } from "@/components/food-summary-modal";
 import { QuickAddPanel } from "@/components/quick-add-panel";
 import { SearchPanel } from "@/components/search-panel";
 import { TimelinePanel } from "@/components/timeline-panel";
 import { VegetableRow } from "@/components/vegetable-row";
-import { buildAntiForgetRadar } from "@/lib/anti-forget-radar";
 import { getCategoryUi } from "@/lib/category-ui";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import { buildWeeklyDiscoveryPlan } from "@/lib/weekly-discovery-plan";
@@ -21,7 +19,6 @@ type CategoriesGridProps = {
   categories: DashboardCategory[];
   toneByCategory: Record<string, string>;
   childFirstName?: string | null;
-  hasAntiForgetPremiumAccess: boolean;
   hasWeeklyPlanPremiumAccess: boolean;
 };
 
@@ -162,13 +159,11 @@ export function CategoriesGrid({
   categories,
   toneByCategory,
   childFirstName = null,
-  hasAntiForgetPremiumAccess,
   hasWeeklyPlanPremiumAccess
 }: CategoriesGridProps) {
   const [openByCategoryId, setOpenByCategoryId] = useState<Record<number, boolean>>({});
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
-  const [isAntiForgetOpen, setIsAntiForgetOpen] = useState(false);
   const [isWeeklyPlanOpen, setIsWeeklyPlanOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddPrefill, setQuickAddPrefill] = useState<QuickAddPrefill | null>(null);
@@ -182,7 +177,6 @@ export function CategoriesGrid({
   >({});
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineTriggerRef = useRef<HTMLButtonElement>(null);
-  const antiForgetTriggerRef = useRef<HTMLButtonElement>(null);
   const weeklyPlanTriggerRef = useRef<HTMLButtonElement>(null);
   const quickAddTriggerRef = useRef<HTMLButtonElement>(null);
   const addFoodTriggerRef = useRef<HTMLButtonElement>(null);
@@ -193,7 +187,6 @@ export function CategoriesGrid({
   const finalPreferenceOverridesRef = useRef<Record<number, FinalPreferenceValue>>({});
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const wasTimelineOpenRef = useRef(false);
-  const wasAntiForgetOpenRef = useRef(false);
   const wasWeeklyPlanOpenRef = useRef(false);
   const wasQuickAddOpenRef = useRef(false);
   const wasAddFoodOpenRef = useRef(false);
@@ -218,7 +211,6 @@ export function CategoriesGrid({
 
   function openSearch() {
     setIsTimelineOpen(false);
-    setIsAntiForgetOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
@@ -231,24 +223,10 @@ export function CategoriesGrid({
 
   function openTimeline() {
     setIsSearchOpen(false);
-    setIsAntiForgetOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
     setIsTimelineOpen(true);
-  }
-
-  function closeAntiForget() {
-    setIsAntiForgetOpen(false);
-  }
-
-  function openAntiForget() {
-    setIsSearchOpen(false);
-    setIsTimelineOpen(false);
-    setIsWeeklyPlanOpen(false);
-    setIsQuickAddOpen(false);
-    setIsAddFoodOpen(false);
-    setIsAntiForgetOpen(true);
   }
 
   function closeWeeklyPlan() {
@@ -258,7 +236,6 @@ export function CategoriesGrid({
   function openWeeklyPlan() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
-    setIsAntiForgetOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
     setIsWeeklyPlanOpen(true);
@@ -272,7 +249,6 @@ export function CategoriesGrid({
   function openQuickAdd() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
-    setIsAntiForgetOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsAddFoodOpen(false);
     setQuickAddPrefill(null);
@@ -282,7 +258,6 @@ export function CategoriesGrid({
   function openQuickAddForFood(foodId: number, foodName: string) {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
-    setIsAntiForgetOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsAddFoodOpen(false);
     setQuickAddPrefill({ foodId, foodName });
@@ -296,7 +271,6 @@ export function CategoriesGrid({
   function openAddFood() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
-    setIsAntiForgetOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(true);
@@ -521,7 +495,6 @@ export function CategoriesGrid({
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setIsTimelineOpen(false);
-        setIsAntiForgetOpen(false);
         setIsWeeklyPlanOpen(false);
         setIsQuickAddOpen(false);
         setIsAddFoodOpen(false);
@@ -538,7 +511,6 @@ export function CategoriesGrid({
 
         setIsSearchOpen(false);
         setIsTimelineOpen(false);
-        setIsAntiForgetOpen(false);
         setIsWeeklyPlanOpen(false);
         setIsQuickAddOpen(false);
         setIsAddFoodOpen(false);
@@ -592,18 +564,6 @@ export function CategoriesGrid({
   }, [isTimelineOpen]);
 
   useEffect(() => {
-    if (isAntiForgetOpen) {
-      wasAntiForgetOpenRef.current = true;
-      return;
-    }
-
-    if (wasAntiForgetOpenRef.current) {
-      antiForgetTriggerRef.current?.focus();
-      wasAntiForgetOpenRef.current = false;
-    }
-  }, [isAntiForgetOpen]);
-
-  useEffect(() => {
     if (isWeeklyPlanOpen) {
       wasWeeklyPlanOpenRef.current = true;
       return;
@@ -643,7 +603,6 @@ export function CategoriesGrid({
     const hasOverlayOpen =
       isSearchOpen ||
       isTimelineOpen ||
-      isAntiForgetOpen ||
       isWeeklyPlanOpen ||
       isQuickAddOpen ||
       isAddFoodOpen ||
@@ -656,7 +615,7 @@ export function CategoriesGrid({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isSearchOpen, isTimelineOpen, isAntiForgetOpen, isWeeklyPlanOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
+  }, [isSearchOpen, isTimelineOpen, isWeeklyPlanOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -738,12 +697,14 @@ export function CategoriesGrid({
       })),
     [categories]
   );
-
-  const antiForgetRadar = useMemo(() => buildAntiForgetRadar(categories), [categories]);
-  const antiForgetStats = antiForgetRadar.stats;
-  const antiForgetToolbarSummary = `${antiForgetStats.blockedCount} bloqués · ${antiForgetStats.urgentCount} urgents · ${antiForgetStats.inProgressCount} en cours`;
   const weeklyPlan = useMemo(() => buildWeeklyDiscoveryPlan(categories), [categories]);
-  const weeklyPlanToolbarSummary = `${weeklyPlan.stats.abandonmentCount} abandons · ${weeklyPlan.stats.allergenPendingCount} allergènes · ${weeklyPlan.stats.consolidationCount} consolidations`;
+  const weeklyPlanRelaunchCount = weeklyPlan.items.filter(
+    (item) => item.focus === "relaunch" && item.isAbandonedAtGeneration
+  ).length;
+  const weeklyPlanDiscoveryCount = weeklyPlan.items.filter((item) => item.focus === "new_discovery").length;
+  const weeklyPlanAllergenCount = weeklyPlan.items.filter((item) => item.focus === "allergen_routine").length;
+  const weeklyPlanConsolidationCount = weeklyPlan.items.filter((item) => item.focus === "consolidation").length;
+  const weeklyPlanToolbarSummary = `${weeklyPlanRelaunchCount} relances · ${weeklyPlanDiscoveryCount} découvertes · ${weeklyPlanAllergenCount} allergènes · ${weeklyPlanConsolidationCount} consolidations`;
 
 
   const finalPreferenceByFoodId = useMemo(() => {
@@ -789,38 +750,21 @@ export function CategoriesGrid({
             </button>
 
             <button
-              ref={antiForgetTriggerRef}
-              type="button"
-              className={`anti-forget-trigger-btn ${antiForgetStats.blockedCount > 0 ? "is-alert" : ""}`}
-              onClick={openAntiForget}
-              aria-label={`Radar anti-oubli : ${antiForgetToolbarSummary}`}
-            >
-              <span>Radar anti-oubli</span>
-              <span className="anti-forget-trigger-kpis" aria-hidden="true">
-                <span className="anti-forget-trigger-chip is-blocked">{antiForgetStats.blockedCount} bloqués</span>
-                <span className="anti-forget-trigger-chip is-urgent">{antiForgetStats.urgentCount} urgents</span>
-                <span className="anti-forget-trigger-chip is-progress">
-                  {antiForgetStats.inProgressCount} en cours
-                </span>
-              </span>
-              <span className="anti-forget-badge">Premium</span>
-            </button>
-
-            <button
               ref={weeklyPlanTriggerRef}
               type="button"
-              className={`weekly-plan-trigger-btn ${weeklyPlan.stats.abandonmentCount > 0 ? "is-alert" : ""}`}
+              className={`weekly-plan-trigger-btn ${weeklyPlanRelaunchCount > 0 ? "is-alert" : ""}`}
               onClick={openWeeklyPlan}
               aria-label={`Plan 7 jours : ${weeklyPlanToolbarSummary}`}
             >
               <span>Plan 7 jours</span>
               <span className="weekly-plan-trigger-kpis" aria-hidden="true">
-                <span className="weekly-plan-trigger-chip is-abandon">{weeklyPlan.stats.abandonmentCount} abandons</span>
+                <span className="weekly-plan-trigger-chip is-abandon">{weeklyPlanRelaunchCount} relances</span>
+                <span className="weekly-plan-trigger-chip is-discovery">{weeklyPlanDiscoveryCount} découvertes</span>
                 <span className="weekly-plan-trigger-chip is-allergen">
-                  {weeklyPlan.stats.allergenPendingCount} allergènes
+                  {weeklyPlanAllergenCount} allergènes
                 </span>
                 <span className="weekly-plan-trigger-chip is-consolidation">
-                  {weeklyPlan.stats.consolidationCount} consolidations
+                  {weeklyPlanConsolidationCount} consolidations
                 </span>
               </span>
               <span className="weekly-plan-badge">Premium</span>
@@ -997,18 +941,6 @@ export function CategoriesGrid({
         finalPreferenceByFoodId={finalPreferenceByFoodId}
         openFoodSummary={openFoodSummary}
         toneByCategory={toneByCategory}
-        childFirstName={childFirstName}
-      />
-
-      <AntiForgetPanel
-        isOpen={isAntiForgetOpen}
-        isSummaryOpen={isSummaryOpen}
-        onClose={closeAntiForget}
-        hasPremiumAccess={hasAntiForgetPremiumAccess}
-        stats={antiForgetStats}
-        blockedFoods={antiForgetRadar.blockedFoods}
-        openFoodSummary={openFoodSummary}
-        openQuickAddForFood={openQuickAddForFood}
         childFirstName={childFirstName}
       />
 

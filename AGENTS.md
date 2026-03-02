@@ -180,7 +180,6 @@
   - `npm run lint -- --max-warnings=0`
   - `npm exec tsc -- --noEmit`
   - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts -g "timeline"`
-  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts -g "anti forget radar prioritizes blocked foods, explains why, and supports tester maintenant"`
 - Safety rails / do-not-do:
   - Ne pas laisser deux endroits trier la timeline (producer + consumer): definir une source unique pour l'ordre final.
   - Ne pas valider un `-g` Playwright sans verifier le nombre de tests executes (un motif large comme `timeline` peut matcher plusieurs specs).

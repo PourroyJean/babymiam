@@ -34,7 +34,7 @@ const FOCUS_CLASS: Record<WeeklyPlanFocus, string> = {
   consolidation: "weekly-plan-focus-consolidation"
 };
 
-type WeeklyPlanFilterKey = "abandon" | "allergen" | "consolidation";
+type WeeklyPlanFilterKey = "relaunch" | "discovery" | "allergen" | "consolidation";
 
 export function WeeklyPlanPanel({
   isOpen,
@@ -104,14 +104,18 @@ export function WeeklyPlanPanel({
 
   if (!isOpen) return null;
 
-  const abandonCount = plan.items.filter((item) => item.focus === "relaunch" && item.isAbandonedAtGeneration).length;
+  const relaunchCount = plan.items.filter((item) => item.focus === "relaunch" && item.isAbandonedAtGeneration).length;
+  const discoveryCount = plan.items.filter((item) => item.focus === "new_discovery").length;
   const allergenCount = plan.items.filter((item) => item.focus === "allergen_routine").length;
   const consolidationCount = plan.items.filter((item) => item.focus === "consolidation").length;
 
   const visibleItems = (() => {
     if (!activeFilter) return plan.items;
-    if (activeFilter === "abandon") {
+    if (activeFilter === "relaunch") {
       return plan.items.filter((item) => item.focus === "relaunch" && item.isAbandonedAtGeneration);
+    }
+    if (activeFilter === "discovery") {
+      return plan.items.filter((item) => item.focus === "new_discovery");
     }
     if (activeFilter === "allergen") {
       return plan.items.filter((item) => item.focus === "allergen_routine");
@@ -161,13 +165,26 @@ export function WeeklyPlanPanel({
               <button
                 type="button"
                 className={`weekly-plan-stat-card weekly-plan-filter-btn weekly-plan-filter-abandon ${
-                  activeFilter === "abandon" ? "is-active" : ""
+                  activeFilter === "relaunch" ? "is-active" : ""
                 }`}
-                aria-pressed={activeFilter === "abandon"}
-                onClick={() => toggleFilter("abandon")}
+                aria-pressed={activeFilter === "relaunch"}
+                onClick={() => toggleFilter("relaunch")}
               >
-                <span className="weekly-plan-stat-label">Abandons ?</span>
-                <strong className="weekly-plan-stat-value">{abandonCount}</strong>
+                <span className="weekly-plan-stat-label">Relances</span>
+                <strong className="weekly-plan-stat-value">{relaunchCount}</strong>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                className={`weekly-plan-stat-card weekly-plan-filter-btn weekly-plan-filter-discovery ${
+                  activeFilter === "discovery" ? "is-active" : ""
+                }`}
+                aria-pressed={activeFilter === "discovery"}
+                onClick={() => toggleFilter("discovery")}
+              >
+                <span className="weekly-plan-stat-label">Découvertes</span>
+                <strong className="weekly-plan-stat-value">{discoveryCount}</strong>
               </button>
             </li>
             <li>
