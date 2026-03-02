@@ -1,6 +1,8 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "../fixtures/test-fixtures";
 
+const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test").toLowerCase();
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -46,9 +48,9 @@ async function openQuickAddPanel(page: Page) {
   return { dialog, searchInput, dateInput, noteInput, addButton };
 }
 
-async function openAntiForgetPanel(page: Page) {
-  await page.getByRole("button", { name: /Radar anti-oubli/i }).click();
-  const dialog = page.getByRole("dialog", { name: /Radar anti-oubli/i });
+async function openWeeklyPlanPanel(page: Page) {
+  await page.getByRole("button", { name: /Plan 7 jours/i }).click();
+  const dialog = page.getByRole("dialog", { name: /Plan 7 jours/i });
   await expect(dialog).toBeVisible();
   return { dialog };
 }
@@ -476,65 +478,147 @@ test.describe("dashboard progression", () => {
     await expect(dayItems.nth(1)).toContainText("Épinard");
   });
 
-  test("anti forget radar prioritizes blocked foods, explains why, and supports tester maintenant", async ({
+  test("weekly plan proposes a 7-day roadmap and can prefill quick add from the daily action", async ({
     appPage,
     db
   }) => {
-    await db.setFoodTastingsByName("Carotte", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(19) }]);
+    await db.setFoodTastingsByName("Carotte", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(22) }]);
     await db.setFoodTastingsByName("Épinard", [
-      { slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(16) },
-      { slot: 2, liked: false, tastedOn: getIsoDateDaysAgo(15) }
+      { slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(18) },
+      { slot: 2, liked: false, tastedOn: getIsoDateDaysAgo(17) }
     ]);
-    await db.setFoodTastingsByName("Banane", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(8) }]);
-    await db.setFoodTastingsByName("Pomme", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(2) }]);
+    await db.setFoodTastingsByName("Arachides", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(9) }]);
+    await db.setFoodTastingsByName("Lait", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(11) }]);
 
     await appPage.reload();
 
-    const radarTrigger = appPage.getByRole("button", { name: /Radar anti-oubli/i });
-    await expect(radarTrigger).toContainText("3 bloqués");
-    await expect(radarTrigger).toContainText("2 urgents");
-    await expect(radarTrigger).toContainText("4 en cours");
+    const weeklyPlanTrigger = appPage.getByRole("button", { name: /Plan 7 jours/i });
+    await expect(weeklyPlanTrigger).toContainText("relances");
+    await expect(weeklyPlanTrigger).toContainText("découvertes");
+    await expect(weeklyPlanTrigger).toContainText("allergènes");
+    await expect(weeklyPlanTrigger).toContainText("consolidations");
 
-    const { dialog } = await openAntiForgetPanel(appPage);
-    await expect(dialog.locator(".anti-forget-stat-card").nth(0)).toContainText("Bloqués");
-    await expect(dialog.locator(".anti-forget-stat-card").nth(0)).toContainText("3");
-    await expect(dialog.locator(".anti-forget-stat-card").nth(1)).toContainText("Urgents");
-    await expect(dialog.locator(".anti-forget-stat-card").nth(1)).toContainText("2");
-    await expect(dialog.locator(".anti-forget-stat-card").nth(2)).toContainText("En cours");
-    await expect(dialog.locator(".anti-forget-stat-card").nth(2)).toContainText("4");
+    const { dialog } = await openWeeklyPlanPanel(appPage);
+    await expect(dialog.getByRole("button", { name: /Relances/i })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /Découvertes/i })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /Allergènes à suivre/i })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /Consolidation/i })).toBeVisible();
+    await expect(dialog.getByText("Nouveaux aliments")).toHaveCount(0);
+    await expect(dialog.locator(".weekly-plan-item")).toHaveCount(7);
 
-    const prioritizedItems = dialog.locator(".anti-forget-item");
-    await expect(prioritizedItems).toHaveCount(3);
-    await expect(prioritizedItems.nth(0)).toContainText("Carotte");
-    await expect(prioritizedItems.nth(1)).toContainText("Épinard");
-    await expect(prioritizedItems.nth(2)).toContainText("Banane");
-    await expect(prioritizedItems.nth(0).locator(".anti-forget-status")).toContainText("Urgent");
-    await expect(prioritizedItems.nth(1).locator(".anti-forget-status")).toContainText("Urgent");
-    await expect(prioritizedItems.nth(2).locator(".anti-forget-status")).toContainText("Bloqué");
-    await expect(prioritizedItems.nth(1).locator(".anti-forget-food-meta")).toContainText("2/3, dernier essai le");
-    await expect(prioritizedItems.nth(1).locator(".anti-forget-food-meta")).toContainText(/\+\d+\sjours\./);
+    const firstItem = dialog.locator(".weekly-plan-item").first();
+    const firstFoodName = ((await firstItem.locator(".weekly-plan-food-name").textContent()) || "").trim();
+    expect(firstFoodName).not.toBe("");
+    await firstItem
+      .getByRole("button", { name: new RegExp(`Tester maintenant ${escapeRegExp(firstFoodName)}`, "i") })
+      .click();
 
-    await dialog.getByRole("button", { name: /Tester maintenant Banane/i }).click();
     const quickAddDialog = appPage.getByRole("dialog", { name: "Ajout rapide" });
     await expect(quickAddDialog).toBeVisible();
-    await expect(quickAddDialog.getByRole("textbox", { name: "Rechercher un aliment" })).toHaveValue("Banane");
-    await expect(quickAddDialog.getByText("Sélectionné: Banane (1/3)")).toBeVisible();
+    await expect(quickAddDialog.getByRole("textbox", { name: "Rechercher un aliment" })).toHaveValue(firstFoodName);
     await expect(dialog).toHaveCount(0);
-
-    await quickAddDialog.getByRole("button", { name: "Annuler" }).click();
-    await expect(quickAddDialog).toHaveCount(0);
-
-    const reopenedRadar = await openAntiForgetPanel(appPage);
-    await reopenedRadar.dialog.getByRole("button", { name: /Reprendre Banane/i }).click();
-    const summaryDialog = appPage.getByRole("dialog", { name: "Banane" });
-    await expect(summaryDialog).toBeVisible();
-
-    await appPage.keyboard.press("Escape");
-    await expect(summaryDialog).toHaveCount(0);
-    await expect(reopenedRadar.dialog).toBeVisible();
   });
 
-  test("keeps overlays exclusive between Search, Timeline, Radar and Quick Add", async ({ appPage }) => {
+  test("weekly plan top cards toggle filters and keep a single active tab", async ({ appPage, db }) => {
+    await db.setFoodTastingsByName("Carotte", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(20) }]);
+    await db.setFoodTastingsByName("Épinard", [
+      { slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(12) },
+      { slot: 2, liked: false, tastedOn: getIsoDateDaysAgo(9) }
+    ]);
+    await db.setFoodTastingsByName("Brocoli", [
+      { slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(4) },
+      { slot: 2, liked: true, tastedOn: getIsoDateDaysAgo(3) }
+    ]);
+    await db.setFoodTastingsByName("Arachides", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(8) }]);
+    await db.setFoodTastingsByName("Lait", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(3) }]);
+
+    await appPage.reload();
+
+    const { dialog } = await openWeeklyPlanPanel(appPage);
+    const relaunchFilter = dialog.getByRole("button", { name: /Relances/i });
+    const discoveryFilter = dialog.getByRole("button", { name: /Découvertes/i });
+    const allergenFilter = dialog.getByRole("button", { name: /Allergènes à suivre/i });
+    const consolidationFilter = dialog.getByRole("button", { name: /Consolidation/i });
+    const allItems = dialog.locator(".weekly-plan-item");
+
+    await expect(relaunchFilter).toBeVisible();
+    await expect(discoveryFilter).toBeVisible();
+    await expect(allergenFilter).toBeVisible();
+    await expect(consolidationFilter).toBeVisible();
+    await expect(dialog.getByText("Nouveaux aliments")).toHaveCount(0);
+    await expect(allItems).toHaveCount(7);
+
+    await relaunchFilter.click();
+    await expect(relaunchFilter).toHaveAttribute("aria-pressed", "true");
+    await expect(allItems).not.toHaveCount(0);
+    const relaunchFocuses = await dialog.locator(".weekly-plan-item .weekly-plan-focus").allTextContents();
+    expect(relaunchFocuses.every((value) => /Relance/i.test(value))).toBe(true);
+
+    await relaunchFilter.click();
+    await expect(relaunchFilter).toHaveAttribute("aria-pressed", "false");
+    await expect(discoveryFilter).toHaveAttribute("aria-pressed", "false");
+    await expect(allItems).toHaveCount(7);
+
+    await discoveryFilter.click();
+    await expect(relaunchFilter).toHaveAttribute("aria-pressed", "false");
+    await expect(discoveryFilter).toHaveAttribute("aria-pressed", "true");
+    const discoveryFocuses = await dialog.locator(".weekly-plan-item .weekly-plan-focus").allTextContents();
+    expect(discoveryFocuses.length).toBeGreaterThan(0);
+    expect(discoveryFocuses.every((value) => /Découverte/i.test(value))).toBe(true);
+
+    await allergenFilter.click();
+    await expect(relaunchFilter).toHaveAttribute("aria-pressed", "false");
+    await expect(discoveryFilter).toHaveAttribute("aria-pressed", "false");
+    await expect(allergenFilter).toHaveAttribute("aria-pressed", "true");
+    const allergenFocuses = await dialog.locator(".weekly-plan-item .weekly-plan-focus").allTextContents();
+    expect(allergenFocuses.length).toBeGreaterThan(0);
+    expect(allergenFocuses.every((value) => /Allergène/i.test(value))).toBe(true);
+
+    await consolidationFilter.click();
+    await expect(allergenFilter).toHaveAttribute("aria-pressed", "false");
+    await expect(consolidationFilter).toHaveAttribute("aria-pressed", "true");
+    const consolidationFocuses = await dialog.locator(".weekly-plan-item .weekly-plan-focus").allTextContents();
+    expect(consolidationFocuses.length).toBeGreaterThan(0);
+    expect(consolidationFocuses.every((value) => /Consolidation/i.test(value))).toBe(true);
+  });
+
+  test("weekly plan abandon filter uses a 10-day threshold", async ({ appPage, db }) => {
+    await db.setFoodTastingsByName("Carotte", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(20) }]);
+    await db.setFoodTastingsByName("Épinard", [
+      { slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(9) },
+      { slot: 2, liked: false, tastedOn: getIsoDateDaysAgo(8) }
+    ]);
+    await db.setFoodTastingsByName("Arachides", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(4) }]);
+    await db.setFoodTastingsByName("Lait", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(2) }]);
+
+    await appPage.reload();
+
+    const { dialog } = await openWeeklyPlanPanel(appPage);
+    const relaunchFilter = dialog.getByRole("button", { name: /Relances/i });
+
+    await relaunchFilter.click();
+    const relaunchItems = dialog.locator(".weekly-plan-item");
+    await expect(relaunchItems).toHaveCount(1);
+    await expect(relaunchItems.first()).toContainText("Carotte");
+    await expect(relaunchItems.first()).not.toContainText("Épinard");
+  });
+
+  test("weekly plan shows the premium lock state when user has no access", async ({ appPage, db }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany("UPDATE users SET email = $2 WHERE id = $1;", [ownerId, "weekly-plan-free@example.test"]);
+
+    try {
+      await appPage.reload();
+      const { dialog } = await openWeeklyPlanPanel(appPage);
+      await expect(dialog.getByRole("heading", { name: "Fonction Premium" })).toBeVisible();
+      await expect(dialog.getByRole("link", { name: /Voir mon espace premium/i })).toBeVisible();
+      await expect(dialog.locator(".weekly-plan-item")).toHaveCount(0);
+    } finally {
+      await db.queryMany("UPDATE users SET email = $2 WHERE id = $1;", [ownerId, DEFAULT_E2E_AUTH_EMAIL]);
+    }
+  });
+
+  test("keeps overlays exclusive between Search, Timeline, Weekly Plan and Quick Add", async ({ appPage }) => {
     await appPage.getByRole("button", { name: /Carnets de bords/i }).click();
     await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toBeVisible();
 
@@ -545,10 +629,10 @@ test.describe("dashboard progression", () => {
     await appPage.keyboard.press("Escape");
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
 
-    await openAntiForgetPanel(appPage);
+    await openWeeklyPlanPanel(appPage);
     await appPage.keyboard.press("Control+k");
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
-    await expect(appPage.getByRole("dialog", { name: /Radar anti-oubli/i })).toHaveCount(0);
+    await expect(appPage.getByRole("dialog", { name: /Plan 7 jours/i })).toHaveCount(0);
     await appPage.keyboard.press("Escape");
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
 
