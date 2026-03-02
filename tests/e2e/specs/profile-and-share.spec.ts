@@ -3,8 +3,11 @@ import { expect, test } from "../fixtures/test-fixtures";
 
 function getTomorrowIsoDate() {
   const date = new Date();
-  date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
+  date.setDate(date.getDate() + 1);
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 async function setupClipboardMock(page: Page) {

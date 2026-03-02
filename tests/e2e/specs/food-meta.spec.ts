@@ -13,7 +13,7 @@ function getDateButton(scope: Page | Locator, foodName: string) {
 
 function getNoteButton(scope: Page | Locator, foodName: string) {
   return scope.getByRole("button", {
-    name: new RegExp(`^Voir le résumé de ${escapeRegExp(foodName)}$`, "i")
+    name: new RegExp(`^Ouvrir le résumé de ${escapeRegExp(foodName)}$`, "i")
   });
 }
 
