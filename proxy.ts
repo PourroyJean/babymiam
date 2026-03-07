@@ -13,6 +13,8 @@ const PUBLIC_PATHS = [
 ];
 
 const PUBLIC_STATIC_PATHS = new Set([
+  "/icon.png",
+  "/apple-icon.png",
   "/robots.txt",
   "/sitemap.xml",
   "/manifest.webmanifest",

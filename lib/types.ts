@@ -1,6 +1,7 @@
 import type { ReactionType, TextureLevel } from "@/lib/tasting-metadata";
 
 export type FinalPreferenceValue = -1 | 0 | 1;
+export type FinalPreferenceLookup = Map<number, FinalPreferenceValue> | Record<number, FinalPreferenceValue>;
 
 export type FoodTastingEntry = {
   slot: 1 | 2 | 3;
@@ -40,6 +41,37 @@ export type ProgressSummary = {
   totalFoods: number;
   likedCount: number;
   recentFoodNames: string[];
+};
+
+export type PublicSharePreferenceCounts = {
+  liked: number;
+  neutral: number;
+  disliked: number;
+};
+
+export type PublicShareCategoryDiscovery = {
+  categoryId: number;
+  categoryName: string;
+  totalCount: number;
+  discoveredCount: number;
+  discoveredPercent: number;
+};
+
+export type PublicShareCumulativeTastingsPoint = {
+  date: string;
+  totalTastings: number;
+  tastingsOnDay: number;
+};
+
+export type PublicShareOverview = {
+  introducedCount: number;
+  introducedPercent: number;
+  totalFoods: number;
+  completedCount: number;
+  completedPreferenceCounts: PublicSharePreferenceCounts;
+  categoryDiscoveryCounts: PublicShareCategoryDiscovery[];
+  cumulativeTastings: PublicShareCumulativeTastingsPoint[];
+  totalTastings: number;
 };
 
 export type AccountPublicShareLink = {
