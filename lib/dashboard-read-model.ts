@@ -1,4 +1,12 @@
-import type { DashboardCategory, DashboardFood, FoodTimelineEntry, ProgressSummary } from "@/lib/types";
+import type {
+  DashboardCategory,
+  DashboardFood,
+  FoodTimelineEntry,
+  ProgressSummary,
+  PublicShareCategoryDiscovery,
+  PublicShareCumulativeTastingsPoint,
+  PublicShareOverview
+} from "@/lib/types";
 import { getUpdatedTimestamp } from "@/lib/ui-utils";
 
 export type CategoryKpi = {
@@ -90,4 +98,105 @@ export function buildTimelineEntries(categories: DashboardCategory[]): FoodTimel
   }
 
   return entries;
+}
+
+function addOneUtcDay(value: string) {
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  parsed.setUTCDate(parsed.getUTCDate() + 1);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function compareIsoDates(a: string, b: string) {
+  return getUpdatedTimestamp(`${a}T00:00:00.000Z`) - getUpdatedTimestamp(`${b}T00:00:00.000Z`);
+}
+
+export function buildPublicShareCumulativeTastings(
+  tastingDates: string[],
+  todayIso: string
+): PublicShareCumulativeTastingsPoint[] {
+  const tastingCountByDay = new Map<string, number>();
+  let firstTastingOn: string | null = null;
+
+  for (const tastedOn of tastingDates) {
+    tastingCountByDay.set(tastedOn, (tastingCountByDay.get(tastedOn) || 0) + 1);
+
+    if (firstTastingOn === null || compareIsoDates(tastedOn, firstTastingOn) < 0) {
+      firstTastingOn = tastedOn;
+    }
+  }
+
+  if (firstTastingOn === null) {
+    return [];
+  }
+
+  const points: PublicShareCumulativeTastingsPoint[] = [];
+  const rangeEnd = compareIsoDates(todayIso, firstTastingOn) >= 0 ? todayIso : firstTastingOn;
+  let currentDate = firstTastingOn;
+  let cumulativeTotal = 0;
+
+  while (compareIsoDates(currentDate, rangeEnd) <= 0) {
+    const tastingsOnDay = tastingCountByDay.get(currentDate) || 0;
+    cumulativeTotal += tastingsOnDay;
+    points.push({
+      date: currentDate,
+      totalTastings: cumulativeTotal,
+      tastingsOnDay
+    });
+    currentDate = addOneUtcDay(currentDate);
+  }
+
+  return points;
+}
+
+export function buildPublicShareOverview(categories: DashboardCategory[], todayIso: string): PublicShareOverview {
+  const foods = categories.flatMap((category) => category.foods);
+  const introducedCount = foods.filter((food) => food.tastingCount > 0).length;
+  const completedFoods = foods.filter((food) => food.tastingCount >= 3);
+  const completedCount = completedFoods.length;
+  const introducedPercent = foods.length > 0 ? (introducedCount / foods.length) * 100 : 0;
+
+  const completedPreferenceCounts = completedFoods.reduce(
+    (counts, food) => {
+      if (food.finalPreference === 1) {
+        counts.liked += 1;
+      } else if (food.finalPreference === -1) {
+        counts.disliked += 1;
+      } else {
+        counts.neutral += 1;
+      }
+
+      return counts;
+    },
+    { liked: 0, neutral: 0, disliked: 0 }
+  );
+
+  const categoryDiscoveryCounts: PublicShareCategoryDiscovery[] = categories.map((category) => {
+    const totalCount = category.foods.length;
+    const discoveredCount = category.foods.filter((food) => food.tastingCount > 0).length;
+
+    return {
+      categoryId: category.id,
+      categoryName: category.name,
+      totalCount,
+      discoveredCount,
+      discoveredPercent: totalCount > 0 ? (discoveredCount / totalCount) * 100 : 0
+    };
+  });
+
+  const tastingDates = foods.flatMap((food) => food.tastings.map((tasting) => tasting.tastedOn));
+  const totalTastings = tastingDates.length;
+  const cumulativeTastings = buildPublicShareCumulativeTastings(tastingDates, todayIso);
+
+  return {
+    introducedCount,
+    introducedPercent,
+    totalFoods: foods.length,
+    completedCount,
+    completedPreferenceCounts,
+    categoryDiscoveryCounts,
+    cumulativeTastings,
+    totalTastings
+  };
 }

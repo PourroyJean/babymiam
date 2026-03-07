@@ -1,7 +1,8 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { verifyPublicShareAccessToken } from "@/lib/auth";
 import { CATEGORY_TONE_BY_NAME } from "@/lib/category-ui";
-import { buildProgressSummary } from "@/lib/dashboard-read-model";
+import { buildPublicShareOverview, buildTimelineEntries } from "@/lib/dashboard-read-model";
+import { getCurrentIsoDate } from "@/lib/date-utils";
 import {
   createPublicShareLinkOpenEvent,
   getChildProfile,
@@ -9,6 +10,7 @@ import {
   getPublicShareLinkByPublicId,
   isPublicShareLinkTokenCurrent
 } from "@/lib/data";
+import type { FinalPreferenceValue } from "@/lib/types";
 import { PublicShareDashboard } from "@/components/public-share-dashboard";
 import { PublicShareUnavailable } from "@/components/public-share-unavailable";
 
@@ -87,74 +89,42 @@ export default async function PublicSharePage({
   }
 
   const { link, childProfile, categories } = pageData;
-  const progressSummary = buildProgressSummary(categories);
-  const firstName = childProfile?.firstName?.trim() || "";
-  const completionRate =
-    progressSummary.totalFoods > 0
-      ? Math.round((progressSummary.introducedCount / progressSummary.totalFoods) * 100)
-      : 0;
+  const serverTodayIso = getCurrentIsoDate();
+  const overview = buildPublicShareOverview(categories, serverTodayIso);
+  const timelineEntries = buildTimelineEntries(categories);
+  const tastingDates = timelineEntries.map((entry) => entry.tastedOn);
+  const finalPreferenceByFoodId = Object.fromEntries(
+    categories.flatMap((category) => category.foods.map((food) => [food.id, food.finalPreference] as const))
+  ) as Record<number, FinalPreferenceValue>;
   const expiresAtLabel = formatExpiryDate(link.expiresAt);
 
   try {
     await createPublicShareLinkOpenEvent(link.ownerId, link.publicId, {
       publicId: link.publicId,
-      introducedCount: progressSummary.introducedCount,
-      totalFoods: progressSummary.totalFoods,
-      likedCount: progressSummary.likedCount
+      introducedCount: overview.introducedCount,
+      totalFoods: overview.totalFoods,
+      completedCount: overview.completedCount,
+      likedCount: overview.completedPreferenceCounts.liked,
+      neutralCount: overview.completedPreferenceCounts.neutral,
+      dislikedCount: overview.completedPreferenceCounts.disliked,
+      totalTastings: overview.totalTastings
     });
   } catch (error) {
     console.error("[share] Failed to track public share open.", error);
   }
 
   return (
-    <main className="share-public-page">
-      <section className="share-public-card share-public-card-live">
-        <p className="share-public-kicker">Recap partage depuis Grrrignote</p>
-        <h1>{firstName ? `Les progrès de ${firstName}` : "Progression diversification"}</h1>
-        <p className="share-public-subtitle">
-          Un parent partage ce suivi alimentaire en lecture seule.
-        </p>
-        {expiresAtLabel ? <p className="share-public-subtitle">Lien valide jusqu&apos;au {expiresAtLabel}.</p> : null}
-
-        <section className="share-public-stats" aria-label="Statistiques de progression">
-          <article>
-            <h2>{progressSummary.introducedCount}</h2>
-            <p>aliments testés</p>
-          </article>
-          <article>
-            <h2>{progressSummary.likedCount}</h2>
-            <p>aliments appréciés</p>
-          </article>
-          <article>
-            <h2>{completionRate}%</h2>
-            <p>du tableau complété</p>
-          </article>
-        </section>
-
-        {progressSummary.recentFoodNames.length > 0 ? (
-          <section className="share-public-recent">
-            <h2>Derniers essais</h2>
-            <ul>
-              {progressSummary.recentFoodNames.map((food) => (
-                <li key={food}>{food}</li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <PublicShareDashboard
-          categories={categories}
-          toneByCategory={CATEGORY_TONE_BY_NAME}
-          childFirstName={childProfile?.firstName ?? null}
-        />
-
-        <div className="share-public-actions">
-          <a href="/login" className="share-public-primary-link">
-            Ouvrir Grrrignote
-          </a>
-          <p>Ce lien donne accès au suivi en direct, sans connexion ni modification possible.</p>
-        </div>
-      </section>
+    <main className="share-public-page share-public-page-live">
+      <PublicShareDashboard
+        overview={overview}
+        timelineEntries={timelineEntries}
+        tastingDates={tastingDates}
+        finalPreferenceByFoodId={finalPreferenceByFoodId}
+        toneByCategory={CATEGORY_TONE_BY_NAME}
+        childFirstName={childProfile?.firstName ?? null}
+        expiresAtLabel={expiresAtLabel}
+        serverTodayIso={serverTodayIso}
+      />
     </main>
   );
 }
