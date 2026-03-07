@@ -1,10 +1,11 @@
 import { Resend } from "resend";
 
 let resendClient: Resend | null = null;
-type EmailConfigError = "missing_resend_api_key" | "missing_mail_from";
+export type EmailConfigError = "missing_resend_api_key" | "missing_mail_from";
 type EmailTransport =
   | { ok: true; client: Resend; from: string }
   | { ok: false; error: EmailConfigError };
+export type EmailDeliveryResult = { ok: true } | { ok: false; error: EmailConfigError };
 
 function getResendClient() {
   const apiKey = process.env.RESEND_API_KEY?.trim();
@@ -36,20 +37,20 @@ function getEmailClientAndSender(): EmailTransport {
   return { ok: true, client, from };
 }
 
-function warnEmailConfigError(error: EmailConfigError, type: "password reset" | "email verification") {
+function reportEmailConfigError(error: EmailConfigError, type: "password reset" | "email verification") {
   if (error === "missing_resend_api_key") {
-    console.warn(`[email] RESEND_API_KEY is missing; ${type} email skipped.`);
+    console.error(`[email] RESEND_API_KEY is missing; ${type} email skipped.`);
     return;
   }
 
-  console.warn(`[email] MAIL_FROM is missing; ${type} email skipped.`);
+  console.error(`[email] MAIL_FROM is missing; ${type} email skipped.`);
 }
 
-export async function sendPasswordResetEmail(params: { to: string; resetUrl: string }) {
+export async function sendPasswordResetEmail(params: { to: string; resetUrl: string }): Promise<EmailDeliveryResult> {
   const emailClient = getEmailClientAndSender();
   if (!emailClient.ok) {
-    warnEmailConfigError(emailClient.error, "password reset");
-    return;
+    reportEmailConfigError(emailClient.error, "password reset");
+    return { ok: false, error: emailClient.error };
   }
 
   await emailClient.client.emails.send({
@@ -64,13 +65,17 @@ export async function sendPasswordResetEmail(params: { to: string; resetUrl: str
       "Si vous n'êtes pas à l'origine de cette demande, ignorez cet email."
     ].join("\n")
   });
+  return { ok: true };
 }
 
-export async function sendEmailVerificationEmail(params: { to: string; verifyUrl: string }) {
+export async function sendEmailVerificationEmail(params: {
+  to: string;
+  verifyUrl: string;
+}): Promise<EmailDeliveryResult> {
   const emailClient = getEmailClientAndSender();
   if (!emailClient.ok) {
-    warnEmailConfigError(emailClient.error, "email verification");
-    return;
+    reportEmailConfigError(emailClient.error, "email verification");
+    return { ok: false, error: emailClient.error };
   }
 
   await emailClient.client.emails.send({
@@ -86,4 +91,5 @@ export async function sendEmailVerificationEmail(params: { to: string; verifyUrl
       "Si tu n'es pas à l'origine de cette demande, ignore cet email."
     ].join("\n")
   });
+  return { ok: true };
 }

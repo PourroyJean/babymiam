@@ -96,15 +96,20 @@ export async function signupAction(formData: FormData) {
 
   await createSession(user.id, user.sessionVersion);
 
+  let verifyRedirect = "/account?verify_required=1&verify_sent=1";
   try {
     const token = await createEmailVerificationToken(user.id);
     const baseUrl = resolveAppBaseUrl();
     const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
-    await sendEmailVerificationEmail({ to: email, verifyUrl });
+    const deliveryResult = await sendEmailVerificationEmail({ to: email, verifyUrl });
+    if (!deliveryResult.ok) {
+      console.error("[auth] Signup verification email skipped because email delivery is unavailable.", deliveryResult);
+      verifyRedirect = "/account?verify_required=1&error=email_unavailable";
+    }
   } catch (error) {
     console.error("[auth] Failed to prepare or send signup verification email.", error);
-    // Email verification is best-effort.
+    verifyRedirect = "/account?verify_required=1&error=email_unavailable";
   }
 
-  redirect("/account?verify_required=1&verify_sent=1");
+  redirect(verifyRedirect);
 }

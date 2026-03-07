@@ -18,4 +18,26 @@ test.describe("profile account", () => {
 
     await expect(dialog.getByText("Les deux mots de passe ne correspondent pas.")).toBeVisible();
   });
+
+  test("shows an error when verification email delivery is unavailable", async ({ appPage, db }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany(
+      `
+        UPDATE users
+        SET email_verified_at = NULL,
+            updated_at = NOW()
+        WHERE id = $1;
+      `,
+      [ownerId]
+    );
+
+    await appPage.reload();
+    await appPage.getByRole("button", { name: "Mon compte" }).click();
+
+    const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByRole("button", { name: "Envoyer un lien de vérification" }).click();
+    await expect(dialog.getByText("Le service email est temporairement indisponible. Réessaie plus tard.")).toBeVisible();
+  });
 });

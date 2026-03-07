@@ -1,7 +1,12 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { verifyPublicShareAccessToken } from "@/lib/auth";
 import { CATEGORY_TONE_BY_NAME } from "@/lib/category-ui";
-import { buildPublicShareOverview, buildTimelineEntries } from "@/lib/dashboard-read-model";
+import {
+  buildPublicShareCategoryFoodLists,
+  buildPublicShareOverview,
+  buildPublicSharePreferenceFoodLists,
+  buildTimelineEntries
+} from "@/lib/dashboard-read-model";
 import { getCurrentIsoDate } from "@/lib/date-utils";
 import {
   createPublicShareLinkOpenEvent,
@@ -91,6 +96,8 @@ export default async function PublicSharePage({
   const { link, childProfile, categories } = pageData;
   const serverTodayIso = getCurrentIsoDate();
   const overview = buildPublicShareOverview(categories, serverTodayIso);
+  const preferenceFoodLists = buildPublicSharePreferenceFoodLists(categories);
+  const categoryFoodLists = buildPublicShareCategoryFoodLists(categories);
   const timelineEntries = buildTimelineEntries(categories);
   const tastingDates = timelineEntries.map((entry) => entry.tastedOn);
   const finalPreferenceByFoodId = Object.fromEntries(
@@ -117,6 +124,8 @@ export default async function PublicSharePage({
     <main className="share-public-page share-public-page-live">
       <PublicShareDashboard
         overview={overview}
+        preferenceFoodLists={preferenceFoodLists}
+        categoryFoodLists={categoryFoodLists}
         timelineEntries={timelineEntries}
         tastingDates={tastingDates}
         finalPreferenceByFoodId={finalPreferenceByFoodId}

@@ -717,6 +717,7 @@ export function CategoriesGrid({
               className="pediatric-report-trigger-btn"
               onClick={downloadPediatricReport}
               disabled={isPediatricReportPending}
+              aria-label="Télécharger le rapport pédiatre en PDF"
             >
               {isPediatricReportPending ? (
                 <span className="pediatric-report-loading-indicator">

@@ -376,30 +376,6 @@ a {
   line-height: 1.55;
 }
 
-.public-share-hero-meta {
-  position: relative;
-  z-index: 1;
-  margin-top: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.public-share-hero-meta span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(111, 88, 61, 0.12);
-  background: rgba(255, 255, 255, 0.68);
-  color: #5a4730;
-  font-weight: 700;
-}
-
 .public-share-kpi-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr);
@@ -561,23 +537,63 @@ a {
 }
 
 .public-share-donut-legend li {
+  min-width: 0;
+}
+
+.public-share-donut-legend-button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
+  width: 100%;
   min-height: 60px;
   padding: 14px 16px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.74);
   border: 1px solid rgba(107, 92, 78, 0.1);
+  background: rgba(255, 255, 255, 0.74);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
 }
 
-.public-share-donut-legend strong {
+.public-share-donut-legend-button:hover {
+  transform: translateY(-1px);
+}
+
+.public-share-donut-legend-button:focus-visible {
+  outline: 2px solid #8f7b5d;
+  outline-offset: 2px;
+}
+
+.public-share-donut-legend-button--liked:hover,
+.public-share-donut-legend-button--liked[aria-expanded="true"] {
+  border-color: rgba(27, 143, 101, 0.3);
+  background: linear-gradient(180deg, rgba(239, 250, 244, 0.96) 0%, rgba(248, 253, 250, 0.92) 100%);
+  box-shadow: 0 10px 22px rgba(27, 143, 101, 0.12);
+}
+
+.public-share-donut-legend-button--neutral:hover,
+.public-share-donut-legend-button--neutral[aria-expanded="true"] {
+  border-color: rgba(122, 128, 151, 0.28);
+  background: linear-gradient(180deg, rgba(244, 245, 248, 0.96) 0%, rgba(250, 251, 253, 0.92) 100%);
+  box-shadow: 0 10px 22px rgba(78, 85, 112, 0.1);
+}
+
+.public-share-donut-legend-button--disliked:hover,
+.public-share-donut-legend-button--disliked[aria-expanded="true"] {
+  border-color: rgba(181, 109, 59, 0.32);
+  background: linear-gradient(180deg, rgba(254, 245, 237, 0.97) 0%, rgba(255, 250, 246, 0.92) 100%);
+  box-shadow: 0 10px 22px rgba(145, 88, 46, 0.12);
+}
+
+.public-share-donut-legend-button strong {
   font-size: 1.25rem;
   color: #332b36;
 }
 
-.public-share-donut-legend li > span:last-child {
+.public-share-donut-legend-button > span:last-child {
   color: #756f77;
   font-weight: 700;
 }
@@ -615,6 +631,30 @@ a {
   padding: 14px 16px;
   display: grid;
   gap: 12px;
+}
+
+.public-share-category-bar--active {
+  border-color: var(--tone-dot-border, #b8a884);
+  box-shadow: 0 14px 30px rgba(74, 60, 43, 0.12);
+}
+
+.public-share-category-bar-button {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  font: inherit;
+  text-align: left;
+}
+
+.public-share-category-bar-button:focus-visible {
+  outline: 2px solid rgba(111, 94, 72, 0.34);
+  outline-offset: 4px;
+  border-radius: 18px;
 }
 
 .public-share-category-bar-head {
@@ -762,6 +802,146 @@ a {
 .public-share-footer > div {
   display: grid;
   gap: 4px;
+}
+
+.public-share-preference-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1270;
+  background: rgba(31, 26, 20, 0.42);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.public-share-preference-modal {
+  --public-share-preference-accent: #1b8f65;
+  --public-share-preference-accent-strong: #185941;
+  --public-share-preference-border: rgba(27, 143, 101, 0.22);
+  --public-share-preference-surface: linear-gradient(180deg, #f0faf4 0%, #fbfefa 100%);
+
+  width: min(100%, 520px);
+  max-height: min(84vh, 760px);
+  border-radius: 28px;
+  border: 1px solid var(--public-share-preference-border);
+  background: var(--public-share-preference-surface);
+  box-shadow: 0 28px 56px rgba(41, 34, 21, 0.24);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.public-share-preference-modal--liked {
+  --public-share-preference-accent: #1b8f65;
+  --public-share-preference-accent-strong: #184f3b;
+  --public-share-preference-border: rgba(27, 143, 101, 0.24);
+  --public-share-preference-surface: linear-gradient(180deg, #edf8f1 0%, #fbfefa 100%);
+}
+
+.public-share-preference-modal--neutral {
+  --public-share-preference-accent: #6f778c;
+  --public-share-preference-accent-strong: #434a5c;
+  --public-share-preference-border: rgba(122, 128, 151, 0.25);
+  --public-share-preference-surface: linear-gradient(180deg, #f2f4f7 0%, #fcfdff 100%);
+}
+
+.public-share-preference-modal--disliked {
+  --public-share-preference-accent: #b56d3b;
+  --public-share-preference-accent-strong: #7e4a26;
+  --public-share-preference-border: rgba(181, 109, 59, 0.28);
+  --public-share-preference-surface: linear-gradient(180deg, #fff2e8 0%, #fffaf6 100%);
+}
+
+.public-share-preference-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 22px 18px;
+  border-bottom: 1px solid rgba(85, 69, 49, 0.1);
+  background:
+    radial-gradient(circle at 10% 14%, rgba(255, 255, 255, 0.68), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.14) 100%);
+}
+
+.public-share-preference-title-block {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.public-share-preference-kicker {
+  margin: 0;
+  color: var(--public-share-preference-accent);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.public-share-preference-title-block h3 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--public-share-preference-accent-strong);
+}
+
+.public-share-preference-title-block p:last-child {
+  margin: 0;
+  color: rgba(55, 49, 43, 0.72);
+  font-weight: 700;
+}
+
+.public-share-preference-content {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 22px 22px;
+}
+
+.public-share-preference-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.public-share-preference-list li,
+.public-share-preference-empty {
+  border-radius: 18px;
+  border: 1px solid rgba(100, 80, 55, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.54);
+}
+
+.public-share-preference-list li {
+  padding: 13px 14px;
+  color: #423628;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.public-share-preference-list-item--liked {
+  border-color: rgba(27, 143, 101, 0.16);
+  background: linear-gradient(180deg, rgba(238, 249, 243, 0.94) 0%, rgba(251, 254, 252, 0.88) 100%);
+}
+
+.public-share-preference-list-item--neutral {
+  border-color: rgba(122, 128, 151, 0.15);
+  background: linear-gradient(180deg, rgba(244, 246, 249, 0.94) 0%, rgba(252, 253, 255, 0.88) 100%);
+}
+
+.public-share-preference-list-item--disliked {
+  border-color: rgba(181, 109, 59, 0.18);
+  background: linear-gradient(180deg, rgba(255, 242, 232, 0.96) 0%, rgba(255, 251, 247, 0.9) 100%);
+}
+
+.public-share-preference-empty {
+  margin: 0;
+  padding: 18px;
+  color: #645649;
+  line-height: 1.5;
 }
 
 .dashboard-page,
@@ -3640,6 +3820,7 @@ a {
 
   .share-public-page-live {
     padding: 12px 12px 28px;
+    background: linear-gradient(180deg, #f7f2ea 0%, #f1eadf 100%);
   }
 
   .share-public-card {
@@ -3663,6 +3844,34 @@ a {
   .public-share-timeline-panel {
     border-radius: 24px;
     padding: 18px;
+    background: rgba(255, 253, 248, 0.98);
+    box-shadow: 0 10px 22px rgba(88, 66, 38, 0.08);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .public-share-hero::before,
+  .public-share-panel::before,
+  .public-share-kpi-card::before,
+  .public-share-timeline-panel::before {
+    content: none;
+    background: none;
+  }
+
+  .public-share-hero {
+    background: #faf4ec;
+  }
+
+  .public-share-kpi-card-primary {
+    background: #f3f8f1;
+  }
+
+  .public-share-panel,
+  .public-share-footer,
+  .public-share-timeline-panel,
+  .public-share-category-bar,
+  .public-share-donut-legend-button {
+    box-shadow: none;
   }
 
   .public-share-hero {
@@ -3677,14 +3886,6 @@ a {
   .public-share-hero-copy {
     margin-top: 12px;
     font-size: 0.98rem;
-  }
-
-  .public-share-hero-meta {
-    gap: 10px;
-  }
-
-  .public-share-hero-meta span {
-    width: 100%;
   }
 
   .public-share-kpi-grid,
@@ -3708,7 +3909,7 @@ a {
     text-align: left;
   }
 
-  .public-share-donut-legend li {
+  .public-share-donut-legend-button {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       "label value"
@@ -3719,11 +3920,11 @@ a {
     grid-area: label;
   }
 
-  .public-share-donut-legend strong {
+  .public-share-donut-legend-button strong {
     grid-area: value;
   }
 
-  .public-share-donut-legend li > span:last-child {
+  .public-share-donut-legend-button > span:last-child {
     grid-area: percent;
     justify-self: end;
   }
@@ -3733,7 +3934,7 @@ a {
     gap: 8px;
   }
 
-  .public-share-donut-legend li {
+  .public-share-donut-legend-button {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       "label label"
@@ -3752,12 +3953,12 @@ a {
     white-space: nowrap;
   }
 
-  .public-share-donut-legend strong {
+  .public-share-donut-legend-button strong {
     font-size: 1.35rem;
     line-height: 1;
   }
 
-  .public-share-donut-legend li > span:last-child {
+  .public-share-donut-legend-button > span:last-child {
     font-size: 0.76rem;
     line-height: 1;
   }
@@ -3784,6 +3985,29 @@ a {
 
   .public-share-footer .share-public-primary-link {
     width: 100%;
+  }
+
+  .public-share-preference-overlay {
+    padding: 0;
+    place-items: end stretch;
+  }
+
+  .public-share-preference-modal {
+    width: 100%;
+    max-height: min(88dvh, 100dvh);
+    border-radius: 28px 28px 0 0;
+    border-bottom: none;
+  }
+
+  .public-share-preference-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 16px 14px 14px;
+  }
+
+  .public-share-preference-content {
+    padding: 14px;
   }
 
   .profile-public-share-actions {

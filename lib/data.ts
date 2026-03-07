@@ -1099,13 +1099,16 @@ export async function getActivePublicShareLinkForOwner(ownerId: number): Promise
   }>(
     `
       SELECT
-        owner_id,
-        public_id,
-        issued_at::text AS issued_at,
-        expires_at::text AS expires_at
+        public_share_links.owner_id,
+        public_share_links.public_id,
+        public_share_links.issued_at::text AS issued_at,
+        public_share_links.expires_at::text AS expires_at
       FROM public_share_links
-      WHERE owner_id = $1
-        AND expires_at > NOW()
+      INNER JOIN users ON users.id = public_share_links.owner_id
+      WHERE public_share_links.owner_id = $1
+        AND public_share_links.expires_at > NOW()
+        AND users.status = 'active'
+        AND users.email_verified_at IS NOT NULL
       LIMIT 1;
     `,
     [ownerId]
@@ -1125,12 +1128,16 @@ export async function getPublicShareLinkByPublicId(publicId: string): Promise<Pu
   }>(
     `
       SELECT
-        owner_id,
-        public_id,
-        issued_at::text AS issued_at,
-        expires_at::text AS expires_at
+        public_share_links.owner_id,
+        public_share_links.public_id,
+        public_share_links.issued_at::text AS issued_at,
+        public_share_links.expires_at::text AS expires_at
       FROM public_share_links
-      WHERE public_id = $1
+      INNER JOIN users ON users.id = public_share_links.owner_id
+      WHERE public_share_links.public_id = $1
+        AND public_share_links.expires_at > NOW()
+        AND users.status = 'active'
+        AND users.email_verified_at IS NOT NULL
       LIMIT 1;
     `,
     [publicId]

@@ -45,7 +45,7 @@ type ChangePasswordActionResult = { ok: true } | { ok: false; error: ChangePassw
 type SendVerificationEmailStatus = "sent" | "already_verified";
 type SendVerificationEmailActionResult =
   | { ok: true; status: SendVerificationEmailStatus }
-  | { ok: false; error: "unknown" };
+  | { ok: false; error: "email_unavailable" | "unknown" };
 
 type LogoutEverywhereActionResult = { ok: true } | { ok: false; error: "unknown" };
 
@@ -250,15 +250,14 @@ export async function sendVerificationEmailAction(
     const token = await createEmailVerificationToken(user.id);
     const baseUrl = resolveAppBaseUrl();
     const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
-
-    try {
-      await sendEmailVerificationEmail({ to: overview.email, verifyUrl });
-    } catch (error) {
-      console.error("[account] Failed to send verification email.", error);
-      // Email delivery is best-effort.
+    const deliveryResult = await sendEmailVerificationEmail({ to: overview.email, verifyUrl });
+    if (!deliveryResult.ok) {
+      console.error("[account] Verification email skipped because email delivery is unavailable.", deliveryResult);
+      if (modal) return { ok: false, error: "email_unavailable" };
+      redirect(buildAccountRedirect({ error: "email_unavailable" }));
     }
   } catch (error) {
-    console.error("[account] Failed to prepare verification email.", error);
+    console.error("[account] Failed to prepare or send verification email.", error);
     if (modal) return { ok: false, error: "unknown" };
     redirect(buildAccountRedirect({ error: "unknown" }));
   }

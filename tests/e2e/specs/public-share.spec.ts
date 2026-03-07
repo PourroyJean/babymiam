@@ -54,13 +54,45 @@ test.describe("public share page", () => {
     await expect(reactionsPanel.locator(".public-share-donut-legend li").nth(1)).toContainText("1");
     await expect(reactionsPanel.locator(".public-share-donut-legend li").nth(2)).toContainText("Pas aimés");
     await expect(reactionsPanel.locator(".public-share-donut-legend li").nth(2)).toContainText("1");
+    await reactionsPanel.getByRole("button", { name: /^Aimés\b/i }).click();
+    const likedDialog = page.getByRole("dialog", { name: "Aimés" });
+    await expect(likedDialog).toBeVisible();
+    await expect(likedDialog.getByText("Épinard")).toBeVisible();
+    await expect(likedDialog.getByText("Carotte")).toHaveCount(0);
+    await likedDialog.getByRole("button", { name: /Fermer/i }).click();
+    await expect(likedDialog).toHaveCount(0);
+
+    await reactionsPanel.getByRole("button", { name: /Neutres/i }).click();
+    const neutralDialog = page.getByRole("dialog", { name: "Neutres" });
+    await expect(neutralDialog).toBeVisible();
+    await expect(neutralDialog.getByText("Carotte")).toBeVisible();
+    await neutralDialog.getByRole("button", { name: /Fermer/i }).click();
+    await expect(neutralDialog).toHaveCount(0);
+
+    await reactionsPanel.getByRole("button", { name: /^Pas aimés\b/i }).click();
+    const dislikedDialog = page.getByRole("dialog", { name: "Pas aimés" });
+    await expect(dislikedDialog).toBeVisible();
+    await expect(dislikedDialog.getByText("Brocoli")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dislikedDialog).toHaveCount(0);
     await expect(page.getByText("Découvertes par catégorie")).toBeVisible();
+    await page.getByRole("button", { name: /Légumes/i }).click();
+    const vegetablesDialog = page.getByRole("dialog", { name: "Légumes" });
+    await expect(vegetablesDialog).toBeVisible();
+    await expect(vegetablesDialog.getByText("Épinard")).toBeVisible();
+    await expect(vegetablesDialog.getByText("Carotte")).toBeVisible();
+    await expect(vegetablesDialog.getByText("Brocoli")).toBeVisible();
+    await expect(vegetablesDialog.getByText("Banane")).toHaveCount(0);
+    await expect(vegetablesDialog.locator("li", { hasText: "Épinard" })).toHaveClass(/public-share-preference-list-item--liked/);
+    await expect(vegetablesDialog.locator("li", { hasText: "Carotte" })).toHaveClass(/public-share-preference-list-item--neutral/);
+    await expect(vegetablesDialog.locator("li", { hasText: "Brocoli" })).toHaveClass(/public-share-preference-list-item--disliked/);
+    await vegetablesDialog.getByRole("button", { name: /Fermer/i }).click();
+    await expect(vegetablesDialog).toHaveCount(0);
     await expect(page.getByText(/10 dégustations cumulées/i)).toBeVisible();
     await expect(page.getByRole("img", { name: "Courbe cumulative des dégustations, total final 10." })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Carnet de bord/i })).toBeVisible();
     await expect(page.getByText("Très bonne texture.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Carnets de bords" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Légumes/i })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Ouvrir le résumé|Ouvrir le détail/i })).toHaveCount(0);
     await expect
       .poll(async () => {
@@ -185,6 +217,38 @@ test.describe("public share page", () => {
     await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
 
     await page.goto("/share?sid=bad!");
+    await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
+  });
+
+  test("returns unavailable state when the owner is inactive or no longer verified", async ({ page, db }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    const shareLink = await db.createPublicShareLink({});
+
+    await db.queryMany(
+      `
+        UPDATE users
+        SET status = 'inactive',
+            updated_at = NOW()
+        WHERE id = $1;
+      `,
+      [ownerId]
+    );
+
+    await page.goto(shareLink.url);
+    await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
+
+    await db.queryMany(
+      `
+        UPDATE users
+        SET status = 'active',
+            email_verified_at = NULL,
+            updated_at = NOW()
+        WHERE id = $1;
+      `,
+      [ownerId]
+    );
+
+    await page.goto(shareLink.url);
     await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
   });
 });

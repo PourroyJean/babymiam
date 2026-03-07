@@ -66,6 +66,8 @@ export default defineConfig({
       PREMIUM_GATE_MODE: "on",
       PEDIATRIC_REPORT_PREMIUM_USER_EMAILS: authEmail,
       WEEKLY_DISCOVERY_PLAN_PREMIUM_USER_EMAILS: authEmail,
+      RESEND_API_KEY: "",
+      MAIL_FROM: "",
       E2E_DIST_DIR: ".next-e2e"
     }
   }

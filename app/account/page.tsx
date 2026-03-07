@@ -16,6 +16,7 @@ function getErrorMessage(code?: string) {
   if (code === "weak_password") return "Le mot de passe doit contenir au moins 8 caractères.";
   if (code === "password_mismatch") return "Les deux mots de passe ne correspondent pas.";
   if (code === "bad_password") return "Mot de passe actuel incorrect.";
+  if (code === "email_unavailable") return "Le service email est temporairement indisponible. Réessaie plus tard.";
   if (code === "unknown") return "Une erreur est survenue. Réessaie plus tard.";
   return null;
 }

@@ -1,16 +1,19 @@
-import { getCategoryUi } from "@/lib/category-ui";
+import { PublicShareCategoryChart } from "@/components/public-share-category-chart";
 import type {
   FinalPreferenceValue,
   FoodTimelineEntry,
-  PublicShareCategoryDiscovery,
+  PublicShareCategoryFoodList,
   PublicShareOverview,
-  PublicSharePreferenceCounts
+  PublicSharePreferenceFoodLists
 } from "@/lib/types";
 import { PublicShareCumulativeChartLive } from "@/components/public-share-cumulative-chart-live";
+import { PublicSharePreferenceChart } from "@/components/public-share-preference-chart";
 import { PublicShareTimelinePanel } from "@/components/public-share-timeline-panel";
 
 type PublicShareDashboardProps = {
   overview: PublicShareOverview;
+  preferenceFoodLists: PublicSharePreferenceFoodLists;
+  categoryFoodLists: PublicShareCategoryFoodList[];
   timelineEntries: FoodTimelineEntry[];
   tastingDates: string[];
   finalPreferenceByFoodId: Record<number, FinalPreferenceValue>;
@@ -20,189 +23,14 @@ type PublicShareDashboardProps = {
   serverTodayIso: string;
 };
 
-type DonutDatum = {
-  key: keyof PublicSharePreferenceCounts;
-  label: string;
-  value: number;
-  color: string;
-};
-
-const DONUT_DATA: DonutDatum[] = [
-  { key: "liked", label: "Aimés", value: 0, color: "#1b8f65" },
-  { key: "neutral", label: "Neutres", value: 0, color: "#7a8097" },
-  { key: "disliked", label: "Pas aimés", value: 0, color: "#cf5b73" }
-];
-
 function formatPercent(value: number) {
   return `${Math.round(value)}%`;
 }
 
-function formatTastingsLabel(value: number) {
-  return `${value} dégustation${value === 1 ? "" : "s"}`;
-}
-
-function clampPercentage(value: number) {
-  return Math.max(0, Math.min(100, value));
-}
-
-function getCategoryPictogram(categoryName: string) {
-  return getCategoryUi(categoryName).pictogram;
-}
-
-function buildDonutSegments(preferenceCounts: PublicSharePreferenceCounts) {
-  const radius = 78;
-  const circumference = 2 * Math.PI * radius;
-  const data = DONUT_DATA.map((entry) => ({
-    ...entry,
-    value: preferenceCounts[entry.key]
-  }));
-  const total = data.reduce((sum, entry) => sum + entry.value, 0);
-  let progress = 0;
-
-  const segments = data.map((entry) => {
-    const segmentLength = total > 0 ? (entry.value / total) * circumference : 0;
-    const segment = {
-      ...entry,
-      circumference,
-      radius,
-      strokeDasharray: `${segmentLength} ${circumference - segmentLength}`,
-      strokeDashoffset: -progress
-    };
-    progress += segmentLength;
-    return segment;
-  });
-
-  return { total, segments };
-}
-
-function PublicSharePreferenceChart({
-  childLabel,
-  preferenceCounts
-}: {
-  childLabel: string;
-  preferenceCounts: PublicSharePreferenceCounts;
-}) {
-  const { total, segments } = buildDonutSegments(preferenceCounts);
-
-  return (
-    <section className="public-share-panel public-share-panel-chart" aria-labelledby="public-share-reactions-title">
-      <header className="public-share-section-head">
-        <div>
-          <p className="public-share-section-kicker">Préférences finales</p>
-          <h2 id="public-share-reactions-title">Comment {childLabel} réagit</h2>
-        </div>
-      </header>
-
-      <div className="public-share-donut-layout">
-        <div className="public-share-donut-visual">
-          <svg
-            className="public-share-donut"
-            viewBox="0 0 220 220"
-            role="img"
-            aria-label={
-              total > 0
-                ? `${total} aliments validés: ${preferenceCounts.liked} aimés, ${preferenceCounts.neutral} neutres, ${preferenceCounts.disliked} pas aimés.`
-                : "Aucun aliment validé pour le moment."
-            }
-          >
-            <circle cx="110" cy="110" r="78" className="public-share-donut-track" />
-            {segments.map((segment) =>
-              segment.value > 0 ? (
-                <circle
-                  key={segment.key}
-                  cx="110"
-                  cy="110"
-                  r={segment.radius}
-                  className="public-share-donut-segment"
-                  style={{
-                    stroke: segment.color,
-                    strokeDasharray: segment.strokeDasharray,
-                    strokeDashoffset: `${segment.strokeDashoffset}`
-                  }}
-                />
-              ) : null
-            )}
-          </svg>
-
-          <div className="public-share-donut-center">
-            <strong>{total}</strong>
-            <span>validés</span>
-          </div>
-        </div>
-
-        <ul className="public-share-donut-legend">
-          {segments.map((segment) => {
-            const share = total > 0 ? Math.round((segment.value / total) * 100) : 0;
-            return (
-              <li key={segment.key}>
-                <span className="public-share-donut-legend-label">
-                  <span className="public-share-donut-legend-dot" style={{ backgroundColor: segment.color }} />
-                  {segment.label}
-                </span>
-                <strong>{segment.value}</strong>
-                <span>{share}%</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-
-      {total === 0 ? <p className="public-share-chart-empty">Aucun aliment validé pour le moment.</p> : null}
-    </section>
-  );
-}
-
-function PublicShareCategoryChart({
-  categoryDiscoveryCounts,
-  toneByCategory
-}: {
-  categoryDiscoveryCounts: PublicShareCategoryDiscovery[];
-  toneByCategory: Record<string, string>;
-}) {
-  return (
-    <section
-      className="public-share-panel public-share-panel-chart public-share-panel-chart-wide public-share-category-panel"
-      aria-labelledby="public-share-categories-title"
-    >
-      <header className="public-share-section-head">
-        <div>
-          <p className="public-share-section-kicker">Répartition</p>
-          <h2 id="public-share-categories-title">Découvertes par catégorie</h2>
-        </div>
-      </header>
-
-      <ol className="public-share-category-bars">
-        {categoryDiscoveryCounts.map((category) => (
-          <li
-            key={category.categoryId}
-            className={`public-share-category-bar ${toneByCategory[category.categoryName] || "tone-other"}`}
-          >
-            <div className="public-share-category-bar-head">
-              <p>
-                <span aria-hidden="true">{getCategoryPictogram(category.categoryName)}</span>
-                <span>{category.categoryName}</span>
-              </p>
-              <strong>
-                {category.discoveredCount}/{category.totalCount}
-              </strong>
-            </div>
-
-            <div
-              className="public-share-category-meter"
-              role="img"
-              aria-label={`${category.categoryName}: ${category.discoveredCount} aliments découverts sur ${category.totalCount}.`}
-            >
-              <span style={{ width: `${clampPercentage(category.discoveredPercent)}%` }} aria-hidden="true" />
-            </div>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
 export function PublicShareDashboard({
   overview,
+  preferenceFoodLists,
+  categoryFoodLists,
   timelineEntries,
   tastingDates,
   finalPreferenceByFoodId,
@@ -223,10 +51,6 @@ export function PublicShareDashboard({
           Un aperçu clair des découvertes culinaires de {childLabel}, pensé pour être partagé facilement avec la
           famille.
         </p>
-        <div className="public-share-hero-meta">
-          <span>{overview.introducedCount} aliments déjà explorés</span>
-          <span>{formatTastingsLabel(overview.totalTastings)} enregistrée{overview.totalTastings === 1 ? "" : "s"}</span>
-        </div>
       </section>
 
       <section className="public-share-kpi-grid" aria-label="Statistiques de progression">
@@ -243,11 +67,13 @@ export function PublicShareDashboard({
         <PublicSharePreferenceChart
           childLabel={childFirstName?.trim() || "bébé"}
           preferenceCounts={overview.completedPreferenceCounts}
+          foodLists={preferenceFoodLists}
         />
       </section>
 
       <PublicShareCategoryChart
         categoryDiscoveryCounts={overview.categoryDiscoveryCounts}
+        categoryFoodLists={categoryFoodLists}
         toneByCategory={toneByCategory}
       />
 

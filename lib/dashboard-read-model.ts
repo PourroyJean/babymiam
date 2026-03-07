@@ -3,11 +3,29 @@ import type {
   DashboardFood,
   FoodTimelineEntry,
   ProgressSummary,
+  PublicShareCategoryFoodList,
   PublicShareCategoryDiscovery,
   PublicShareCumulativeTastingsPoint,
+  PublicSharePreferenceKey,
+  PublicSharePreferenceFoodLists,
   PublicShareOverview
 } from "@/lib/types";
 import { getUpdatedTimestamp } from "@/lib/ui-utils";
+
+const FOOD_NAME_COLLATOR = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
+
+type PublicShareCollectedFood = {
+  foodId: number;
+  foodName: string;
+  preferenceKey: PublicSharePreferenceKey;
+  isCompleted: boolean;
+};
+
+type PublicShareCollectedCategory = {
+  categoryId: number;
+  categoryName: string;
+  foods: PublicShareCollectedFood[];
+};
 
 export type CategoryKpi = {
   totalCount: number;
@@ -98,6 +116,69 @@ export function buildTimelineEntries(categories: DashboardCategory[]): FoodTimel
   }
 
   return entries;
+}
+
+function getPublicSharePreferenceKey(food: Pick<DashboardFood, "finalPreference" | "tastingCount">): PublicSharePreferenceKey {
+  if (food.tastingCount >= 3) {
+    if (food.finalPreference === 1) {
+      return "liked";
+    }
+
+    if (food.finalPreference === -1) {
+      return "disliked";
+    }
+  }
+
+  return "neutral";
+}
+
+function collectPublicShareCategoryFoods(categories: DashboardCategory[]): PublicShareCollectedCategory[] {
+  return categories.map((category) => ({
+    categoryId: category.id,
+    categoryName: category.name,
+    foods: category.foods
+      .filter((food) => food.tastingCount > 0)
+      .map((food) => ({
+        foodId: food.id,
+        foodName: food.name,
+        preferenceKey: getPublicSharePreferenceKey(food),
+        isCompleted: food.tastingCount >= 3
+      }))
+      .sort((a, b) => FOOD_NAME_COLLATOR.compare(a.foodName, b.foodName))
+  }));
+}
+
+export function buildPublicSharePreferenceFoodLists(categories: DashboardCategory[]): PublicSharePreferenceFoodLists {
+  const foodLists: PublicSharePreferenceFoodLists = {
+    liked: [],
+    neutral: [],
+    disliked: []
+  };
+
+  for (const category of collectPublicShareCategoryFoods(categories)) {
+    for (const food of category.foods) {
+      if (!food.isCompleted) continue;
+      foodLists[food.preferenceKey].push(food.foodName);
+    }
+  }
+
+  return {
+    liked: [...foodLists.liked].sort(FOOD_NAME_COLLATOR.compare),
+    neutral: [...foodLists.neutral].sort(FOOD_NAME_COLLATOR.compare),
+    disliked: [...foodLists.disliked].sort(FOOD_NAME_COLLATOR.compare)
+  };
+}
+
+export function buildPublicShareCategoryFoodLists(categories: DashboardCategory[]): PublicShareCategoryFoodList[] {
+  return collectPublicShareCategoryFoods(categories).map((category) => ({
+    categoryId: category.categoryId,
+    categoryName: category.categoryName,
+    foods: category.foods.map((food) => ({
+      foodId: food.foodId,
+      foodName: food.foodName,
+      preferenceKey: food.preferenceKey
+    }))
+  }));
 }
 
 function addOneUtcDay(value: string) {

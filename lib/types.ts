@@ -43,10 +43,18 @@ export type ProgressSummary = {
   recentFoodNames: string[];
 };
 
+export type PublicSharePreferenceKey = "liked" | "neutral" | "disliked";
+
 export type PublicSharePreferenceCounts = {
   liked: number;
   neutral: number;
   disliked: number;
+};
+
+export type PublicSharePreferenceFoodLists = {
+  liked: string[];
+  neutral: string[];
+  disliked: string[];
 };
 
 export type PublicShareCategoryDiscovery = {
@@ -55,6 +63,18 @@ export type PublicShareCategoryDiscovery = {
   totalCount: number;
   discoveredCount: number;
   discoveredPercent: number;
+};
+
+export type PublicShareFoodListItem = {
+  foodId: number;
+  foodName: string;
+  preferenceKey: PublicSharePreferenceKey;
+};
+
+export type PublicShareCategoryFoodList = {
+  categoryId: number;
+  categoryName: string;
+  foods: PublicShareFoodListItem[];
 };
 
 export type PublicShareCumulativeTastingsPoint = {

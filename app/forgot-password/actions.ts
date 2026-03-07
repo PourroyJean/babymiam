@@ -38,7 +38,10 @@ export async function forgotPasswordAction(formData: FormData) {
           const baseUrl = resolveAppBaseUrl();
           const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
-          await sendPasswordResetEmail({ to: user.email, resetUrl });
+          const deliveryResult = await sendPasswordResetEmail({ to: user.email, resetUrl });
+          if (!deliveryResult.ok) {
+            console.error("[auth] Password reset email skipped because email delivery is unavailable.", deliveryResult);
+          }
         } catch (error) {
           console.error("[auth] Failed to prepare or send password reset email.", error);
           // Keep the response non-enumerating and resilient to email delivery errors.

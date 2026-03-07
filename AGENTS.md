@@ -216,14 +216,14 @@
 ## Session Lessons (2026-03-07)
 - Lessons learned:
   - Pour les flows d'ajout rapide ouverts depuis `Plan 7 jours` via `Tester maintenant`, fermer la modale apres succes garde la continuite du parcours; laisser la modale ouverte avec reset est une regression UX.
-  - Si des doublons `Œufs` / `Œuf (bien cuit)` apparaissent en UI alors que `aliments_categories.json` est deja canonique (`Oeufs`, `Oeuf (bien cuit)`), la vraie correction est une migration de fusion des lignes `foods` avec repointage de `food_progress` et `food_tastings`, pas un simple edit JSON.
-  - Les fixtures E2E doivent rester alignees sur le catalogue reel: utiliser `Oeuf (bien cuit)` dans `tests/e2e/helpers/db.ts`, sinon les tests de doublons ligatures donnent de faux negatifs.
+  - Si des doublons `Œufs` / `Œuf (bien cuit)` apparaissent en UI alors que `aliments_categories.json` est deja canonique (`Oeufs`, `Oeuf (bien cuit)`), la vraie correction est une migration de fusion des lignes `foods` avec repointage de `food_progress` et `food_tastings`; les fixtures E2E doivent rester alignees sur ce catalogue (`Oeuf (bien cuit)` dans `tests/e2e/helpers/db.ts`) pour eviter les faux negatifs.
   - Les assertions E2E sur les KPI du `Plan 7 jours` doivent tolerer singulier/pluriel (`relance`, `consolidation`) au lieu d'imposer `relances` / `consolidations`.
   - Quand `tsconfig.json` inclut `.next/types/**/*.ts`, un `npm exec tsc -- --noEmit` peut echouer si les types Next n'ont pas encore ete regeneres; lancer le typecheck apres `npm run build` (ou une etape qui regenere `.next/types`) evite ces faux rouges.
+  - Sur la page de partage public mobile, `content-visibility: auto` sur de gros panneaux n'a pas ameliore le scroll et peut creer un spike au premier passage; le levier utile est d'aplatir les traitements visuels couteux (`backdrop-filter`, grosses ombres, overlays).
 - Reliable commands:
   - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts tests/e2e/specs/custom-foods.spec.ts`
   - `E2E_BASE_URL=http://127.0.0.1:3105 npm run test:e2e -- tests/e2e/specs/public-share.spec.ts`
 - Safety rails / do-not-do:
-  - Ne pas corriger un doublon alimentaire historique en modifiant seulement `aliments_categories.json`; traiter aussi la normalisation (`œ -> oe`) et la fusion des donnees existantes.
-  - Ne pas laisser diverger les fixtures E2E du catalogue produit (`Oeuf` vs `Oeuf (bien cuit)`), sinon la couverture devient trompeuse.
+  - Ne pas corriger un doublon alimentaire historique en modifiant seulement `aliments_categories.json` ni laisser diverger les fixtures E2E du catalogue produit (`Oeuf` vs `Oeuf (bien cuit)`); traiter aussi la normalisation (`œ -> oe`), la fusion des donnees existantes et le realignement de `tests/e2e/helpers/db.ts`.
   - Ne pas figer les assertions Playwright sur la forme plurielle exacte des compteurs quand le produit affiche correctement `1 relance` ou `1 consolidation`.
+  - `npm run deploy:prod` publie l'etat du worktree local courant, y compris les changements non committes; verifier `git status --short` avant un deploiement prod.
