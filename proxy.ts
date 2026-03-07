@@ -49,9 +49,9 @@ function buildContentSecurityPolicy(nonce: string) {
     scriptSources.push("'unsafe-inline'", "'unsafe-eval'");
   }
 
-  const connectSources = ["'self'", "https:"];
+  const connectSources = ["'self'"];
   if (!isProductionRuntime()) {
-    connectSources.push("http:", "ws:", "wss:");
+    connectSources.push("https:", "http:", "ws:", "wss:");
   }
 
   return [

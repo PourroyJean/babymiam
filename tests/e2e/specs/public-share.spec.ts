@@ -23,12 +23,23 @@ test.describe("public share page", () => {
     await db.setFoodTastingsByName("Banane", [{ slot: 1, liked: true, tastedOn: "2025-01-09" }]);
 
     const shareLink = await db.createPublicShareLink({});
+    const ownerId = await db.getDefaultOwnerId();
+    const foodCountRow = await db.queryOne<{ total: number }>(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM foods
+        WHERE owner_id IS NULL OR owner_id = $1;
+      `,
+      [ownerId]
+    );
+    const totalFoods = Number(foodCountRow?.total || 0);
+    const expectedCompletion = `${Math.round((3 / totalFoods) * 100)}%`;
 
     await page.goto(shareLink.url);
 
     await expect(page.getByRole("heading", { name: /Les progrès|Progression diversification/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: "3" }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "12%" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: expectedCompletion })).toBeVisible();
     await expect(page.getByText("Derniers essais")).toBeVisible();
     await expect(page.getByRole("button", { name: "Carnets de bords" })).toBeVisible();
 

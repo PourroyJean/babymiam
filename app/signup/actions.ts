@@ -101,7 +101,8 @@ export async function signupAction(formData: FormData) {
     const baseUrl = resolveAppBaseUrl();
     const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;
     await sendEmailVerificationEmail({ to: email, verifyUrl });
-  } catch {
+  } catch (error) {
+    console.error("[auth] Failed to prepare or send signup verification email.", error);
     // Email verification is best-effort.
   }
 

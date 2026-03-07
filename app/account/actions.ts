@@ -253,10 +253,12 @@ export async function sendVerificationEmailAction(
 
     try {
       await sendEmailVerificationEmail({ to: overview.email, verifyUrl });
-    } catch {
+    } catch (error) {
+      console.error("[account] Failed to send verification email.", error);
       // Email delivery is best-effort.
     }
-  } catch {
+  } catch (error) {
+    console.error("[account] Failed to prepare verification email.", error);
     if (modal) return { ok: false, error: "unknown" };
     redirect(buildAccountRedirect({ error: "unknown" }));
   }

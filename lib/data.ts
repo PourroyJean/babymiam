@@ -69,6 +69,7 @@ type AccessibleFoodRow = {
 };
 
 const SHARE_OPEN_DEDUPE_MINUTES = 5;
+const SHARE_OPEN_DEDUPE_LOCK_NAMESPACE = 18427;
 const PUBLIC_SHARE_ID_BYTE_LENGTH = 24;
 const PUBLIC_SHARE_ID_GENERATION_RETRIES = 5;
 
@@ -1036,25 +1037,57 @@ export async function createPublicShareLinkOpenEvent(
   publicId: string,
   metadata: Record<string, unknown>
 ) {
-  const existingResult = await query(
-    `
-      SELECT 1
-      FROM growth_events
-      WHERE owner_id = $1
-        AND event_name = 'public_share_link_opened'
-        AND channel = 'public_page'
-        AND visibility = 'public'
-        AND metadata->>'publicId' = $2
-        AND created_at > NOW() - INTERVAL '${SHARE_OPEN_DEDUPE_MINUTES} minutes'
-      LIMIT 1;
-    `,
-    [ownerId, publicId]
-  );
+  const client = await getPool().connect();
 
-  if (Number(existingResult.rowCount || 0) > 0) return false;
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `
+        SELECT pg_advisory_xact_lock($1::int, hashtext($2));
+      `,
+      [SHARE_OPEN_DEDUPE_LOCK_NAMESPACE, `${ownerId}:${publicId}`]
+    );
 
-  await createGrowthEvent(ownerId, "public_share_link_opened", "public_page", metadata, "public");
-  return true;
+    const existingResult = await client.query(
+      `
+        SELECT 1
+        FROM growth_events
+        WHERE owner_id = $1
+          AND event_name = 'public_share_link_opened'
+          AND channel = 'public_page'
+          AND visibility = 'public'
+          AND metadata->>'publicId' = $2
+          AND created_at > NOW() - INTERVAL '${SHARE_OPEN_DEDUPE_MINUTES} minutes'
+        LIMIT 1;
+      `,
+      [ownerId, publicId]
+    );
+
+    if (Number(existingResult.rowCount || 0) > 0) {
+      await client.query("COMMIT");
+      return false;
+    }
+
+    await client.query(
+      `
+        INSERT INTO growth_events (owner_id, event_name, channel, visibility, metadata)
+        VALUES ($1, $2, $3, $4::event_visibility, $5::jsonb);
+      `,
+      [ownerId, "public_share_link_opened", "public_page", "public", JSON.stringify(metadata)]
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Ignore rollback errors and surface the original failure.
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function getActivePublicShareLinkForOwner(ownerId: number): Promise<PublicShareLinkState | null> {

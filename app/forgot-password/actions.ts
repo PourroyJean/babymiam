@@ -39,7 +39,8 @@ export async function forgotPasswordAction(formData: FormData) {
           const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
           await sendPasswordResetEmail({ to: user.email, resetUrl });
-        } catch {
+        } catch (error) {
+          console.error("[auth] Failed to prepare or send password reset email.", error);
           // Keep the response non-enumerating and resilient to email delivery errors.
         }
       }
