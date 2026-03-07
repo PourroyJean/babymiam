@@ -457,8 +457,23 @@ a {
   color: #2f2540;
 }
 
+.public-share-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
 .public-share-section-head-wide {
   align-items: flex-end;
+}
+
+.public-share-chart-heading-desktop {
+  min-width: 0;
 }
 
 .public-share-chart-summary {
@@ -470,6 +485,15 @@ a {
   font-size: 0.95rem;
   line-height: 1.45;
   text-align: right;
+}
+
+.public-share-section-head h2.public-share-chart-summary--title {
+  max-width: none;
+  text-align: left;
+}
+
+.public-share-chart-summary--mobile {
+  display: none;
 }
 
 .public-share-donut-layout {
@@ -783,6 +807,61 @@ a {
 
 .public-share-timeline-body .food-timeline-card {
   background: rgba(253, 253, 255, 0.92);
+  padding: 10px 14px;
+  gap: 10px;
+}
+
+.public-share-timeline-body .food-timeline-one-liner--compact {
+  --food-timeline-cell-gap: 12px;
+
+  grid-template-columns:
+    max-content minmax(0, 1fr) max-content max-content max-content var(--food-timeline-result-size);
+  grid-template-areas:
+    "category name slot texture reaction result"
+    "note note note note note note";
+  row-gap: 8px;
+  align-items: center;
+}
+
+.public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-cell--name {
+  min-width: 0;
+}
+
+.public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-cell--slot,
+.public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-cell--texture,
+.public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-cell--reaction {
+  justify-self: start;
+}
+
+.public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-cell--result {
+  justify-self: end;
+}
+
+.public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-food-name-inline {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-note-inline {
+  box-sizing: border-box;
+  justify-self: stretch;
+  width: 100%;
+  max-width: none;
+  padding: 7px 12px;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .public-share-footer {
@@ -802,6 +881,57 @@ a {
 .public-share-footer > div {
   display: grid;
   gap: 4px;
+}
+
+@media (max-width: 960px) {
+  .public-share-timeline-body .food-timeline-card {
+    padding: 9px 10px;
+    gap: 8px;
+  }
+
+  .public-share-timeline-body .food-timeline-one-liner--compact {
+    --food-timeline-cell-gap: 6px;
+
+    grid-template-columns: max-content minmax(0, 1fr) max-content max-content max-content;
+    grid-template-areas:
+      "category name texture reaction result"
+      "slot note note note note";
+    row-gap: 6px;
+    align-items: center;
+  }
+
+  .public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-cell--result {
+    align-self: start;
+  }
+
+  .public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-cell--slot,
+  .public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-cell--note {
+    align-self: stretch;
+  }
+
+  .public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-food-name-inline {
+    align-self: center;
+  }
+
+  .public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-slot-badge {
+    min-height: 38px;
+    height: 100%;
+    padding-inline: 10px;
+  }
+
+  .public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-result-inline--placeholder {
+    display: none;
+  }
+
+  .public-share-timeline-body .food-timeline-one-liner--compact .food-timeline-note-inline {
+    grid-area: note;
+    justify-self: stretch;
+    width: 100%;
+    max-width: none;
+    min-height: 38px;
+    padding-block: 8px;
+    -webkit-line-clamp: 3;
+  }
 }
 
 .public-share-preference-overlay {
@@ -3909,6 +4039,23 @@ a {
     text-align: left;
   }
 
+  .public-share-section-head-wide--compact .public-share-chart-heading-desktop,
+  .public-share-section-head-wide--compact .public-share-chart-summary--desktop {
+    display: none;
+  }
+
+  .public-share-section-head-wide--compact .public-share-chart-summary--mobile {
+    display: block;
+    width: 100%;
+  }
+
+  .public-share-section-head h2.public-share-chart-summary--title {
+    white-space: nowrap;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+
   .public-share-donut-legend-button {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
@@ -4300,6 +4447,10 @@ a {
 
   .food-timeline-card {
     padding: 4px 8px;
+  }
+
+  .public-share-timeline-panel {
+    padding: 20px 18px;
   }
 
   .food-timeline-card-header {

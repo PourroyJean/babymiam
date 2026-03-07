@@ -1,6 +1,106 @@
 import { expect, test } from "../fixtures/test-fixtures";
 
 test.describe("public share page", () => {
+  test("keeps long timeline cards readable across breakpoints", async ({ page, db }) => {
+    await db.setFoodTastingsByName(
+      "Céréales contenant du gluten",
+      [
+        {
+          slot: 2,
+          liked: true,
+          tastedOn: "2026-03-07",
+          note: "Très bonne texture, bien toléré et facile à proposer au déjeuner."
+        }
+      ]
+    );
+    await db.setFoodTastingsByName(
+      "Anhydride sulfureux et sulfites",
+      [
+        {
+          slot: 3,
+          liked: false,
+          tastedOn: "2026-03-07",
+          note: "Réaction légère observée après une portion plus importante que d'habitude."
+        }
+      ],
+      { finalPreference: -1 }
+    );
+
+    const shareLink = await db.createPublicShareLink({});
+
+    const timelineLayoutLooksGood = async (isMobile: boolean) =>
+      page.evaluate((mobileLayout) =>
+        [...document.querySelectorAll<HTMLElement>(".public-share-timeline-body .food-timeline-card")].every((card) => {
+          const name = card.querySelector<HTMLElement>(".food-timeline-food-name-inline");
+          const note = card.querySelector<HTMLElement>(".food-timeline-note-inline");
+          const slot = card.querySelector<HTMLElement>(".food-timeline-cell--slot");
+
+          if (!name || !note) return false;
+
+          const cardRect = card.getBoundingClientRect();
+          const noteRect = note.getBoundingClientRect();
+          const slotRect = slot?.getBoundingClientRect() ?? null;
+          const cardFitsHorizontally = card.scrollWidth <= card.clientWidth + 1;
+          const nameFits = name.scrollWidth <= name.clientWidth + 1;
+          const noteFitsCard = noteRect.right <= cardRect.right + 1;
+
+          if (!mobileLayout || !slotRect) {
+            return cardFitsHorizontally && nameFits && noteFitsCard;
+          }
+
+          const noteSharesRowWithBadge = Math.abs(noteRect.top - slotRect.top) <= 2;
+          const noteStartsAfterBadge = noteRect.left >= slotRect.right + 4;
+          const noteUsesRemainingWidth = cardRect.right - noteRect.right <= 14;
+
+          return (
+            cardFitsHorizontally &&
+            nameFits &&
+            noteFitsCard &&
+            noteSharesRowWithBadge &&
+            noteStartsAfterBadge &&
+            noteUsesRemainingWidth
+          );
+        })
+      , isMobile);
+
+    await page.goto(shareLink.url);
+    await expect(page.getByText("Céréales contenant du gluten")).toBeVisible();
+    await expect(page.getByText("Anhydride sulfureux et sulfites")).toBeVisible();
+    await expect.poll(() => timelineLayoutLooksGood(false)).toBe(true);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await expect(page.getByText("Céréales contenant du gluten")).toBeVisible();
+    await expect(page.getByText("Anhydride sulfureux et sulfites")).toBeVisible();
+    await expect.poll(() => timelineLayoutLooksGood(true)).toBe(true);
+  });
+
+  test("uses the compact evolution title on mobile", async ({ page, db }) => {
+    await db.setFoodTastingsByName(
+      "Carotte",
+      [
+        { slot: 1, liked: true, tastedOn: "2026-01-03" },
+        { slot: 2, liked: true, tastedOn: "2026-01-10" }
+      ]
+    );
+    await db.setFoodTastingsByName("Banane", [{ slot: 1, liked: true, tastedOn: "2026-03-07" }]);
+
+    const shareLink = await db.createPublicShareLink({});
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(shareLink.url);
+
+    const chartHeader = page.locator(".public-share-panel-chart .public-share-section-head");
+    const compactTitle = page.getByRole("heading", { name: "Depuis le 03/01/2026 : 3 dégustations" });
+
+    await expect(compactTitle).toBeVisible();
+    await expect
+      .poll(async () => compactTitle.evaluate((element) => element.scrollWidth <= element.clientWidth + 1))
+      .toBe(true);
+    await expect(chartHeader.locator(".public-share-chart-heading-desktop")).toBeHidden();
+    await expect(chartHeader.locator(".public-share-chart-summary--desktop")).toBeHidden();
+  });
+
   test("renders live dashboard data and tracks public opens", async ({ page, db }) => {
     await db.setFoodTastingsByName(
       "Épinard",

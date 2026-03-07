@@ -97,28 +97,38 @@ function buildStepChartPath(points: PublicShareCumulativeTastingsPoint[]) {
 
 function PublicShareCumulativeChart({
   cumulativeTastings,
-  totalTastings
+  totalTastings,
+  desktopSummaryLabel,
+  mobileSummaryLabel
 }: {
   cumulativeTastings: PublicShareCumulativeTastingsPoint[];
   totalTastings: number;
+  desktopSummaryLabel: string | null;
+  mobileSummaryLabel: string | null;
 }) {
   const chart = buildStepChartPath(cumulativeTastings);
-  const firstDate = cumulativeTastings[0]?.date ?? null;
-  const lastDate = cumulativeTastings[cumulativeTastings.length - 1]?.date ?? null;
   const lastPoint = chart.pointPositions[chart.pointPositions.length - 1] ?? null;
+  const hasCompactHeader = Boolean(mobileSummaryLabel);
 
   return (
     <section className="public-share-panel public-share-panel-chart" aria-labelledby="public-share-evolution-title">
-      <header className="public-share-section-head public-share-section-head-wide">
-        <div>
+      <header
+        className={`public-share-section-head public-share-section-head-wide${
+          hasCompactHeader ? " public-share-section-head-wide--compact" : ""
+        }`}
+      >
+        <span id="public-share-evolution-title" className="public-share-sr-only">
+          Évolution des dégustations
+        </span>
+        <div className="public-share-chart-heading-desktop">
           <p className="public-share-section-kicker">Évolution</p>
-          <h2 id="public-share-evolution-title">Évolution des dégustations</h2>
+          <h2>Évolution des dégustations</h2>
         </div>
-        {totalTastings > 0 && firstDate && lastDate ? (
-          <p className="public-share-chart-summary">
-            {formatTastingsLabel(totalTastings)} cumulée{totalTastings === 1 ? "" : "s"} entre le {formatDate(firstDate)} et le{" "}
-            {formatDate(lastDate)}.
-          </p>
+        {desktopSummaryLabel ? <p className="public-share-chart-summary public-share-chart-summary--desktop">{desktopSummaryLabel}</p> : null}
+        {mobileSummaryLabel ? (
+          <h2 className="public-share-chart-summary public-share-chart-summary--title public-share-chart-summary--mobile">
+            {mobileSummaryLabel}
+          </h2>
         ) : null}
       </header>
 
@@ -190,5 +200,29 @@ export function PublicShareCumulativeChartLive({
     [initialCumulativeTastings, serverTodayIso, tastingDates, viewerTodayIso]
   );
 
-  return <PublicShareCumulativeChart cumulativeTastings={cumulativeTastings} totalTastings={totalTastings} />;
+  const summaryLabels = useMemo(() => {
+    const firstDate = cumulativeTastings[0]?.date ?? null;
+    const lastDate = cumulativeTastings[cumulativeTastings.length - 1]?.date ?? null;
+
+    if (totalTastings <= 0 || !firstDate || !lastDate) {
+      return {
+        desktop: null,
+        mobile: null
+      };
+    }
+
+    return {
+      desktop: `${formatTastingsLabel(totalTastings)} cumulée${totalTastings === 1 ? "" : "s"} entre le ${formatDate(firstDate)} et le ${formatDate(lastDate)}.`,
+      mobile: `Depuis le ${formatDate(firstDate)} : ${formatTastingsLabel(totalTastings)}`
+    };
+  }, [cumulativeTastings, totalTastings]);
+
+  return (
+    <PublicShareCumulativeChart
+      cumulativeTastings={cumulativeTastings}
+      desktopSummaryLabel={summaryLabels.desktop}
+      mobileSummaryLabel={summaryLabels.mobile}
+      totalTastings={totalTastings}
+    />
+  );
 }
