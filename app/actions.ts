@@ -6,15 +6,12 @@ import { clearSession, requireVerifiedAuth } from "@/lib/auth";
 import {
   appendQuickEntry,
   createUserFood,
-  createGrowthEvent,
   deleteUserFood,
   deleteFoodTastingEntry,
-  revokeShareSnapshot,
   saveFoodSummary,
   upsertChildProfile,
   upsertFinalPreference,
-  upsertFoodTastingEntry,
-  upsertShareSnapshot
+  upsertFoodTastingEntry
 } from "@/lib/data";
 import { getIsoDateForTimezoneOffset, normalizeTimezoneOffsetMinutes } from "@/lib/date-utils";
 import {
@@ -27,16 +24,6 @@ import {
 } from "@/lib/tasting-metadata";
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const SHARE_EVENT_NAMES = new Set([
-  "share_clicked",
-  "share_success",
-  "snapshot_link_created",
-  "milestone_share_clicked",
-  "milestone_share_success"
-]);
-const SHARE_CHANNELS = new Set(["button", "native", "clipboard", "fallback", "snapshot", "milestone"]);
-const SHARE_ID_PATTERN = /^[a-zA-Z0-9_-]{8,80}$/;
-
 type FoodSummaryDraftEntry = {
   slot: 1 | 2 | 3;
   liked: boolean | null;
@@ -56,23 +43,6 @@ function isValidIsoDate(value: string) {
 function getTodayIsoDate(formData: FormData) {
   const timezoneOffsetMinutes = normalizeTimezoneOffsetMinutes(formData.get("tzOffsetMinutes"), 0);
   return getIsoDateForTimezoneOffset(timezoneOffsetMinutes);
-}
-
-function getNonNegativeInteger(formData: FormData, key: string) {
-  const parsed = Number(formData.get(key));
-  if (!Number.isFinite(parsed) || parsed < 0) return null;
-  return Math.trunc(parsed);
-}
-
-function getRecentFoods(formData: FormData, key: string) {
-  const raw = String(formData.get(key) || "").trim();
-  if (!raw) return [];
-
-  return raw
-    .split(",")
-    .map((food) => food.trim())
-    .filter(Boolean)
-    .slice(0, 3);
 }
 
 function parseNullableInteger(formData: FormData, key: string) {
@@ -449,97 +419,4 @@ export async function saveFoodSummaryAction(formData: FormData) {
 
   revalidatePath("/");
   return { ok: true };
-}
-
-export async function createShareSnapshotAction(formData: FormData) {
-  const user = await requireVerifiedAuth();
-
-  const shareId = String(formData.get("shareId") || "").trim();
-  if (!SHARE_ID_PATTERN.test(shareId)) {
-    return { ok: false, error: "Lien de partage invalide." };
-  }
-
-  const firstNameRaw = String(formData.get("firstName") || "").trim();
-  const firstName = firstNameRaw ? firstNameRaw.slice(0, 40) : null;
-
-  const introducedCount = getNonNegativeInteger(formData, "introducedCount") ?? 0;
-  const totalFoodsRaw = getNonNegativeInteger(formData, "totalFoods") ?? 0;
-  const likedCount = getNonNegativeInteger(formData, "likedCount") ?? 0;
-  const milestoneRaw = getNonNegativeInteger(formData, "milestone");
-  const recentFoods = getRecentFoods(formData, "recentFoods");
-
-  const totalFoods = Math.max(totalFoodsRaw, introducedCount);
-  const milestone = milestoneRaw !== null && milestoneRaw > 0 ? milestoneRaw : null;
-
-  try {
-    const snapshot = await upsertShareSnapshot(user.id, {
-      shareId,
-      firstName,
-      introducedCount,
-      totalFoods,
-      likedCount,
-      milestone,
-      recentFoods,
-      visibility: "public"
-    });
-
-    return { ok: true, expiresAt: snapshot.expiresAt };
-  } catch {
-    return { ok: false, error: "Impossible de générer le lien de partage." };
-  }
-}
-
-export async function revokeShareSnapshotAction(formData: FormData) {
-  const user = await requireVerifiedAuth();
-
-  const shareId = String(formData.get("shareId") || "").trim();
-  if (!SHARE_ID_PATTERN.test(shareId)) {
-    return { ok: false, error: "Lien de partage invalide." };
-  }
-
-  try {
-    const revoked = await revokeShareSnapshot(user.id, shareId);
-    if (!revoked) {
-      return { ok: false, error: "Lien introuvable ou déjà révoqué." };
-    }
-
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "Impossible de révoquer le lien de partage." };
-  }
-}
-
-export async function trackShareEventAction(formData: FormData) {
-  const user = await requireVerifiedAuth();
-
-  const eventName = String(formData.get("eventName") || "").trim();
-  if (!SHARE_EVENT_NAMES.has(eventName)) return;
-
-  const channelRaw = String(formData.get("channel") || "").trim();
-  const channel = SHARE_CHANNELS.has(channelRaw) ? channelRaw : null;
-
-  const metadata: Record<string, unknown> = {};
-  const introducedCount = getNonNegativeInteger(formData, "introducedCount");
-  const totalFoods = getNonNegativeInteger(formData, "totalFoods");
-  const likedCount = getNonNegativeInteger(formData, "likedCount");
-  const milestone = getNonNegativeInteger(formData, "milestone");
-  const recentFoods = getRecentFoods(formData, "recentFoods");
-  const shareIdRaw = String(formData.get("shareId") || "").trim();
-
-  if (introducedCount !== null) metadata.introducedCount = introducedCount;
-  if (totalFoods !== null) metadata.totalFoods = totalFoods;
-  if (likedCount !== null) metadata.likedCount = likedCount;
-  if (milestone !== null) metadata.milestone = milestone;
-  if (recentFoods.length > 0) {
-    metadata.recentFoods = recentFoods;
-  }
-  if (SHARE_ID_PATTERN.test(shareIdRaw)) {
-    metadata.shareId = shareIdRaw;
-  }
-
-  try {
-    await createGrowthEvent(user.id, eventName, channel, metadata, "private");
-  } catch {
-    // Tracking should never block core user actions.
-  }
 }

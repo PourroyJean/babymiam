@@ -111,7 +111,7 @@ test.describe("db degraded mode", () => {
   });
 
   test("keeps login and public share pages accessible while DB is down", async ({ page }) => {
-    await page.goto(`${DEGRADED_BASE_URL}/share?sid=share_87654321`);
+    await page.goto(`${DEGRADED_BASE_URL}/share/invalid`);
     await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
 
     await page.goto(`${DEGRADED_BASE_URL}/login`);

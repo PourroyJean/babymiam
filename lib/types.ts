@@ -42,6 +42,11 @@ export type ProgressSummary = {
   recentFoodNames: string[];
 };
 
+export type AccountPublicShareLink = {
+  url: string;
+  expiresAt: string;
+};
+
 export type FoodTimelineEntry = {
   foodId: number;
   foodName: string;
@@ -52,17 +57,4 @@ export type FoodTimelineEntry = {
   note: string;
   textureLevel: TextureLevel;
   reactionType: ReactionType | null;
-};
-
-export type PublicShareSnapshot = {
-  shareId: string;
-  ownerId: number;
-  firstName: string | null;
-  introducedCount: number;
-  totalFoods: number;
-  likedCount: number;
-  milestone: number | null;
-  recentFoods: string[];
-  createdAt: string;
-  expiresAt: string | null;
 };

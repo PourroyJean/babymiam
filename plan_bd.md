@@ -13,7 +13,7 @@ Créer `/Users/jean/Documents/CODE/babymiam/migrations/<timestamp>_init_schema.s
 - `-- Up Migration`:
   - `CREATE EXTENSION citext`
   - `CREATE TYPE event_visibility`
-  - création de toutes les tables actuelles (`users`, `categories`, `foods`, `food_progress`, `food_tastings`, `child_profiles`, `growth_events`, `share_snapshots`, `password_reset_tokens`, `auth_login_attempts`, `auth_signup_attempts`, `email_verification_tokens`)
+  - création de toutes les tables actuelles (`users`, `categories`, `foods`, `food_progress`, `food_tastings`, `child_profiles`, `growth_events`, `public_share_links`, `password_reset_tokens`, `auth_login_attempts`, `auth_signup_attempts`, `email_verification_tokens`)
   - tous les index utiles
 - `-- Down Migration`:
   - `DROP TABLE ...` en ordre inverse

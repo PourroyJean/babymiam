@@ -1,7 +1,12 @@
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import argon2 from "argon2";
 import path from "node:path";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import {
+  createPublicShareToken,
+  getPublicShareLinkExpiresAtEpochSeconds
+} from "../../../lib/public-share-token";
 
 const DEFAULT_E2E_POSTGRES_URL = "postgres://postgres:postgres@localhost:5432/babymiam_e2e";
 const DEFAULT_E2E_AUTH_EMAIL = (process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test").toLowerCase();
@@ -13,7 +18,7 @@ const E2E_RESETTABLE_TABLES = [
   "food_progress",
   "child_profiles",
   "growth_events",
-  "share_snapshots",
+  "public_share_links",
   "password_reset_tokens",
   "auth_password_reset_attempts",
   "email_verification_tokens",
@@ -288,7 +293,7 @@ export async function getDefaultOwnerId() {
 
 export async function resetMutableTables() {
   await queryMany(
-    "TRUNCATE TABLE food_tastings, food_progress, child_profiles, growth_events, share_snapshots, password_reset_tokens, auth_password_reset_attempts, email_verification_tokens, auth_login_attempts, auth_signup_attempts RESTART IDENTITY;"
+    "TRUNCATE TABLE food_tastings, food_progress, child_profiles, growth_events, public_share_links, password_reset_tokens, auth_password_reset_attempts, email_verification_tokens, auth_login_attempts, auth_signup_attempts RESTART IDENTITY;"
   );
 
   await queryMany(
@@ -824,54 +829,72 @@ export async function setIntroducedFoods(count: number, ownerId?: number) {
   }
 }
 
-export async function createShareSnapshot(payload: {
-  shareId: string;
+function getPrimaryE2EAuthSecret() {
+  const secrets = String(process.env.AUTH_SECRETS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (secrets.length > 0) return secrets[0];
+  return process.env.E2E_AUTH_SECRET || "e2e-secret-change-me";
+}
+
+function createPublicShareId() {
+  return crypto.randomBytes(24).toString("base64url");
+}
+
+export async function createPublicShareLink(payload: {
   ownerId?: number;
-  firstName?: string | null;
-  introducedCount?: number;
-  totalFoods?: number;
-  likedCount?: number;
-  milestone?: number | null;
-  recentFoods?: string[];
+  publicId?: string;
+  issuedAtEpochSeconds?: number;
+  expiresAtEpochSeconds?: number;
 }) {
   const resolvedOwnerId = payload.ownerId ?? (await getDefaultOwnerId());
+  const publicId = payload.publicId ?? createPublicShareId();
+  const issuedAtEpochSeconds = payload.issuedAtEpochSeconds ?? Math.floor(Date.now() / 1000);
+  const expiresAtEpochSeconds =
+    payload.expiresAtEpochSeconds ?? getPublicShareLinkExpiresAtEpochSeconds(issuedAtEpochSeconds);
+
+  if (!expiresAtEpochSeconds) {
+    throw new Error("Impossible de calculer l'expiration du lien public E2E.");
+  }
 
   await queryMany(
     `
-      INSERT INTO share_snapshots (
-        share_id,
+      INSERT INTO public_share_links (
         owner_id,
-        visibility,
-        first_name,
-        introduced_count,
-        total_foods,
-        liked_count,
-        milestone,
-        recent_foods
+        public_id,
+        issued_at,
+        expires_at
       )
-      VALUES ($1, $2, 'public', $3, $4, $5, $6, $7, $8::jsonb)
-      ON CONFLICT (share_id)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (owner_id)
       DO UPDATE SET
-        owner_id = EXCLUDED.owner_id,
-        visibility = EXCLUDED.visibility,
-        first_name = EXCLUDED.first_name,
-        introduced_count = EXCLUDED.introduced_count,
-        total_foods = EXCLUDED.total_foods,
-        liked_count = EXCLUDED.liked_count,
-        milestone = EXCLUDED.milestone,
-        recent_foods = EXCLUDED.recent_foods;
+        public_id = EXCLUDED.public_id,
+        issued_at = EXCLUDED.issued_at,
+        expires_at = EXCLUDED.expires_at,
+        updated_at = NOW();
     `,
     [
-      payload.shareId,
       resolvedOwnerId,
-      payload.firstName || null,
-      payload.introducedCount ?? 0,
-      payload.totalFoods ?? 0,
-      payload.likedCount ?? 0,
-      payload.milestone ?? null,
-      JSON.stringify(payload.recentFoods || [])
+      publicId,
+      new Date(issuedAtEpochSeconds * 1000).toISOString(),
+      new Date(expiresAtEpochSeconds * 1000).toISOString()
     ]
   );
+
+  const token = createPublicShareToken({
+    publicId,
+    issuedAtEpochSeconds,
+    secret: getPrimaryE2EAuthSecret()
+  });
+
+  return {
+    publicId,
+    token,
+    url: `/share/${encodeURIComponent(token)}`,
+    issuedAtEpochSeconds,
+    expiresAtEpochSeconds
+  };
 }
 
 export type GrowthEventState = {

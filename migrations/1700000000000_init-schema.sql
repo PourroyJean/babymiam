@@ -83,23 +83,6 @@ CREATE INDEX idx_growth_events_event_created_at ON growth_events(event_name, cre
 CREATE INDEX idx_growth_events_owner_created_at ON growth_events(owner_id, created_at DESC);
 CREATE INDEX idx_growth_events_visibility_created_at ON growth_events(visibility, created_at DESC);
 
-CREATE TABLE share_snapshots (
-  share_id TEXT PRIMARY KEY,
-  owner_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  visibility event_visibility NOT NULL DEFAULT 'public',
-  first_name TEXT,
-  introduced_count INTEGER NOT NULL DEFAULT 0,
-  total_foods INTEGER NOT NULL DEFAULT 0,
-  liked_count INTEGER NOT NULL DEFAULT 0,
-  milestone INTEGER,
-  recent_foods JSONB NOT NULL DEFAULT '[]'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  expires_at TIMESTAMPTZ
-);
-
-CREATE INDEX idx_share_snapshots_owner_created_at ON share_snapshots(owner_id, created_at DESC);
-CREATE INDEX idx_share_snapshots_visibility_created_at ON share_snapshots(visibility, created_at DESC);
-
 CREATE TABLE password_reset_tokens (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -152,7 +135,6 @@ DROP TABLE IF EXISTS email_verification_tokens;
 DROP TABLE IF EXISTS auth_signup_attempts;
 DROP TABLE IF EXISTS auth_login_attempts;
 DROP TABLE IF EXISTS password_reset_tokens;
-DROP TABLE IF EXISTS share_snapshots;
 DROP TABLE IF EXISTS growth_events;
 DROP TABLE IF EXISTS child_profiles;
 DROP TABLE IF EXISTS food_tastings;

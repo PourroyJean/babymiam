@@ -4,21 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  createShareSnapshotAction,
-  logoutAction,
-  revokeShareSnapshotAction,
-  saveChildProfileAction,
-  trackShareEventAction
-} from "@/app/actions";
+import { logoutAction, saveChildProfileAction } from "@/app/actions";
 import {
   changePasswordAction,
+  generatePublicShareLinkAction,
   getAccountOverviewAction,
   logoutEverywhereAction,
+  regeneratePublicShareLinkAction,
   sendVerificationEmailAction
 } from "@/app/account/actions";
 import { getClientTimezoneOffsetMinutes, getCurrentIsoDate } from "@/lib/date-utils";
-import type { ChildProfile, ProgressSummary } from "@/lib/types";
+import type { AccountPublicShareLink, ChildProfile, ProgressSummary } from "@/lib/types";
 
 type ProfileMenuProps = {
   initialProfile: ChildProfile | null;
@@ -33,14 +29,8 @@ type GetAccountOverviewOkResult = Extract<
 >;
 
 type AccountOverviewDTO = NonNullable<GetAccountOverviewOkResult["overview"]>;
-type ActiveShareLink = {
-  shareId: string;
-  shareUrl: string;
-  expiresAt: string | null;
-};
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const MILESTONE_THRESHOLDS = [10, 25, 50, 100];
 const SHARE_FEEDBACK_TIMEOUT_MS = 3200;
 
 function isValidIsoDate(value: string) {
@@ -63,84 +53,6 @@ function copyWithExecCommand(value: string) {
   return didCopy;
 }
 
-function createShareId() {
-  const webCrypto = globalThis.crypto;
-  if (typeof webCrypto !== "undefined" && typeof webCrypto.randomUUID === "function") {
-    return webCrypto.randomUUID();
-  }
-
-  if (typeof webCrypto !== "undefined" && typeof webCrypto.getRandomValues === "function") {
-    const randomBytes = new Uint8Array(16);
-    webCrypto.getRandomValues(randomBytes);
-    return Array.from(randomBytes, (value) => value.toString(16).padStart(2, "0")).join("");
-  }
-
-  throw new Error("Secure random generator unavailable.");
-}
-
-function buildSnapshotUrl(origin: string, shareId: string) {
-  const query = new URLSearchParams();
-  query.set("sid", shareId);
-
-  return `${origin}/share?${query.toString()}`;
-}
-
-function buildShareRecap(params: {
-  childFirstName: string | null;
-  introducedCount: number;
-  totalFoods: number;
-  likedCount: number;
-  recentFoodNames: string[];
-  shareUrl: string;
-}) {
-  const {
-    childFirstName,
-    introducedCount,
-    totalFoods,
-    likedCount,
-    recentFoodNames,
-    shareUrl
-  } = params;
-
-  const normalizedFirstName = childFirstName?.trim();
-  const leadLine = normalizedFirstName
-    ? `${normalizedFirstName} progresse sur Grrrignote 🐯`
-    : "Progression diversification sur Grrrignote 🐯";
-
-  const progressLine = `${introducedCount}/${totalFoods} aliments déjà testés.`;
-  const likesLine =
-    likedCount > 0
-      ? `${likedCount} aliments déjà bien acceptés.`
-      : "On continue les découvertes pour trouver ses préférés.";
-  const recentLine =
-    recentFoodNames.length > 0 ? `Derniers essais: ${recentFoodNames.join(", ")}.` : "";
-
-  return [leadLine, progressLine, likesLine, recentLine, `Voir le récap: ${shareUrl}`]
-    .filter(Boolean)
-    .join("\n");
-}
-
-function buildMilestoneRecap(params: {
-  childFirstName: string | null;
-  milestone: number;
-  introducedCount: number;
-  likedCount: number;
-  shareUrl: string;
-}) {
-  const { childFirstName, milestone, introducedCount, likedCount, shareUrl } = params;
-  const normalizedFirstName = childFirstName?.trim();
-  const leadLine = normalizedFirstName
-    ? `🎉 ${normalizedFirstName} a atteint le palier ${milestone} aliments sur Grrrignote`
-    : `🎉 Palier ${milestone} aliments atteint sur Grrrignote`;
-
-  return [
-    leadLine,
-    `${introducedCount} aliments testés dont ${likedCount} déjà appréciés.`,
-    "À ton tour de débloquer ce palier !",
-    `Voir le récap: ${shareUrl}`
-  ].join("\n");
-}
-
 function formatAccountDate(value: string | null) {
   if (!value) return null;
   const parsed = new Date(value);
@@ -153,6 +65,15 @@ function formatShareExpiryDate(value: string | null) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function truncateShareUrl(value: string, maxLength = 58) {
+  const normalized = value.trim();
+  if (normalized.length <= maxLength) return normalized;
+
+  const prefixLength = Math.max(24, Math.floor((maxLength - 1) * 0.64));
+  const suffixLength = Math.max(12, maxLength - prefixLength - 1);
+  return `${normalized.slice(0, prefixLength)}…${normalized.slice(-suffixLength)}`;
 }
 
 function getAccountErrorMessage(code?: string) {
@@ -171,14 +92,12 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
   const [isProfilePending, startProfileTransition] = useTransition();
   const [isAccountPending, startAccountTransition] = useTransition();
   const [profileErrorMessage, setProfileErrorMessage] = useState("");
-  const [isSharePending, setIsSharePending] = useState(false);
-  const [activeMilestone, setActiveMilestone] = useState<number | null>(null);
+  const [publicShareActionMode, setPublicShareActionMode] = useState<null | "generate" | "regenerate">(null);
   const [shareFeedback, setShareFeedback] = useState<{
     tone: FeedbackTone;
     message: string;
   } | null>(null);
-  const [activeShareLink, setActiveShareLink] = useState<ActiveShareLink | null>(null);
-  const [isRevokingShare, setIsRevokingShare] = useState(false);
+  const [publicShareLink, setPublicShareLink] = useState<AccountPublicShareLink | null>(null);
   const shareFeedbackTimeoutRef = useRef<number | null>(null);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
@@ -204,10 +123,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
       setBirthDate(initialBirthDate);
       setProfileErrorMessage("");
       setShareFeedback(null);
-      setActiveShareLink(null);
-      setIsSharePending(false);
-      setIsRevokingShare(false);
-      setActiveMilestone(null);
+      setPublicShareActionMode(null);
       setIsLogoutConfirmOpen(false);
       setAccountLoadError("");
       setAccountFeedback(null);
@@ -246,7 +162,6 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
   );
 
   const isSummaryAvailable = progressSummary !== null;
-  const canShareProgress = isSummaryAvailable && shareSnapshot.totalFoods > 0;
 
   const ensureAccountLoaded = useCallback(() => {
     if (accountLoadedRef.current || accountLoadingRef.current) return;
@@ -265,6 +180,7 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
         accountLoadedRef.current = true;
         setAccountUserEmail(result.userEmail);
         setAccountOverview(result.overview);
+        setPublicShareLink(result.publicShareLink);
       } catch {
         setAccountLoadError("Impossible de charger les infos du compte.");
         accountLoadedRef.current = false;
@@ -289,45 +205,6 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
       setShareFeedback(null);
       shareFeedbackTimeoutRef.current = null;
     }, SHARE_FEEDBACK_TIMEOUT_MS);
-  }
-
-  function getShareFirstName() {
-    const currentFirstName = firstName.trim();
-    if (currentFirstName) return currentFirstName;
-    return initialFirstName || null;
-  }
-
-  function trackShareEvent(
-    eventName:
-      | "share_clicked"
-      | "share_success"
-      | "snapshot_link_created"
-      | "milestone_share_clicked"
-      | "milestone_share_success",
-    channel: string,
-    shareId?: string,
-    milestone?: number
-  ) {
-    if (!isSummaryAvailable) return;
-
-    const formData = new FormData();
-    formData.set("eventName", eventName);
-    formData.set("channel", channel);
-    formData.set("introducedCount", String(shareSnapshot.introducedCount));
-    formData.set("totalFoods", String(shareSnapshot.totalFoods));
-    formData.set("likedCount", String(shareSnapshot.likedCount));
-
-    if (shareSnapshot.recentFoodNames.length > 0) {
-      formData.set("recentFoods", shareSnapshot.recentFoodNames.join(","));
-    }
-    if (shareId) {
-      formData.set("shareId", shareId);
-    }
-    if (milestone && milestone > 0) {
-      formData.set("milestone", String(milestone));
-    }
-
-    void trackShareEventAction(formData);
   }
 
   function showAccountFeedback(tone: FeedbackTone, message: string) {
@@ -407,200 +284,66 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
     });
   }
 
-  async function createShareSnapshot(shareId: string, milestone?: number) {
-    const formData = new FormData();
-    formData.set("shareId", shareId);
-    formData.set("firstName", getShareFirstName() || "");
-    formData.set("introducedCount", String(shareSnapshot.introducedCount));
-    formData.set("totalFoods", String(shareSnapshot.totalFoods));
-    formData.set("likedCount", String(shareSnapshot.likedCount));
-
-    if (shareSnapshot.recentFoodNames.length > 0) {
-      formData.set("recentFoods", shareSnapshot.recentFoodNames.join(","));
-    }
-    if (milestone && milestone > 0) {
-      formData.set("milestone", String(milestone));
-    }
-
-    return createShareSnapshotAction(formData);
-  }
-
-  async function onShareProgress() {
-    if (!canShareProgress || isSharePending) return;
-
-    setIsSharePending(true);
-
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    let shareId = "";
-    try {
-      shareId = createShareId();
-    } catch {
-      setIsSharePending(false);
-      showShareFeedback("error", "Impossible de créer un lien de partage sécurisé.");
-      return;
-    }
-
-    const snapshotResult = await createShareSnapshot(shareId);
-    if (!snapshotResult.ok) {
-      setIsSharePending(false);
-      showShareFeedback("error", snapshotResult.error || "Impossible de créer le lien de partage.");
-      return;
-    }
-
-    const snapshotUrl = buildSnapshotUrl(origin, shareId);
-    setActiveShareLink({
-      shareId,
-      shareUrl: snapshotUrl,
-      expiresAt: snapshotResult.expiresAt ?? null
-    });
-
-    trackShareEvent("snapshot_link_created", "snapshot", shareId);
-    trackShareEvent("share_clicked", "button", shareId);
-
-    const recapText = buildShareRecap({
-      childFirstName: getShareFirstName(),
-      introducedCount: shareSnapshot.introducedCount,
-      totalFoods: shareSnapshot.totalFoods,
-      likedCount: shareSnapshot.likedCount,
-      recentFoodNames: shareSnapshot.recentFoodNames,
-      shareUrl: snapshotUrl
-    });
+  async function onCopyPublicShareLink() {
+    if (!publicShareLink) return;
 
     try {
-      if (typeof navigator.share === "function") {
-        await navigator.share({
-          title: "Récap diversification",
-          text: recapText
-        });
-        trackShareEvent("share_success", "native", shareId);
-        showShareFeedback("success", "Récap partagé.");
-        return;
-      }
-
       if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(recapText);
-        trackShareEvent("share_success", "clipboard", shareId);
-        showShareFeedback("success", "Récap copié.");
+        await navigator.clipboard.writeText(publicShareLink.url);
+        showShareFeedback("success", "Lien copié.");
         return;
       }
 
-      if (copyWithExecCommand(recapText)) {
-        trackShareEvent("share_success", "fallback", shareId);
-        showShareFeedback("success", "Récap copié.");
+      if (copyWithExecCommand(publicShareLink.url)) {
+        showShareFeedback("success", "Lien copié.");
         return;
       }
 
-      showShareFeedback("error", "Impossible de copier le récap pour le moment.");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        showShareFeedback("info", "Partage annulé.");
-      } else {
-        showShareFeedback("error", "Le partage a échoué. Réessaie dans quelques secondes.");
-      }
-    } finally {
-      setIsSharePending(false);
-    }
-  }
-
-  async function onShareMilestone(milestone: number) {
-    if (!canShareProgress || shareSnapshot.introducedCount < milestone || activeMilestone !== null) {
-      return;
-    }
-
-    setActiveMilestone(milestone);
-
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    let shareId = "";
-    try {
-      shareId = createShareId();
+      showShareFeedback("error", "Impossible de copier le lien pour le moment.");
     } catch {
-      setActiveMilestone(null);
-      showShareFeedback("error", "Impossible de créer un lien de partage sécurisé.");
-      return;
-    }
-
-    const snapshotResult = await createShareSnapshot(shareId, milestone);
-    if (!snapshotResult.ok) {
-      setActiveMilestone(null);
-      showShareFeedback("error", snapshotResult.error || "Impossible de créer le lien de partage.");
-      return;
-    }
-
-    const snapshotUrl = buildSnapshotUrl(origin, shareId);
-    setActiveShareLink({
-      shareId,
-      shareUrl: snapshotUrl,
-      expiresAt: snapshotResult.expiresAt ?? null
-    });
-
-    trackShareEvent("snapshot_link_created", "snapshot", shareId, milestone);
-    trackShareEvent("milestone_share_clicked", "milestone", shareId, milestone);
-
-    const milestoneText = buildMilestoneRecap({
-      childFirstName: getShareFirstName(),
-      milestone,
-      introducedCount: shareSnapshot.introducedCount,
-      likedCount: shareSnapshot.likedCount,
-      shareUrl: snapshotUrl
-    });
-
-    try {
-      if (typeof navigator.share === "function") {
-        await navigator.share({
-          title: `Palier ${milestone} aliments`,
-          text: milestoneText
-        });
-        trackShareEvent("milestone_share_success", "native", shareId, milestone);
-        showShareFeedback("success", `Palier ${milestone} partagé.`);
-        return;
-      }
-
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(milestoneText);
-        trackShareEvent("milestone_share_success", "clipboard", shareId, milestone);
-        showShareFeedback("success", `Palier ${milestone} copié.`);
-        return;
-      }
-
-      if (copyWithExecCommand(milestoneText)) {
-        trackShareEvent("milestone_share_success", "fallback", shareId, milestone);
-        showShareFeedback("success", `Palier ${milestone} copié.`);
-        return;
-      }
-
-      showShareFeedback("error", "Impossible de copier ce palier pour le moment.");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        showShareFeedback("info", "Partage annulé.");
-      } else {
-        showShareFeedback("error", "Le partage du palier a échoué. Réessaie dans quelques secondes.");
-      }
-    } finally {
-      setActiveMilestone(null);
+      showShareFeedback("error", "Impossible de copier le lien pour le moment.");
     }
   }
 
-  async function onRevokeActiveShareLink() {
-    if (!activeShareLink || isRevokingShare) return;
+  async function onGeneratePublicShareLink() {
+    if (publicShareActionMode !== null) return;
 
-    setIsRevokingShare(true);
+    setPublicShareActionMode("generate");
 
     try {
-      const formData = new FormData();
-      formData.set("shareId", activeShareLink.shareId);
-
-      const result = await revokeShareSnapshotAction(formData);
+      const result = await generatePublicShareLinkAction();
       if (!result.ok) {
-        showShareFeedback("error", result.error || "Impossible de révoquer ce lien.");
+        showShareFeedback("error", "Impossible de générer le lien public.");
         return;
       }
 
-      setActiveShareLink(null);
-      showShareFeedback("success", "Lien de partage révoqué.");
+      setPublicShareLink(result.publicShareLink);
+      showShareFeedback("success", "Lien public généré.");
     } catch {
-      showShareFeedback("error", "Impossible de révoquer ce lien.");
+      showShareFeedback("error", "Impossible de générer le lien public.");
     } finally {
-      setIsRevokingShare(false);
+      setPublicShareActionMode(null);
+    }
+  }
+
+  async function onRegeneratePublicShareLink() {
+    if (publicShareActionMode !== null) return;
+
+    setPublicShareActionMode("regenerate");
+
+    try {
+      const result = await regeneratePublicShareLinkAction();
+      if (!result.ok) {
+        showShareFeedback("error", "Impossible de régénérer le lien public.");
+        return;
+      }
+
+      setPublicShareLink(result.publicShareLink);
+      showShareFeedback("success", "Lien public régénéré.");
+    } catch {
+      showShareFeedback("error", "Impossible de régénérer le lien public.");
+    } finally {
+      setPublicShareActionMode(null);
     }
   }
 
@@ -633,13 +376,20 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
   const isUiBusy = isAccountPending || isProfilePending;
 
   function renderShareSection() {
+    const isGeneratingLink = publicShareActionMode === "generate";
+    const isRegeneratingLink = publicShareActionMode === "regenerate";
+    const hasLoadedAccount = accountOverview !== null;
+
     return (
-      <section className="profile-progress-section" aria-label="Récapitulatif des progrès">
-        <h3>Récap des progrès</h3>
-        <p className="profile-progress-stats">
-          {shareSnapshot.introducedCount}/{shareSnapshot.totalFoods} aliments testés • {shareSnapshot.likedCount}{" "}
-          appréciés
-        </p>
+      <section className="profile-progress-section" aria-label="Lien public de partage">
+        <h3>Lien grands-parents</h3>
+
+        {isSummaryAvailable ? (
+          <p className="profile-progress-stats">
+            {shareSnapshot.introducedCount}/{shareSnapshot.totalFoods} aliments testés • {shareSnapshot.likedCount}{" "}
+            appréciés
+          </p>
+        ) : null}
 
         {isSummaryAvailable ? (
           shareSnapshot.recentFoodNames.length > 0 ? (
@@ -648,66 +398,53 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
             <p className="profile-progress-note">Aucun essai récent pour le moment.</p>
           )
         ) : (
-          <p className="profile-progress-note">Ouvre l&apos;onglet Suivi pour charger ce récap.</p>
+          <p className="profile-progress-note">Ce lien partage un récap live en lecture seule.</p>
         )}
 
-        <button
-          type="button"
-          className="profile-share-btn"
-          onClick={onShareProgress}
-          disabled={!canShareProgress || isSharePending}
-        >
-          {isSharePending ? "Partage..." : "Partager les progrès"}
-        </button>
-
-        {activeShareLink ? (
-          <section className="profile-progress-note" aria-live="polite">
+        {!hasLoadedAccount ? (
+          <p className="profile-progress-note">Chargement du lien public…</p>
+        ) : !isAccountEmailVerified ? (
+          <p className="profile-progress-note">Vérifie ton email pour générer un lien public.</p>
+        ) : publicShareLink ? (
+          <section className="profile-public-share-card" aria-live="polite">
+            <p className="profile-public-share-url" title={publicShareLink.url}>
+              {truncateShareUrl(publicShareLink.url)}
+            </p>
             <p>
-              Lien actif créé.
-              {formatShareExpiryDate(activeShareLink.expiresAt)
-                ? ` Expire le ${formatShareExpiryDate(activeShareLink.expiresAt)}.`
+              Lien actif.
+              {formatShareExpiryDate(publicShareLink.expiresAt)
+                ? ` Expire le ${formatShareExpiryDate(publicShareLink.expiresAt)}.`
                 : ""}
             </p>
-            <p>
-              <a href={activeShareLink.shareUrl} target="_blank" rel="noreferrer">
-                Ouvrir le lien de partage
-              </a>
-            </p>
-            <button
-              type="button"
-              className="profile-share-btn"
-              onClick={onRevokeActiveShareLink}
-              disabled={isRevokingShare || isSharePending}
-            >
-              {isRevokingShare ? "Révocation..." : "Révoquer ce lien"}
-            </button>
-          </section>
-        ) : null}
-
-        <div className="profile-milestone-badges" aria-label="Paliers de progression">
-          {MILESTONE_THRESHOLDS.map((milestone) => {
-            const isUnlocked = shareSnapshot.introducedCount >= milestone;
-            const isCurrentPending = activeMilestone === milestone;
-
-            return (
+            <div className="profile-public-share-actions">
               <button
-                key={milestone}
                 type="button"
-                className={`profile-milestone-badge ${isUnlocked ? "is-unlocked" : "is-locked"}`}
-                onClick={() => onShareMilestone(milestone)}
-                disabled={!isUnlocked || activeMilestone !== null}
-                aria-label={
-                  isUnlocked
-                    ? `Partager le palier ${milestone} aliments`
-                    : `Palier ${milestone} aliments verrouillé`
-                }
-                title={isUnlocked ? `Partager le palier ${milestone}` : `Palier ${milestone} verrouillé`}
+                className="profile-share-btn"
+                onClick={onCopyPublicShareLink}
+                disabled={publicShareActionMode !== null}
               >
-                {isCurrentPending ? "..." : milestone}
+                Copier le lien
               </button>
-            );
-          })}
-        </div>
+              <button
+                type="button"
+                className="profile-share-btn"
+                onClick={onRegeneratePublicShareLink}
+                disabled={publicShareActionMode !== null}
+              >
+                {isRegeneratingLink ? "Régénération..." : "Régénérer"}
+              </button>
+            </div>
+          </section>
+        ) : (
+          <button
+            type="button"
+            className="profile-share-btn"
+            onClick={onGeneratePublicShareLink}
+            disabled={publicShareActionMode !== null}
+          >
+            {isGeneratingLink ? "Génération..." : "Générer un lien"}
+          </button>
+        )}
 
         {shareFeedback ? (
           <p

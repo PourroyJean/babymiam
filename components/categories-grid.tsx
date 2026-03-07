@@ -9,6 +9,7 @@ import { SearchPanel } from "@/components/search-panel";
 import { TimelinePanel } from "@/components/timeline-panel";
 import { VegetableRow } from "@/components/vegetable-row";
 import { getCategoryUi } from "@/lib/category-ui";
+import { buildCategoryKpi, buildTimelineEntries } from "@/lib/dashboard-read-model";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import { buildWeeklyDiscoveryPlan } from "@/lib/weekly-discovery-plan";
 import type { DashboardCategory, DashboardFood, FinalPreferenceValue, FoodTimelineEntry } from "@/lib/types";
@@ -46,81 +47,7 @@ type FoodIndexEntry = {
   categoryName: string;
 };
 
-type CategoryKpi = {
-  totalCount: number;
-  todoCount: number;
-  inProgressCount: number;
-  doneCount: number;
-  discoveredCount: number;
-  discoveredPercent: number;
-  donePercent: number;
-};
-
 const FINAL_PREFERENCE_DEBOUNCE_MS = 2000;
-
-function buildCategoryKpi(foods: DashboardFood[]): CategoryKpi {
-  const totalCount = foods.length;
-  let todoCount = 0;
-  let inProgressCount = 0;
-  let doneCount = 0;
-  let discoveredCount = 0;
-
-  for (const food of foods) {
-    const tastingCount = Math.max(0, Math.trunc(food.tastingCount));
-
-    if (tastingCount === 0) {
-      todoCount += 1;
-      continue;
-    }
-
-    discoveredCount += 1;
-
-    if (tastingCount >= 3) {
-      doneCount += 1;
-      continue;
-    }
-
-    inProgressCount += 1;
-  }
-
-  const discoveredPercent = totalCount > 0 ? (discoveredCount / totalCount) * 100 : 0;
-  const donePercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
-
-  return {
-    totalCount,
-    todoCount,
-    inProgressCount,
-    doneCount,
-    discoveredCount,
-    discoveredPercent,
-    donePercent
-  };
-}
-
-function buildTimelineEntries(categories: DashboardCategory[]): FoodTimelineEntry[] {
-  const entries: FoodTimelineEntry[] = [];
-
-  for (const category of categories) {
-    for (const food of category.foods) {
-      for (const tasting of food.tastings) {
-        entries.push({
-          foodId: food.id,
-          foodName: food.name,
-          categoryName: category.name,
-          slot: tasting.slot,
-          tastedOn: tasting.tastedOn,
-          liked: tasting.liked,
-          note: tasting.note,
-          textureLevel: tasting.textureLevel,
-          reactionType: tasting.reactionType
-        });
-      }
-    }
-  }
-
-  // Keep this list unsorted: TimelinePanel is the single owner of display ordering.
-  return entries;
-}
 
 function getCategoryPictogram(categoryName: string) {
   return getCategoryUi(categoryName).pictogram;

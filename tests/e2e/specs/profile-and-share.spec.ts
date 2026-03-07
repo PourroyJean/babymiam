@@ -90,7 +90,7 @@ test.describe("profile and share", () => {
     await expect(reopenedDialog.getByLabel("Date de naissance")).toHaveValue("2024-02-15");
   });
 
-  test("shares recap through clipboard and stores growth events", async ({ appPage, db }) => {
+  test("generates and copies a live public share link from the account modal", async ({ appPage, db }) => {
     await db.setFoodTastingsByName(
       "Épinard",
       [
@@ -117,147 +117,83 @@ test.describe("profile and share", () => {
     await appPage.getByRole("button", { name: "Mon compte" }).click();
     const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
 
-    await dialog.getByRole("button", { name: "Partager les progrès" }).click();
-    await expect(dialog.getByText("Récap copié.")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Partager les progrès" })).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: /Partager le palier/i })).toHaveCount(0);
+
+    await dialog.getByRole("button", { name: "Générer un lien" }).click();
+    await expect(dialog.getByText("Lien public généré.")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Copier le lien" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Régénérer" })).toBeVisible();
+
+    await dialog.getByRole("button", { name: "Copier le lien" }).click();
+    await expect(dialog.getByText("Lien copié.")).toBeVisible();
 
     const copiedTexts = await appPage.evaluate(() => {
       const windowWithClipboard = window as Window & { __e2eCopiedTexts?: string[] };
       return windowWithClipboard.__e2eCopiedTexts || [];
     });
     expect(copiedTexts.length).toBeGreaterThan(0);
-    expect(copiedTexts[copiedTexts.length - 1]).toContain("Voir le récap:");
+    expect(copiedTexts[copiedTexts.length - 1]).toContain("/share/");
 
     await expect
       .poll(async () => {
-        const events = await db.getGrowthEvents();
-        return events
-          .filter((event) =>
-            ["snapshot_link_created", "share_clicked", "share_success"].includes(event.eventName)
-          )
-          .map((event) => `${event.eventName}:${event.channel}`)
-          .join(",");
-      })
-      .toContain("snapshot_link_created:snapshot");
-
-    await expect
-      .poll(async () => {
-        const events = await db.getGrowthEvents("share_success");
-        const latest = events[events.length - 1];
-        return String(latest?.metadata?.shareId || "");
-      })
-      .toMatch(/^[a-zA-Z0-9_-]{8,80}$/);
-
-    await expect
-      .poll(async () => {
-        const events = await db.getGrowthEvents("share_success");
-        const latest = events[events.length - 1];
-        const shareId = String(latest?.metadata?.shareId || "");
-        if (!shareId) return null;
-
-        const snapshot = await db.queryOne<{
-          introduced_count: number;
-          liked_count: number;
-          expires_at: string | null;
-        }>(
+        const ownerId = await db.getDefaultOwnerId();
+        const row = await db.queryOne<{ public_id: string; expires_at: string }>(
           `
-            SELECT
-              introduced_count,
-              liked_count,
-              CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at::text END AS expires_at
-            FROM share_snapshots
-            WHERE share_id = $1
+            SELECT public_id, expires_at::text AS expires_at
+            FROM public_share_links
+            WHERE owner_id = $1
             LIMIT 1;
           `,
-          [shareId]
+          [ownerId]
         );
-
-        if (!snapshot) return null;
-        return `${snapshot.introduced_count}|${snapshot.liked_count}|${snapshot.expires_at ? "1" : "0"}`;
+        if (!row) return null;
+        return `${row.public_id}|${row.expires_at ? "1" : "0"}`;
       })
-      .toBe("3|2|1");
+      .toMatch(/^[A-Za-z0-9_-]{16,128}\|1$/);
   });
 
-  test("shares unlocked milestone and tracks dedicated milestone events", async ({ appPage, db }) => {
-    await db.setIntroducedFoods(10);
-
+  test("regenerates the public share link and invalidates the previous one immediately", async ({
+    appPage,
+    browser
+  }) => {
     await setupClipboardMock(appPage);
-    await appPage.reload();
+    await appPage.goto("/account");
 
     await appPage.getByRole("button", { name: "Mon compte" }).click();
     const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
 
-    const milestoneButton = dialog.getByRole("button", {
-      name: "Partager le palier 10 aliments"
+    await dialog.getByRole("button", { name: "Générer un lien" }).click();
+    await expect(dialog.getByText("Lien public généré.")).toBeVisible();
+    await dialog.getByRole("button", { name: "Copier le lien" }).click();
+
+    const firstCopiedTexts = await appPage.evaluate(() => {
+      const windowWithClipboard = window as Window & { __e2eCopiedTexts?: string[] };
+      return windowWithClipboard.__e2eCopiedTexts || [];
     });
-    await expect(milestoneButton).toBeEnabled();
+    const firstUrl = firstCopiedTexts[firstCopiedTexts.length - 1];
+    expect(firstUrl).toContain("/share/");
 
-    await milestoneButton.click();
+    await dialog.getByRole("button", { name: "Régénérer" }).click();
+    await expect(dialog.getByText("Lien public régénéré.")).toBeVisible();
+    await dialog.getByRole("button", { name: "Copier le lien" }).click();
 
-    await expect(dialog.getByText("Palier 10 copié.")).toBeVisible();
+    const secondCopiedTexts = await appPage.evaluate(() => {
+      const windowWithClipboard = window as Window & { __e2eCopiedTexts?: string[] };
+      return windowWithClipboard.__e2eCopiedTexts || [];
+    });
+    const secondUrl = secondCopiedTexts[secondCopiedTexts.length - 1];
+    expect(secondUrl).toContain("/share/");
+    expect(secondUrl).not.toBe(firstUrl);
 
-    await expect
-      .poll(async () => {
-        const clicked = await db.getGrowthEvents("milestone_share_clicked");
-        const success = await db.getGrowthEvents("milestone_share_success");
-        return `${clicked.length}|${success.length}`;
-      })
-      .toBe("1|1");
+    const oldPage = await browser.newPage();
+    await oldPage.goto(firstUrl);
+    await expect(oldPage.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
+    await oldPage.close();
 
-    await expect
-      .poll(async () => {
-        const success = await db.getGrowthEvents("milestone_share_success");
-        const latest = success[success.length - 1];
-        return String(latest?.metadata?.milestone || "");
-      })
-      .toBe("10");
-  });
-
-  test("revokes the latest generated share link and blocks public access", async ({ appPage, db }) => {
-    await db.setIntroducedFoods(8);
-
-    await setupClipboardMock(appPage);
-    await appPage.reload();
-
-    await appPage.getByRole("button", { name: "Mon compte" }).click();
-    const dialog = appPage.getByRole("dialog", { name: "Mon compte" });
-
-    await dialog.getByRole("button", { name: "Partager les progrès" }).click();
-    await expect(dialog.getByText("Récap copié.")).toBeVisible();
-
-    await expect
-      .poll(async () => {
-        const events = await db.getGrowthEvents("share_success");
-        const latest = events[events.length - 1];
-        return String(latest?.metadata?.shareId || "");
-      })
-      .toMatch(/^[a-zA-Z0-9_-]{8,80}$/);
-
-    const shareSuccessEvents = await db.getGrowthEvents("share_success");
-    const shareId = String(shareSuccessEvents[shareSuccessEvents.length - 1]?.metadata?.shareId || "");
-    expect(shareId).toMatch(/^[a-zA-Z0-9_-]{8,80}$/);
-
-    await dialog.getByRole("button", { name: "Révoquer ce lien" }).click();
-    await expect(dialog.getByText("Lien de partage révoqué.")).toBeVisible();
-
-    await expect
-      .poll(async () => {
-        const snapshot = await db.queryOne<{ visibility: string; expires_at: string | null }>(
-          `
-            SELECT
-              visibility::text AS visibility,
-              CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at::text END AS expires_at
-            FROM share_snapshots
-            WHERE share_id = $1
-            LIMIT 1;
-          `,
-          [shareId]
-        );
-        if (!snapshot) return null;
-        return `${snapshot.visibility}|${snapshot.expires_at ? "1" : "0"}`;
-      })
-      .toBe("private|1");
-
-    await appPage.goto(`/share?sid=${shareId}`);
-    await expect(appPage.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
+    const freshPage = await browser.newPage();
+    await freshPage.goto(secondUrl);
+    await expect(freshPage.getByRole("heading", { name: /Les progrès|Progression diversification/i })).toBeVisible();
+    await freshPage.close();
   });
 });

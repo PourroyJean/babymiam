@@ -4,6 +4,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getPool, query } from "@/lib/db";
 import {
+  createPublicShareToken as createPublicShareTokenValue,
+  verifyPublicShareToken as verifyPublicShareTokenValue
+} from "@/lib/public-share-token";
+import {
   isSharedTestLoginTokenExpired as isSharedTestLoginTokenExpiredValue,
   verifySharedTestLoginToken as verifySharedTestLoginTokenValue
 } from "@/lib/shared-test-login-token";
@@ -596,6 +600,24 @@ export async function verifySharedTestAccessToken(token: string) {
   }
 
   return user;
+}
+
+export function createPublicShareAccessToken(params: {
+  publicId: string;
+  issuedAtEpochSeconds: number;
+}) {
+  return createPublicShareTokenValue({
+    publicId: params.publicId,
+    issuedAtEpochSeconds: params.issuedAtEpochSeconds,
+    secret: getPrimarySessionSecret()
+  });
+}
+
+export function verifyPublicShareAccessToken(token: string) {
+  return verifyPublicShareTokenValue({
+    token,
+    secrets: getSessionSecrets()
+  });
 }
 
 export async function getOptionalAuthenticatedUser() {

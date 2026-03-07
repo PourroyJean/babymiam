@@ -1,12 +1,14 @@
+import crypto from "node:crypto";
 import type { PoolClient } from "pg";
 import { getPool, query } from "@/lib/db";
 import type {
+  AccountPublicShareLink,
   ChildProfile,
   DashboardCategory,
   FoodTastingEntry,
-  FoodTimelineEntry,
-  PublicShareSnapshot
+  FoodTimelineEntry
 } from "@/lib/types";
+import { getPublicShareLinkExpiresAtEpochSeconds } from "@/lib/public-share-token";
 import {
   DEFAULT_TEXTURE_LEVEL,
   isTextureLevel,
@@ -22,23 +24,6 @@ type DeleteTastingResult =
       ok: false;
       error: string;
     };
-
-type ShareSnapshotInput = {
-  shareId: string;
-  firstName: string | null;
-  introducedCount: number;
-  totalFoods: number;
-  likedCount: number;
-  milestone: number | null;
-  recentFoods: string[];
-  visibility?: EventVisibility;
-  expiresAt?: string | null;
-};
-
-export type UpsertShareSnapshotResult = {
-  shareId: string;
-  expiresAt: string | null;
-};
 
 type AppendQuickEntryInput = {
   foodId: number;
@@ -82,26 +67,47 @@ type AccessibleFoodRow = {
   owner_id: number | null;
 };
 
-const DEFAULT_SHARE_SNAPSHOT_TTL_DAYS = 30;
-const MAX_SHARE_SNAPSHOT_TTL_DAYS = 365;
 const SHARE_OPEN_DEDUPE_MINUTES = 5;
 const NORMALIZED_MARKS_PATTERN = /[\u0300-\u036f]/g;
+const PUBLIC_SHARE_ID_BYTE_LENGTH = 24;
+const PUBLIC_SHARE_ID_GENERATION_RETRIES = 5;
 
-function getShareSnapshotTtlDays() {
-  const parsed = Number(process.env.SHARE_SNAPSHOT_TTL_DAYS || DEFAULT_SHARE_SNAPSHOT_TTL_DAYS);
-  if (!Number.isFinite(parsed)) return DEFAULT_SHARE_SNAPSHOT_TTL_DAYS;
+export type PublicShareLinkState = {
+  ownerId: number;
+  publicId: string;
+  issuedAt: string;
+  expiresAt: string;
+};
 
-  const normalized = Math.trunc(parsed);
-  if (normalized < 1) return DEFAULT_SHARE_SNAPSHOT_TTL_DAYS;
-  return Math.min(normalized, MAX_SHARE_SNAPSHOT_TTL_DAYS);
+function createPublicShareId() {
+  return crypto.randomBytes(PUBLIC_SHARE_ID_BYTE_LENGTH).toString("base64url");
 }
 
-function resolveShareSnapshotExpiresAt(expiresAt: string | null | undefined) {
-  const normalized = String(expiresAt || "").trim();
-  if (normalized) return normalized;
+function getEpochSeconds(value: string | null) {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.floor(parsed / 1000);
+}
 
-  const ttlDays = getShareSnapshotTtlDays();
-  return new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
+function isExpiredTimestamp(value: string | null) {
+  const parsed = Date.parse(String(value || ""));
+  if (!Number.isFinite(parsed)) return true;
+  return parsed <= Date.now();
+}
+
+function mapPublicShareLinkRow(row: {
+  owner_id: number;
+  public_id: string;
+  issued_at: string;
+  expires_at: string;
+}): PublicShareLinkState {
+  return {
+    ownerId: Number(row.owner_id),
+    publicId: row.public_id,
+    issuedAt: row.issued_at,
+    expiresAt: row.expires_at
+  };
 }
 
 function normalizeFoodName(value: string) {
@@ -1030,9 +1036,9 @@ export async function createGrowthEvent(
   );
 }
 
-export async function createPublicShareOpenEvent(
+export async function createPublicShareLinkOpenEvent(
   ownerId: number,
-  shareId: string,
+  publicId: string,
   metadata: Record<string, unknown>
 ) {
   const existingResult = await query(
@@ -1040,154 +1046,154 @@ export async function createPublicShareOpenEvent(
       SELECT 1
       FROM growth_events
       WHERE owner_id = $1
-        AND event_name = 'snapshot_link_opened'
+        AND event_name = 'public_share_link_opened'
         AND channel = 'public_page'
         AND visibility = 'public'
-        AND metadata->>'shareId' = $2
+        AND metadata->>'publicId' = $2
         AND created_at > NOW() - INTERVAL '${SHARE_OPEN_DEDUPE_MINUTES} minutes'
       LIMIT 1;
     `,
-    [ownerId, shareId]
+    [ownerId, publicId]
   );
 
   if (Number(existingResult.rowCount || 0) > 0) return false;
 
-  await createGrowthEvent(ownerId, "snapshot_link_opened", "public_page", metadata, "public");
+  await createGrowthEvent(ownerId, "public_share_link_opened", "public_page", metadata, "public");
   return true;
 }
 
-export async function revokeShareSnapshot(ownerId: number, shareId: string) {
-  const result = await query<{ share_id: string }>(
-    `
-      UPDATE share_snapshots
-      SET
-        visibility = 'private',
-        expires_at = NOW()
-      WHERE owner_id = $1
-        AND share_id = $2
-        AND visibility = 'public'
-      RETURNING share_id;
-    `,
-    [ownerId, shareId]
-  );
-
-  return result.rowCount === 1;
-}
-
-export async function upsertShareSnapshot(
-  ownerId: number,
-  payload: ShareSnapshotInput
-): Promise<UpsertShareSnapshotResult> {
-  const recentFoods = payload.recentFoods.slice(0, 3);
-  const resolvedExpiresAt = resolveShareSnapshotExpiresAt(payload.expiresAt);
-
-  const result = await query<{ share_id: string; expires_at: string | null }>(
-    `
-      INSERT INTO share_snapshots (
-        share_id,
-        owner_id,
-        visibility,
-        first_name,
-        introduced_count,
-        total_foods,
-        liked_count,
-        milestone,
-        recent_foods,
-        expires_at
-      )
-      VALUES ($1, $2, $3::event_visibility, $4, $5, $6, $7, $8, $9::jsonb, $10)
-      ON CONFLICT (share_id)
-      DO UPDATE SET
-        owner_id = EXCLUDED.owner_id,
-        visibility = EXCLUDED.visibility,
-        first_name = EXCLUDED.first_name,
-        introduced_count = EXCLUDED.introduced_count,
-        total_foods = EXCLUDED.total_foods,
-        liked_count = EXCLUDED.liked_count,
-        milestone = EXCLUDED.milestone,
-        recent_foods = EXCLUDED.recent_foods,
-        expires_at = EXCLUDED.expires_at
-      WHERE share_snapshots.owner_id = EXCLUDED.owner_id
-      RETURNING
-        share_id,
-        CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at::text END AS expires_at;
-    `,
-    [
-      payload.shareId,
-      ownerId,
-      payload.visibility || "public",
-      payload.firstName,
-      payload.introducedCount,
-      payload.totalFoods,
-      payload.likedCount,
-      payload.milestone,
-      JSON.stringify(recentFoods),
-      resolvedExpiresAt
-    ]
-  );
-
-  const row = result.rows[0];
-  if (result.rowCount !== 1 || !row) {
-    throw new Error("Share ID already exists for another user.");
-  }
-
-  return {
-    shareId: row.share_id,
-    expiresAt: row.expires_at
-  };
-}
-
-export async function getPublicShareSnapshotById(shareId: string): Promise<PublicShareSnapshot | null> {
+export async function getActivePublicShareLinkForOwner(ownerId: number): Promise<PublicShareLinkState | null> {
   const result = await query<{
-    share_id: string;
     owner_id: number;
-    first_name: string | null;
-    introduced_count: number;
-    total_foods: number;
-    liked_count: number;
-    milestone: number | null;
-    recent_foods: unknown;
-    created_at: string;
-    expires_at: string | null;
+    public_id: string;
+    issued_at: string;
+    expires_at: string;
   }>(
     `
       SELECT
-        share_id,
         owner_id,
-        first_name,
-        introduced_count,
-        total_foods,
-        liked_count,
-        milestone,
-        recent_foods,
-        created_at::text AS created_at,
-        CASE WHEN expires_at IS NULL THEN NULL ELSE expires_at::text END AS expires_at
-      FROM share_snapshots
-      WHERE share_id = $1
-        AND visibility = 'public'
-        AND (expires_at IS NULL OR expires_at > NOW())
+        public_id,
+        issued_at::text AS issued_at,
+        expires_at::text AS expires_at
+      FROM public_share_links
+      WHERE owner_id = $1
+        AND expires_at > NOW()
       LIMIT 1;
     `,
-    [shareId]
+    [ownerId]
   );
 
   const row = result.rows[0];
   if (!row) return null;
+  return mapPublicShareLinkRow(row);
+}
 
-  const recentFoods = Array.isArray(row.recent_foods)
-    ? row.recent_foods.map((item) => String(item)).filter(Boolean).slice(0, 3)
-    : [];
+export async function getPublicShareLinkByPublicId(publicId: string): Promise<PublicShareLinkState | null> {
+  const result = await query<{
+    owner_id: number;
+    public_id: string;
+    issued_at: string;
+    expires_at: string;
+  }>(
+    `
+      SELECT
+        owner_id,
+        public_id,
+        issued_at::text AS issued_at,
+        expires_at::text AS expires_at
+      FROM public_share_links
+      WHERE public_id = $1
+      LIMIT 1;
+    `,
+    [publicId]
+  );
 
+  const row = result.rows[0];
+  if (!row) return null;
+  return mapPublicShareLinkRow(row);
+}
+
+export async function createOrRotatePublicShareLink(
+  ownerId: number,
+  options: { forceRotate?: boolean } = {}
+): Promise<PublicShareLinkState> {
+  const existingLink = await getActivePublicShareLinkForOwner(ownerId);
+  if (existingLink && !options.forceRotate) {
+    return existingLink;
+  }
+
+  for (let attempt = 0; attempt < PUBLIC_SHARE_ID_GENERATION_RETRIES; attempt += 1) {
+    const publicId = createPublicShareId();
+    const issuedAtEpochSeconds = Math.floor(Date.now() / 1000);
+    const issuedAt = new Date(issuedAtEpochSeconds * 1000).toISOString();
+    const expiresAtEpochSeconds = getPublicShareLinkExpiresAtEpochSeconds(issuedAtEpochSeconds);
+    if (!expiresAtEpochSeconds) {
+      throw new Error("Failed to resolve public share link expiry.");
+    }
+
+    const expiresAt = new Date(expiresAtEpochSeconds * 1000).toISOString();
+
+    try {
+      const result = await query<{
+        owner_id: number;
+        public_id: string;
+        issued_at: string;
+        expires_at: string;
+      }>(
+        `
+          INSERT INTO public_share_links (owner_id, public_id, issued_at, expires_at)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (owner_id)
+          DO UPDATE SET
+            public_id = EXCLUDED.public_id,
+            issued_at = EXCLUDED.issued_at,
+            expires_at = EXCLUDED.expires_at,
+            updated_at = NOW()
+          RETURNING
+            owner_id,
+            public_id,
+            issued_at::text AS issued_at,
+            expires_at::text AS expires_at;
+        `,
+        [ownerId, publicId, issuedAt, expiresAt]
+      );
+
+      const row = result.rows[0];
+      if (!row) {
+        throw new Error("Failed to persist public share link.");
+      }
+
+      return mapPublicShareLinkRow(row);
+    } catch (error) {
+      if (isUniqueViolation(error)) continue;
+      throw error;
+    }
+  }
+
+  throw new Error("Failed to create a unique public share link.");
+}
+
+export function buildAccountPublicShareLink(params: {
+  baseUrl: string;
+  token: string;
+  link: PublicShareLinkState;
+}): AccountPublicShareLink {
   return {
-    shareId: row.share_id,
-    ownerId: Number(row.owner_id),
-    firstName: row.first_name,
-    introducedCount: Number(row.introduced_count),
-    totalFoods: Number(row.total_foods),
-    likedCount: Number(row.liked_count),
-    milestone: row.milestone === null ? null : Number(row.milestone),
-    recentFoods,
-    createdAt: row.created_at,
-    expiresAt: row.expires_at
+    url: `${params.baseUrl}/share/${encodeURIComponent(params.token)}`,
+    expiresAt: params.link.expiresAt
   };
+}
+
+export function isPublicShareLinkTokenCurrent(params: {
+  link: PublicShareLinkState | null;
+  publicId: string;
+  issuedAtEpochSeconds: number;
+}) {
+  if (!params.link) return false;
+  if (params.link.publicId !== params.publicId) return false;
+  if (isExpiredTimestamp(params.link.expiresAt)) return false;
+
+  const issuedAtEpochSeconds = getEpochSeconds(params.link.issuedAt);
+  if (!issuedAtEpochSeconds) return false;
+  return issuedAtEpochSeconds === params.issuedAtEpochSeconds;
 }

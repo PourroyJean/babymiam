@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test as base } from "@playwright/test";
 import {
-  createShareSnapshot,
+  createPublicShareLink,
   getFoodProgressByName,
   getDefaultOwnerId,
   getGrowthEvents,
@@ -29,7 +29,7 @@ type DbFixture = {
   setFinalPreferenceByName: typeof setFinalPreferenceByName;
   replaceFoodTastingsByName: typeof replaceFoodTastingsByName;
   setIntroducedFoods: typeof setIntroducedFoods;
-  createShareSnapshot: typeof createShareSnapshot;
+  createPublicShareLink: typeof createPublicShareLink;
   getGrowthEvents: typeof getGrowthEvents;
 };
 
@@ -56,7 +56,7 @@ export const test = base.extend<E2EFixtures & AutoFixtures>({
       setFinalPreferenceByName,
       replaceFoodTastingsByName,
       setIntroducedFoods,
-      createShareSnapshot,
+      createPublicShareLink,
       getGrowthEvents
     });
   },

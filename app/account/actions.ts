@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import {
+  createPublicShareAccessToken,
   createEmailVerificationToken,
   createSession,
   getAccountOverview,
@@ -15,7 +16,13 @@ import {
   verifyPasswordHash
 } from "@/lib/auth";
 import { resolveAppBaseUrl } from "@/lib/app-url";
+import {
+  buildAccountPublicShareLink,
+  createOrRotatePublicShareLink,
+  getActivePublicShareLinkForOwner
+} from "@/lib/data";
 import { sendEmailVerificationEmail } from "@/lib/email";
+import type { AccountPublicShareLink } from "@/lib/types";
 
 function buildAccountRedirect(query: Record<string, string>) {
   const params = new URLSearchParams();
@@ -43,11 +50,46 @@ type SendVerificationEmailActionResult =
 type LogoutEverywhereActionResult = { ok: true } | { ok: false; error: "unknown" };
 
 type GetAccountOverviewActionResult =
-  | { ok: true; userEmail: string; overview: Awaited<ReturnType<typeof getAccountOverview>> }
+  | {
+      ok: true;
+      userEmail: string;
+      overview: Awaited<ReturnType<typeof getAccountOverview>>;
+      publicShareLink: AccountPublicShareLink | null;
+    }
+  | { ok: false; error: "unknown" };
+
+type PublicShareLinkActionResult =
+  | { ok: true; publicShareLink: AccountPublicShareLink }
   | { ok: false; error: "unknown" };
 
 function isModalAction(formData?: FormData | null) {
   return String(formData?.get("__mode") || "").trim() === "modal";
+}
+
+function getEpochSeconds(value: string | null) {
+  if (!value) return null;
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.floor(parsed / 1000);
+}
+
+async function resolveAccountPublicShareLink(ownerId: number) {
+  const link = await getActivePublicShareLinkForOwner(ownerId);
+  if (!link) return null;
+
+  const issuedAtEpochSeconds = getEpochSeconds(link.issuedAt);
+  if (!issuedAtEpochSeconds) return null;
+
+  const token = createPublicShareAccessToken({
+    publicId: link.publicId,
+    issuedAtEpochSeconds
+  });
+
+  return buildAccountPublicShareLink({
+    baseUrl: resolveAppBaseUrl(),
+    token,
+    link
+  });
 }
 
 export async function getAccountOverviewAction(): Promise<GetAccountOverviewActionResult> {
@@ -55,7 +97,66 @@ export async function getAccountOverviewAction(): Promise<GetAccountOverviewActi
 
   try {
     const overview = await getAccountOverview(user.id);
-    return { ok: true, userEmail: user.email, overview };
+    const publicShareLink =
+      overview?.emailVerifiedAt ? await resolveAccountPublicShareLink(user.id) : null;
+
+    return { ok: true, userEmail: user.email, overview, publicShareLink };
+  } catch {
+    return { ok: false, error: "unknown" };
+  }
+}
+
+export async function generatePublicShareLinkAction(): Promise<PublicShareLinkActionResult> {
+  const user = await requireVerifiedAuth();
+
+  try {
+    const link = await createOrRotatePublicShareLink(user.id);
+    const issuedAtEpochSeconds = getEpochSeconds(link.issuedAt);
+    if (!issuedAtEpochSeconds) {
+      return { ok: false, error: "unknown" };
+    }
+
+    const token = createPublicShareAccessToken({
+      publicId: link.publicId,
+      issuedAtEpochSeconds
+    });
+
+    return {
+      ok: true,
+      publicShareLink: buildAccountPublicShareLink({
+        baseUrl: resolveAppBaseUrl(),
+        token,
+        link
+      })
+    };
+  } catch {
+    return { ok: false, error: "unknown" };
+  }
+}
+
+export async function regeneratePublicShareLinkAction(): Promise<PublicShareLinkActionResult> {
+  const user = await requireVerifiedAuth();
+
+  try {
+    const link = await createOrRotatePublicShareLink(user.id, { forceRotate: true });
+    const issuedAtEpochSeconds = getEpochSeconds(link.issuedAt);
+    if (!issuedAtEpochSeconds) {
+      return { ok: false, error: "unknown" };
+    }
+
+    const token = createPublicShareAccessToken({
+      publicId: link.publicId,
+      issuedAtEpochSeconds
+    });
+
+    return {
+      ok: true,
+      publicShareLink: buildAccountPublicShareLink({
+        baseUrl: resolveAppBaseUrl(),
+        token,
+        link
+      })
+    };
   } catch {
     return { ok: false, error: "unknown" };
   }
