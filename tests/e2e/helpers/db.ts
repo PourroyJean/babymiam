@@ -36,6 +36,8 @@ function getTodayIsoDate() {
 
 function normalizeFoodName(value: string) {
   return value
+    .replace(/[œŒ]/g, "oe")
+    .replace(/[æÆ]/g, "ae")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -63,7 +65,7 @@ const FIXTURE_CATEGORIES: FixtureCategory[] = [
   },
   {
     name: "Protéines animales",
-    foods: ["Oeuf", "Poulet"]
+    foods: ["Oeuf (bien cuit)", "Poulet", "Bœuf"]
   },
   {
     name: "Allergènes majeurs",

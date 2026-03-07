@@ -62,7 +62,7 @@ export default async function BlogPage() {
             <article>
               <h3>🍋 De quoi est-elle composée</h3>
               <p>
-                Il y a 12 catégories d&apos;aliments dont une vierge à remplir, soit environ 250 aliments.
+                La base actuelle contient 9 catégories d&apos;aliments, soit 186 aliments.
                 La catégorie des allergènes majeurs est à introduire progressivement.
               </p>
               <p>

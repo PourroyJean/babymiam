@@ -141,6 +141,7 @@ export function QuickAddPanel({ isOpen, foods, onClose, prefillFood = null }: Qu
     () => foods.find((food) => food.id === selectedFoodId) ?? null,
     [foods, selectedFoodId]
   );
+  const shouldCloseAfterSuccess = prefillFood !== null;
 
   const isSubmitDisabled = isPending || selectedFoodId === null || tigerChoice === null || !tastedOn;
 
@@ -176,8 +177,13 @@ export function QuickAddPanel({ isOpen, foods, onClose, prefillFood = null }: Qu
         return;
       }
 
-      resetForm();
       router.refresh();
+      if (shouldCloseAfterSuccess) {
+        onClose();
+        return;
+      }
+
+      resetForm();
 
       window.requestAnimationFrame(() => {
         searchInputRef.current?.focus();

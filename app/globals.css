@@ -664,13 +664,13 @@ a {
 }
 
 .site-nav-link.is-active {
-  background: #b99a52;
-  border-color: #9b7a3d;
+  background: #8b6b2d;
+  border-color: #6d531e;
   color: #fff;
 }
 
 .site-nav-link.is-active:hover {
-  background: #ac8b46;
+  background: #7c6027;
 }
 
 .site-nav-link:focus-visible {

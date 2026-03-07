@@ -16,7 +16,7 @@ const TEXTURE_STEPS = [
     text: "Morceaux à croquer, transition vers presque comme les parents."
   },
   {
-    age: "12-12 mois",
+    age: "12 mois et +",
     text: "La plupart des enfants peuvent manger comme la famille (adapté pour la sécurité)."
   }
 ];

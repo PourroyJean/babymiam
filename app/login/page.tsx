@@ -22,7 +22,13 @@ export default async function LoginPage({
         <form action={loginAction} className="login-form">
           <label>
             Email
-            <input name="email" type="email" placeholder="parent@example.com" required />
+            <input
+              name="email"
+              type="email"
+              placeholder="parent@example.com"
+              required
+              autoComplete="username"
+            />
           </label>
 
           <PasswordField

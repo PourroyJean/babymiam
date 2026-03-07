@@ -7,6 +7,8 @@ function escapeRegExp(value: string) {
 
 function normalizeFoodName(value: string) {
   return value
+    .replace(/[œŒ]/g, "oe")
+    .replace(/[æÆ]/g, "ae")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -158,6 +160,51 @@ test.describe("custom foods", () => {
         return Number(row?.count || "0");
       })
       .toBe(1);
+  });
+
+  test("rejects canonical duplicates when ligatures are used", async ({ appPage, db }) => {
+    const duplicateCases = [
+      { categoryName: "Allergènes majeurs", canonicalName: "Oeufs", duplicateName: "Œufs" },
+      {
+        categoryName: "Protéines animales",
+        canonicalName: "Oeuf (bien cuit)",
+        duplicateName: "Œuf (bien cuit)"
+      },
+      { categoryName: "Protéines animales", canonicalName: "Bœuf", duplicateName: "Boeuf" }
+    ];
+
+    for (const duplicateCase of duplicateCases) {
+      const panel = await openAddFoodPanel(appPage);
+      await panel.categorySelect.selectOption({ label: duplicateCase.categoryName });
+      await panel.nameInput.fill(duplicateCase.duplicateName);
+      await panel.addButton.click();
+
+      await expect(panel.dialog.getByText("Cet aliment existe déjà dans cette catégorie.")).toBeVisible();
+
+      await expect
+        .poll(async () => {
+          const row = await db.queryOne<{ count: string }>(
+            `
+              SELECT COUNT(*)::text AS count
+              FROM foods
+              WHERE owner_id IS NOT NULL
+                AND normalized_name = $1
+                AND category_id = (
+                  SELECT id
+                  FROM categories
+                  WHERE name = $2
+                  LIMIT 1
+                );
+            `,
+            [normalizeFoodName(duplicateCase.canonicalName), duplicateCase.categoryName]
+          );
+          return Number(row?.count || "0");
+        })
+        .toBe(0);
+
+      await panel.dialog.getByRole("button", { name: /Annuler/i }).click();
+      await expect(panel.dialog).toHaveCount(0);
+    }
   });
 
   test("shows delete button only for user-owned foods in summary panel", async ({ appPage }) => {

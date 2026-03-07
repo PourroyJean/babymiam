@@ -48,6 +48,7 @@ type FoodIndexEntry = {
 };
 
 const FINAL_PREFERENCE_DEBOUNCE_MS = 2000;
+const SHOW_TESTED_ONLY_TOGGLE_ID = "show-tested-only-toggle";
 
 function getCategoryPictogram(categoryName: string) {
   return getCategoryUi(categoryName).pictogram;
@@ -67,6 +68,10 @@ function getAttachmentFilename(contentDisposition: string | null) {
 
   const fallbackMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
   return fallbackMatch?.[1]?.trim() || null;
+}
+
+function formatPlanFocusCount(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 function triggerFileDownload(blob: Blob, filename: string) {
@@ -631,7 +636,6 @@ export function CategoriesGrid({
   const weeklyPlanDiscoveryCount = weeklyPlan.items.filter((item) => item.focus === "new_discovery").length;
   const weeklyPlanAllergenCount = weeklyPlan.items.filter((item) => item.focus === "allergen_routine").length;
   const weeklyPlanConsolidationCount = weeklyPlan.items.filter((item) => item.focus === "consolidation").length;
-  const weeklyPlanToolbarSummary = `${weeklyPlanRelaunchCount} relances · ${weeklyPlanDiscoveryCount} découvertes · ${weeklyPlanAllergenCount} allergènes · ${weeklyPlanConsolidationCount} consolidations`;
 
 
   const finalPreferenceByFoodId = useMemo(() => {
@@ -681,17 +685,20 @@ export function CategoriesGrid({
               type="button"
               className={`weekly-plan-trigger-btn ${weeklyPlanRelaunchCount > 0 ? "is-alert" : ""}`}
               onClick={openWeeklyPlan}
-              aria-label={`Plan 7 jours : ${weeklyPlanToolbarSummary}`}
             >
               <span>Plan 7 jours</span>
-              <span className="weekly-plan-trigger-kpis" aria-hidden="true">
-                <span className="weekly-plan-trigger-chip is-abandon">{weeklyPlanRelaunchCount} relances</span>
-                <span className="weekly-plan-trigger-chip is-discovery">{weeklyPlanDiscoveryCount} découvertes</span>
+              <span className="weekly-plan-trigger-kpis">
+                <span className="weekly-plan-trigger-chip is-abandon">
+                  {formatPlanFocusCount(weeklyPlanRelaunchCount, "relance")}
+                </span>
+                <span className="weekly-plan-trigger-chip is-discovery">
+                  {formatPlanFocusCount(weeklyPlanDiscoveryCount, "découverte")}
+                </span>
                 <span className="weekly-plan-trigger-chip is-allergen">
-                  {weeklyPlanAllergenCount} allergènes
+                  {formatPlanFocusCount(weeklyPlanAllergenCount, "allergène")}
                 </span>
                 <span className="weekly-plan-trigger-chip is-consolidation">
-                  {weeklyPlanConsolidationCount} consolidations
+                  {formatPlanFocusCount(weeklyPlanConsolidationCount, "consolidation")}
                 </span>
               </span>
               <span className="weekly-plan-badge">Premium</span>
@@ -710,7 +717,6 @@ export function CategoriesGrid({
               className="pediatric-report-trigger-btn"
               onClick={downloadPediatricReport}
               disabled={isPediatricReportPending}
-              aria-label="Télécharger le rapport pédiatre en PDF"
             >
               {isPediatricReportPending ? (
                 <span className="pediatric-report-loading-indicator">
@@ -732,6 +738,8 @@ export function CategoriesGrid({
 
             <label className="toolbox-toggle">
               <input
+                id={SHOW_TESTED_ONLY_TOGGLE_ID}
+                name="showTestedOnly"
                 type="checkbox"
                 role="switch"
                 className="toolbox-toggle-input"

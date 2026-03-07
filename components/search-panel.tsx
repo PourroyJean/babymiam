@@ -107,6 +107,7 @@ export function SearchPanel({
         </header>
 
         <input
+          id="food-search-input"
           ref={searchInputRef}
           type="text"
           className="food-search-input"

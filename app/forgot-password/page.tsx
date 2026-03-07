@@ -22,7 +22,13 @@ export default async function ForgotPasswordPage({
         <form action={forgotPasswordAction} className="login-form">
           <label>
             Email
-            <input name="email" type="email" placeholder="parent@example.com" required />
+            <input
+              name="email"
+              type="email"
+              placeholder="parent@example.com"
+              required
+              autoComplete="username"
+            />
           </label>
 
           <button type="submit">Envoyer le lien</button>

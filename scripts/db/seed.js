@@ -70,6 +70,8 @@ async function readSourceCategories() {
 
 function normalizeFoodName(value) {
   return String(value || "")
+    .replace(/[œŒ]/g, "oe")
+    .replace(/[æÆ]/g, "ae")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()

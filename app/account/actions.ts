@@ -95,15 +95,23 @@ async function resolveAccountPublicShareLink(ownerId: number) {
 export async function getAccountOverviewAction(): Promise<GetAccountOverviewActionResult> {
   const user = await requireAuth();
 
+  let overview: Awaited<ReturnType<typeof getAccountOverview>> = null;
   try {
-    const overview = await getAccountOverview(user.id);
-    const publicShareLink =
-      overview?.emailVerifiedAt ? await resolveAccountPublicShareLink(user.id) : null;
-
-    return { ok: true, userEmail: user.email, overview, publicShareLink };
+    overview = await getAccountOverview(user.id);
   } catch {
     return { ok: false, error: "unknown" };
   }
+
+  let publicShareLink: AccountPublicShareLink | null = null;
+  if (overview?.emailVerifiedAt) {
+    try {
+      publicShareLink = await resolveAccountPublicShareLink(user.id);
+    } catch (error) {
+      console.error("[account] Failed to resolve public share link.", error);
+    }
+  }
+
+  return { ok: true, userEmail: user.email, overview, publicShareLink };
 }
 
 export async function generatePublicShareLinkAction(): Promise<PublicShareLinkActionResult> {

@@ -15,6 +15,7 @@ import {
   type ReactionType,
   type TextureLevel
 } from "@/lib/tasting-metadata";
+import { normalizeSearchValue } from "@/lib/ui-utils";
 
 export type EventVisibility = "private" | "public";
 
@@ -68,7 +69,6 @@ type AccessibleFoodRow = {
 };
 
 const SHARE_OPEN_DEDUPE_MINUTES = 5;
-const NORMALIZED_MARKS_PATTERN = /[\u0300-\u036f]/g;
 const PUBLIC_SHARE_ID_BYTE_LENGTH = 24;
 const PUBLIC_SHARE_ID_GENERATION_RETRIES = 5;
 
@@ -111,12 +111,7 @@ function mapPublicShareLinkRow(row: {
 }
 
 function normalizeFoodName(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(NORMALIZED_MARKS_PATTERN, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
+  return normalizeSearchValue(value);
 }
 
 function normalizeFoodLabel(value: string) {

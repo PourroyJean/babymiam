@@ -3,6 +3,7 @@ import { getCurrentIsoDate } from "@/lib/date-utils";
 
 // Date & Time Helpers
 export const DIACRITICS_PATTERN = /[\u0300-\u036f]/g;
+const LIGATURES_PATTERN = /[œŒæÆ]/g;
 export const FRENCH_COLLATOR = new Intl.Collator("fr", { sensitivity: "base" });
 export const SEARCH_RANK_EXACT_MATCH = 0 as const;
 export const SEARCH_RANK_WORD_PREFIX = 1 as const;
@@ -14,7 +15,16 @@ export type SearchRank =
   | typeof SEARCH_RANK_CONTAINS;
 
 export function normalizeSearchValue(value: string) {
-  return value.normalize("NFD").replace(DIACRITICS_PATTERN, "").toLowerCase().trim();
+  return value
+    .replace(LIGATURES_PATTERN, (letter) => {
+      if (letter === "æ" || letter === "Æ") return "ae";
+      return "oe";
+    })
+    .normalize("NFD")
+    .replace(DIACRITICS_PATTERN, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function getSearchRank(normalizedName: string, normalizedQuery: string): SearchRank | null {

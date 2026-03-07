@@ -493,10 +493,10 @@ test.describe("dashboard progression", () => {
     await appPage.reload();
 
     const weeklyPlanTrigger = appPage.getByRole("button", { name: /Plan 7 jours/i });
-    await expect(weeklyPlanTrigger).toContainText("relances");
-    await expect(weeklyPlanTrigger).toContainText("découvertes");
-    await expect(weeklyPlanTrigger).toContainText("allergènes");
-    await expect(weeklyPlanTrigger).toContainText("consolidations");
+    await expect(weeklyPlanTrigger).toContainText(/relance/i);
+    await expect(weeklyPlanTrigger).toContainText(/découverte/i);
+    await expect(weeklyPlanTrigger).toContainText(/allergène/i);
+    await expect(weeklyPlanTrigger).toContainText(/consolidation/i);
 
     const { dialog } = await openWeeklyPlanPanel(appPage);
     await expect(dialog.getByRole("button", { name: /Relances/i })).toBeVisible();
@@ -517,6 +517,38 @@ test.describe("dashboard progression", () => {
     await expect(quickAddDialog).toBeVisible();
     await expect(quickAddDialog.getByRole("textbox", { name: "Rechercher un aliment" })).toHaveValue(firstFoodName);
     await expect(dialog).toHaveCount(0);
+  });
+
+  test("quick add closes after success when opened from a prefilled weekly-plan action", async ({ appPage, db }) => {
+    await db.setFoodTastingsByName("Carotte", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(20) }]);
+    await db.setFoodTastingsByName("Épinard", [
+      { slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(14) },
+      { slot: 2, liked: false, tastedOn: getIsoDateDaysAgo(11) }
+    ]);
+    await db.setFoodTastingsByName("Arachides", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(7) }]);
+    await db.setFoodTastingsByName("Lait", [{ slot: 1, liked: true, tastedOn: getIsoDateDaysAgo(5) }]);
+
+    await appPage.reload();
+
+    const { dialog } = await openWeeklyPlanPanel(appPage);
+    const firstItem = dialog.locator(".weekly-plan-item").first();
+    const firstFoodName = ((await firstItem.locator(".weekly-plan-food-name").textContent()) || "").trim();
+    const initialTastingCount = (await db.getFoodProgressByName(firstFoodName))?.tastingCount ?? 0;
+
+    await firstItem
+      .getByRole("button", { name: new RegExp(`Tester maintenant ${escapeRegExp(firstFoodName)}`, "i") })
+      .click();
+
+    const quickAddDialog = appPage.getByRole("dialog", { name: "Ajout rapide" });
+    await expect(quickAddDialog).toBeVisible();
+    await quickAddDialog.getByRole("button", { name: "Tigre OK" }).click();
+    await quickAddDialog.getByRole("button", { name: "Ajouter" }).click();
+
+    await expect(quickAddDialog).toHaveCount(0);
+    await expect(dialog).toHaveCount(0);
+    await expect
+      .poll(async () => (await db.getFoodProgressByName(firstFoodName))?.tastingCount ?? -1)
+      .toBe(initialTastingCount + 1);
   });
 
   test("weekly plan top cards toggle filters and keep a single active tab", async ({ appPage, db }) => {

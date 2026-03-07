@@ -333,6 +333,7 @@ export function FoodSummaryModal({
                         <p className="m-0 text-sm font-extrabold text-[#3b3128]">Tigre {tasting.slot}/3</p>
                       </div>
                       <input
+                        id={`food-summary-date-${foodId}-${tasting.slot}`}
                         type="date"
                         value={draftTastingDates[tasting.slot] ?? tasting.tastedOn}
                         onChange={(event) => {
@@ -350,6 +351,7 @@ export function FoodSummaryModal({
 
                     <div className="grid grid-cols-2 gap-2">
                       <select
+                        id={`food-summary-texture-${foodId}-${tasting.slot}`}
                         value={String(textureLevel)}
                         onChange={(event) => {
                           const nextValue = Number(event.currentTarget.value) as TextureLevel;
@@ -370,6 +372,7 @@ export function FoodSummaryModal({
                       </select>
 
                       <select
+                        id={`food-summary-reaction-${foodId}-${tasting.slot}`}
                         value={String(reactionType)}
                         onChange={(event) => {
                           const nextValue = Number(event.currentTarget.value) as ReactionType;
@@ -391,6 +394,7 @@ export function FoodSummaryModal({
                     </div>
 
                     <input
+                      id={`food-summary-note-${foodId}-${tasting.slot}`}
                       type="text"
                       value={draftTastingNotes[tasting.slot] ?? tasting.note}
                       onChange={(event) => {
@@ -443,6 +447,7 @@ export function FoodSummaryModal({
         <section className="mt-4 grid gap-2">
           <h3 className="m-0 text-base font-extrabold text-[#5f4323]">📝 Notes</h3>
           <textarea
+            id={`food-summary-global-note-${foodId}`}
             value={draftNote}
             onChange={(event) => setDraftNote(event.currentTarget.value)}
             placeholder="Écrire une note"
