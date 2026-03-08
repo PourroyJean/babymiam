@@ -107,6 +107,18 @@ export default async function AccountPage({
               <p className="account-muted">Change ton mot de passe (8 caractères minimum).</p>
 
               <form action={changePasswordPageAction} className="account-form">
+                <label className="visually-hidden" aria-hidden="true">
+                  Email
+                  <input
+                    name="email"
+                    type="email"
+                    value={overview?.email || user.email}
+                    autoComplete="username"
+                    readOnly
+                    tabIndex={-1}
+                  />
+                </label>
+
                 <label>
                   Mot de passe actuel
                   <input

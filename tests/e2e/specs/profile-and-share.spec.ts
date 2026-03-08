@@ -133,24 +133,31 @@ test.describe("profile and share", () => {
       return windowWithClipboard.__e2eCopiedTexts || [];
     });
     expect(copiedTexts.length).toBeGreaterThan(0);
-    expect(copiedTexts[copiedTexts.length - 1]).toContain("/share/");
+    const copiedUrl = copiedTexts[copiedTexts.length - 1];
+    expect(copiedUrl).toContain("/share/");
+
+    const copiedToken = decodeURIComponent(copiedUrl.match(/\/share\/([^/?#]+)/)?.[1] ?? "");
+    expect(copiedToken).toMatch(/^[A-Za-z0-9_-]{16,128}\.\d+\.[a-f0-9]{64}$/);
+    const copiedPublicId = copiedToken.split(".")[0] ?? "";
 
     await expect
       .poll(async () => {
         const ownerId = await db.getDefaultOwnerId();
-        const row = await db.queryOne<{ public_id: string; expires_at: string }>(
+        const row = await db.queryOne<{ total: number; public_id: string | null; expires_at: string | null }>(
           `
-            SELECT public_id, expires_at::text AS expires_at
+            SELECT
+              COUNT(*)::int AS total,
+              MAX(public_id)::text AS public_id,
+              MAX(expires_at)::text AS expires_at
             FROM public_share_links
-            WHERE owner_id = $1
-            LIMIT 1;
+            WHERE owner_id = $1;
           `,
           [ownerId]
         );
         if (!row) return null;
-        return `${row.public_id}|${row.expires_at ? "1" : "0"}`;
+        return `${row.total}|${row.public_id ?? ""}|${row.expires_at ? "1" : "0"}`;
       })
-      .toMatch(/^[A-Za-z0-9_-]{16,128}\|1$/);
+      .toBe(`1|${copiedPublicId}|1`);
   });
 
   test("regenerates the public share link and invalidates the previous one immediately", async ({

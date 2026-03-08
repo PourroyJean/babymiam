@@ -468,6 +468,18 @@ a {
   border: 0;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .public-share-section-head-wide {
   align-items: flex-end;
 }
@@ -4312,6 +4324,10 @@ a {
   .search-trigger-btn {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .search-trigger-shortcut {
+    display: none;
   }
 
   .timeline-trigger-btn {

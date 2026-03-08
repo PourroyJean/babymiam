@@ -586,6 +586,17 @@ export function ProfileMenu({ initialProfile, progressSummary = null }: ProfileM
               {isAccountEmailVerified ? (
                 <form onSubmit={onChangePassword} className="account-form">
                   <input type="hidden" name="__mode" value="modal" />
+                  <label className="visually-hidden" aria-hidden="true">
+                    Email
+                    <input
+                      name="email"
+                      type="email"
+                      value={accountOverview?.email || accountUserEmail}
+                      autoComplete="username"
+                      readOnly
+                      tabIndex={-1}
+                    />
+                  </label>
 
                   <label>
                     Mot de passe actuel

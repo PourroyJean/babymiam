@@ -252,8 +252,15 @@ export async function addQuickEntryAction(formData: FormData) {
 
 export async function createFoodAction(formData: FormData) {
   const user = await requireVerifiedAuth();
-  const categoryId = Number(formData.get("categoryId"));
-  const name = String(formData.get("name") || "");
+  const rawCategoryId = formData.get("categoryId");
+  const rawName = formData.get("name");
+  const categoryId = typeof rawCategoryId === "string" ? Number(rawCategoryId) : Number.NaN;
+
+  if (typeof rawName !== "string") {
+    return { ok: false, error: "Le nom de l'aliment est invalide." };
+  }
+
+  const name = rawName;
 
   if (!Number.isInteger(categoryId) || categoryId <= 0) {
     return { ok: false, error: "Catégorie invalide." };

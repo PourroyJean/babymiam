@@ -320,6 +320,39 @@ test.describe("public share page", () => {
     await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
   });
 
+  test("returns unavailable state when the DB-tracked link is deleted after issuance", async ({ page, db }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    const shareLink = await db.createPublicShareLink({});
+
+    await page.goto(shareLink.url);
+    await expect(page.getByRole("heading", { name: /Les progrès|Progression diversification/i })).toBeVisible();
+
+    await db.queryMany(
+      `
+        DELETE FROM public_share_links
+        WHERE owner_id = $1;
+      `,
+      [ownerId]
+    );
+
+    await expect
+      .poll(async () => {
+        const row = await db.queryOne<{ total: number }>(
+          `
+            SELECT COUNT(*)::int AS total
+            FROM public_share_links
+            WHERE owner_id = $1;
+          `,
+          [ownerId]
+        );
+        return Number(row?.total ?? 0);
+      })
+      .toBe(0);
+
+    await page.goto(shareLink.url);
+    await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
+  });
+
   test("returns unavailable state when the owner is inactive or no longer verified", async ({ page, db }) => {
     const ownerId = await db.getDefaultOwnerId();
     const shareLink = await db.createPublicShareLink({});
