@@ -21,6 +21,14 @@ function getIsoDateDaysAgo(daysAgo: number) {
   return localDate.toISOString().slice(0, 10);
 }
 
+function getIsoDateMonthsAgoOnFirstDay(monthsAgo: number) {
+  const normalizedMonthsAgo = Math.max(0, Math.trunc(monthsAgo));
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth() - normalizedMonthsAgo, 1);
+  const localDate = new Date(target.getTime() - target.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
 function formatDateToFr(value: string) {
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
@@ -51,6 +59,13 @@ async function openQuickAddPanel(page: Page) {
 async function openWeeklyPlanPanel(page: Page) {
   await page.getByRole("button", { name: /Plan 7 jours/i }).click();
   const dialog = page.getByRole("dialog", { name: /Plan 7 jours/i });
+  await expect(dialog).toBeVisible();
+  return { dialog };
+}
+
+async function openGuidePanel(page: Page) {
+  await page.getByRole("button", { name: /^Le Guide/i }).click();
+  const dialog = page.getByRole("dialog", { name: "Le Guide" });
   await expect(dialog).toBeVisible();
   return { dialog };
 }
@@ -200,6 +215,74 @@ test.describe("dashboard progression", () => {
     const editor = getTastingEditor(appPage, "Épinard", 1);
     await expect(editor).toBeVisible();
     await expect(editor.getByText("Louise a aimé ?")).toBeVisible();
+  });
+
+  test("shows a clickable age guide frieze with direct actions when the child profile is known", async ({
+    appPage,
+    db
+  }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany(
+      `
+        INSERT INTO child_profiles (owner_id, first_name, birth_date, updated_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (owner_id)
+        DO UPDATE SET
+          first_name = EXCLUDED.first_name,
+          birth_date = EXCLUDED.birth_date,
+          updated_at = NOW();
+      `,
+      [ownerId, "Louise", getIsoDateMonthsAgoOnFirstDay(7)]
+    );
+
+    await appPage.reload();
+
+    await expect(appPage.getByRole("region", { name: "Le Guide" })).toHaveCount(0);
+    const { dialog: guidancePanel } = await openGuidePanel(appPage);
+    await expect(guidancePanel.getByRole("button", { name: /6-8 mois/i })).toHaveAttribute("aria-pressed", "true");
+    await expect(guidancePanel.getByRole("button", { name: /Avant 5 m/i })).toBeVisible();
+    await expect(guidancePanel.getByRole("button", { name: /12-18 mois/i })).toBeVisible();
+    await expect(guidancePanel.getByRole("button", { name: /18-36 mois/i })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Faire grandir les repas sans brusquer" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Observer avant d'accélérer" })).toBeVisible();
+    await expect(
+      guidancePanel.getByText(
+        "Texture: purées moins lisses, plus épaisses, légèrement granuleuses. Premiers morceaux fondants si bébé tient assis avec maintien."
+      )
+    ).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Préparation" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Élargir les bases du quotidien" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Introduire de très petites portions bien mixées" })).toBeVisible();
+
+    await guidancePanel.getByRole("button", { name: /9-11 mois/i }).click();
+    await expect(guidancePanel.getByRole("button", { name: /9-11 mois/i })).toHaveAttribute("aria-pressed", "true");
+    await expect(guidancePanel.getByRole("heading", { name: "9-11 mois" })).toBeVisible();
+    await expect(guidancePanel.getByText("Cette colonne accueillera les points de vigilance et les repères transverses.")).toBeVisible();
+
+    await expect(guidancePanel.getByRole("button", { name: "Rechercher un aliment" })).toHaveCount(0);
+    await expect(guidancePanel.getByRole("button", { name: "Ajouter une dégustation" })).toHaveCount(0);
+  });
+
+  test("shows the guide even without birth date and lets the parent browse the blocks", async ({ appPage, db }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany("DELETE FROM child_profiles WHERE owner_id = $1;", [ownerId]);
+
+    await appPage.reload();
+
+    await expect(appPage.getByRole("region", { name: "Le Guide" })).toHaveCount(0);
+    const { dialog: guidancePanel } = await openGuidePanel(appPage);
+    await expect(guidancePanel.getByRole("button", { name: /5 mois/i })).toHaveAttribute("aria-pressed", "true");
+    await expect(guidancePanel.getByRole("heading", { name: "Signes que bébé pourrait être prêt" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Rester souple et progressif" })).toBeVisible();
+    await expect(guidancePanel.getByText("Texture conseillée: purée lisse")).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Préparation" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Préparer une première purée très simple" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Introduire les fruits après quinze jours environ" })).toBeVisible();
+
+    await guidancePanel.getByRole("button", { name: /18-36 mois/i }).click();
+    await expect(guidancePanel.getByRole("button", { name: /18-36 mois/i })).toHaveAttribute("aria-pressed", "true");
+    await expect(guidancePanel.getByRole("heading", { name: "18-36 mois" })).toBeVisible();
+    await expect(guidancePanel.getByText("Les repères détaillés de cette tranche d'âge seront ajoutés ici.")).toBeVisible();
   });
 
   test("toolbox toggle filters the app to already-tested foods", async ({ appPage, db }) => {
@@ -650,7 +733,22 @@ test.describe("dashboard progression", () => {
     }
   });
 
-  test("keeps overlays exclusive between Search, Timeline, Weekly Plan and Quick Add", async ({ appPage }) => {
+  test("guide shows the premium lock state when user has no access", async ({ appPage, db }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany("UPDATE users SET email = $2 WHERE id = $1;", [ownerId, "guide-free@example.test"]);
+
+    try {
+      await appPage.reload();
+      const { dialog } = await openGuidePanel(appPage);
+      await expect(dialog.getByRole("heading", { name: "Fonction Premium" })).toBeVisible();
+      await expect(dialog.getByRole("link", { name: /Voir mon espace premium/i })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: /5 mois/i })).toHaveCount(0);
+    } finally {
+      await db.queryMany("UPDATE users SET email = $2 WHERE id = $1;", [ownerId, DEFAULT_E2E_AUTH_EMAIL]);
+    }
+  });
+
+  test("keeps overlays exclusive between Search, Timeline, Guide, Weekly Plan and Quick Add", async ({ appPage }) => {
     await appPage.getByRole("button", { name: /Carnets de bords/i }).click();
     await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toBeVisible();
 
@@ -658,6 +756,13 @@ test.describe("dashboard progression", () => {
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
     await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toHaveCount(0);
 
+    await appPage.keyboard.press("Escape");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
+
+    await openGuidePanel(appPage);
+    await appPage.keyboard.press("Control+k");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
+    await expect(appPage.getByRole("dialog", { name: "Le Guide" })).toHaveCount(0);
     await appPage.keyboard.press("Escape");
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
 
@@ -677,6 +782,13 @@ test.describe("dashboard progression", () => {
 
     await appPage.keyboard.press("Escape");
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
+
+    await openGuidePanel(appPage);
+    await appPage.keyboard.press("Escape");
+    await expect(appPage.getByRole("dialog", { name: "Le Guide" })).toHaveCount(0);
+
+    await openWeeklyPlanPanel(appPage);
+    await expect(appPage.getByRole("dialog", { name: "Le Guide" })).toHaveCount(0);
   });
 
   test("opens quick add panel and filters foods with accent-insensitive search", async ({ appPage }) => {

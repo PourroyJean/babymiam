@@ -99,7 +99,7 @@ export default async function BlogPage() {
 
       <section id="guide-allergenes" className="blog-section">
         <h2>Guide pratique allergènes</h2>
-        <div className="allergenes-split">
+        <div className="blog-split">
           <article className="blog-article">
             <h3>Comment introduire les allergènes de façon sûre et efficace</h3>
             <p>
@@ -267,6 +267,7 @@ export default async function BlogPage() {
           </aside>
         </div>
       </section>
+
     </main>
   );
 }

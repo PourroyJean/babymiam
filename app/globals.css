@@ -1389,7 +1389,7 @@ a {
 
 .blog-toc-links {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
 }
 
@@ -1463,7 +1463,7 @@ a {
   gap: 6px;
 }
 
-.allergenes-split {
+.blog-split {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
   gap: 14px;
@@ -1998,6 +1998,314 @@ a {
 .categories-section {
   display: grid;
   gap: 12px;
+}
+
+.age-guidance-content {
+  display: grid;
+  gap: 16px;
+}
+
+.age-guidance-overview {
+  display: grid;
+  gap: 4px;
+}
+
+.age-guidance-overview-title {
+  margin: 0;
+  font-size: clamp(1.12rem, 2vw, 1.42rem);
+  line-height: 1.12;
+  font-weight: 800;
+  color: #4e3b28;
+}
+
+.age-guidance-overview-subtitle {
+  margin: 0;
+  color: #6f5d4a;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.age-guidance-column-kicker {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7a6649;
+}
+
+.age-guidance-summary {
+  margin: 0;
+  max-width: 68ch;
+  color: #514436;
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.age-guidance-stage-switcher {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.age-guidance-stage-tabs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  min-width: max-content;
+}
+
+.age-guidance-stage-tab {
+  min-height: 48px;
+  border: 1px solid rgba(138, 112, 79, 0.18);
+  border-radius: 18px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #4a3b2d;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.age-guidance-stage-tab:hover {
+  transform: translateY(-1px);
+  background: #fff8ef;
+}
+
+.age-guidance-stage-tab:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.age-guidance-stage-tab.is-selected {
+  border-color: #8b6b2d;
+  background: linear-gradient(180deg, #fff2d8 0%, #fff9ef 100%);
+  box-shadow: 0 0 0 1px rgba(139, 107, 45, 0.12);
+}
+
+.age-guidance-stage-tab.is-current {
+  border-width: 2px;
+  border-color: #6a9d74;
+}
+
+.age-guidance-stage-tab-label {
+  white-space: nowrap;
+}
+
+.age-guidance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.age-guidance-column {
+  border: 1px solid rgba(128, 103, 73, 0.12);
+  border-radius: 22px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(4px);
+  display: grid;
+  gap: 14px;
+}
+
+.age-guidance-column-head {
+  display: grid;
+  gap: 4px;
+}
+
+.age-guidance-column-head-row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(220px, max-content);
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.age-guidance-column-head h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #4d3e2f;
+}
+
+.age-guidance-stage-meta {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.age-guidance-stage-meta-pill {
+  border: 1px solid rgba(107, 149, 115, 0.2);
+  border-radius: 18px;
+  padding: 14px 16px;
+  min-width: 220px;
+  background: linear-gradient(180deg, rgba(242, 250, 243, 0.98) 0%, rgba(255, 255, 255, 0.94) 100%);
+  color: #46674f;
+  font-size: 0.96rem;
+  line-height: 1.35;
+  font-weight: 800;
+}
+
+.age-guidance-priority-list,
+.age-guidance-side-list,
+.age-guidance-reminder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.age-guidance-priority-list,
+.age-guidance-side-list {
+  display: grid;
+  gap: 10px;
+}
+
+.age-guidance-priority {
+  border-radius: 18px;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.age-guidance-priority-action {
+  border: 1px solid rgba(183, 129, 66, 0.24);
+  background: linear-gradient(180deg, rgba(255, 246, 228, 0.98) 0%, rgba(255, 252, 247, 0.92) 100%);
+}
+
+.age-guidance-priority-progress {
+  border: 1px solid rgba(108, 159, 118, 0.2);
+  background: linear-gradient(180deg, rgba(242, 250, 243, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.age-guidance-priority-attention {
+  border: 1px solid rgba(107, 132, 165, 0.18);
+  background: linear-gradient(180deg, rgba(242, 247, 253, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.age-guidance-priority-badge {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7b6648;
+}
+
+.age-guidance-priority h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #493828;
+}
+
+.age-guidance-priority p:last-child {
+  margin: 0;
+  color: #56493b;
+  line-height: 1.45;
+}
+
+.age-guidance-card-bullets {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  color: #56493b;
+  display: grid;
+  gap: 6px;
+}
+
+.age-guidance-card-bullets li {
+  line-height: 1.4;
+}
+
+.age-guidance-reminder-list {
+  display: grid;
+  gap: 10px;
+}
+
+.age-guidance-reminder-list li {
+  position: relative;
+  padding-left: 18px;
+  color: #56493b;
+  line-height: 1.45;
+}
+
+.age-guidance-reminder-list li::before {
+  content: "";
+  position: absolute;
+  top: 0.58em;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #8ab486 0%, #6ca76d 100%);
+}
+
+.age-guidance-empty-state {
+  border: 1px dashed rgba(146, 130, 108, 0.34);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 252, 247, 0.72);
+  display: grid;
+  gap: 6px;
+}
+
+.age-guidance-empty-state h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #4d3e2f;
+}
+
+.age-guidance-empty-state p {
+  margin: 0;
+  color: #746352;
+  line-height: 1.5;
+}
+
+.age-guidance-empty-state-muted {
+  background: rgba(250, 248, 244, 0.82);
+}
+
+.age-guidance-footer {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #746352;
+}
+
+.guide-trigger-btn {
+  border: 1px solid #c8b997;
+  border-radius: 999px;
+  background: linear-gradient(160deg, #f9f0de 0%, #f4fbef 100%);
+  color: #4a3b2d;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-trigger-btn:hover {
+  background: linear-gradient(160deg, #f4e8d0 0%, #ebf6e7 100%);
+}
+
+.guide-trigger-btn:focus-visible {
+  outline: 2px solid #8f7646;
+  outline-offset: 2px;
+}
+
+.guide-badge {
+  border: 1px solid #9c8b62;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.71rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #fff;
+  color: #6d5732;
+  font-weight: 900;
 }
 
 .categories-toolbar {
@@ -2542,6 +2850,89 @@ a {
 
 .weekly-plan-upgrade-link:hover {
   background: #edf8fb;
+}
+
+.guide-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1210;
+  background: rgba(47, 36, 24, 0.36);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.guide-panel-modal {
+  width: min(100%, 1680px);
+  max-height: min(88vh, 980px);
+  border-radius: 24px;
+  border: 1px solid #dcc9ae;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(245, 214, 156, 0.3), transparent 34%),
+    radial-gradient(circle at 100% 12%, rgba(182, 220, 192, 0.28), transparent 30%),
+    linear-gradient(180deg, #fff9ef 0%, #fffdf9 42%, #f5fbf3 100%);
+  box-shadow: 0 22px 42px rgba(54, 41, 21, 0.2);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.guide-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-panel-header h2 {
+  margin: 0;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  color: #4e3b28;
+}
+
+.guide-panel-content {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.guide-panel-lock-state {
+  border: 1px solid #d7c6a7;
+  border-radius: 18px;
+  background: linear-gradient(165deg, rgba(255, 246, 228, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.guide-panel-lock-state h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #4d3e2f;
+}
+
+.guide-panel-lock-state p {
+  margin: 0;
+  color: #5e503f;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.guide-panel-upgrade-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #9b885f;
+  border-radius: 999px;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: #6c5631;
+  background: #fff;
+  font-weight: 800;
+}
+
+.guide-panel-upgrade-link:hover {
+  background: #fff8ee;
 }
 
 .weekly-plan-upgrade-link:focus-visible {
@@ -4030,9 +4421,14 @@ a {
     font-size: 0.98rem;
   }
 
-  .public-share-kpi-grid,
-  .public-share-donut-layout {
+  .public-share-kpi-grid {
     grid-template-columns: 1fr;
+  }
+
+  .public-share-donut-layout {
+    grid-template-columns: minmax(0, 156px) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
   }
 
   .public-share-kpi-main strong {
@@ -4068,13 +4464,6 @@ a {
     letter-spacing: -0.015em;
   }
 
-  .public-share-donut-legend-button {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "label value"
-      "label percent";
-  }
-
   .public-share-donut-legend-label {
     grid-area: label;
   }
@@ -4088,53 +4477,81 @@ a {
     justify-self: end;
   }
 
+  .public-share-donut {
+    width: min(100%, 156px);
+  }
+
+  .public-share-donut-center {
+    gap: 2px;
+  }
+
+  .public-share-donut-center strong {
+    font-size: 2.2rem;
+  }
+
   .public-share-donut-legend {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 8px;
+    align-self: center;
   }
 
   .public-share-donut-legend-button {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "label label"
-      "value percent";
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "label value percent";
     min-height: 0;
-    gap: 4px 6px;
-    padding: 11px 9px 12px;
+    gap: 8px;
+    padding: 10px 12px;
     border-radius: 16px;
-    align-items: end;
+    align-items: center;
   }
 
   .public-share-donut-legend-label {
-    gap: 5px;
-    font-size: 0.88rem;
+    gap: 6px;
+    font-size: 0.84rem;
     letter-spacing: -0.01em;
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.1;
   }
 
   .public-share-donut-legend-button strong {
-    font-size: 1.35rem;
+    font-size: 1.12rem;
     line-height: 1;
   }
 
   .public-share-donut-legend-button > span:last-child {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     line-height: 1;
+    justify-self: end;
   }
 
   .public-share-donut-legend-dot {
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.72);
   }
 
   .public-share-category-bars {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .public-share-category-bar {
+    padding: 12px;
+    gap: 10px;
   }
 
   .public-share-category-bar-head {
     align-items: flex-start;
     grid-template-columns: 1fr;
+  }
+
+  .public-share-category-bar-head p {
+    gap: 8px;
+    font-size: 0.96rem;
+  }
+
+  .public-share-category-bar-head strong {
+    font-size: 0.88rem;
   }
 
   .public-share-line-x-label,
@@ -4273,7 +4690,7 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .allergenes-split {
+  .blog-split {
     grid-template-columns: 1fr;
   }
 
@@ -4315,6 +4732,31 @@ a {
     flex-direction: column;
   }
 
+  .age-guidance-overview {
+    gap: 6px;
+  }
+
+  .age-guidance-stage-tab {
+    min-height: 44px;
+  }
+
+  .age-guidance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .age-guidance-stage-meta {
+    justify-content: flex-start;
+  }
+
+  .age-guidance-stage-meta-pill {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .age-guidance-column-head-row {
+    grid-template-columns: 1fr;
+  }
+
   .toolbox-toggle {
     width: 100%;
     justify-content: space-between;
@@ -4349,6 +4791,11 @@ a {
 
   .weekly-plan-badge {
     align-self: flex-end;
+  }
+
+  .guide-trigger-btn {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .quick-add-trigger-btn {
@@ -4405,6 +4852,34 @@ a {
   }
 
   .weekly-plan-content {
+    max-height: none;
+    overflow-y: auto;
+  }
+
+  .guide-panel-overlay {
+    padding: 0;
+    place-items: end stretch;
+  }
+
+  .guide-panel-modal {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    padding: 10px;
+    box-shadow: none;
+  }
+
+  .guide-panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: linear-gradient(180deg, #fff9ef 0%, #fcfdf9 56%, #f5fbf3 100%);
+    padding-bottom: 2px;
+  }
+
+  .guide-panel-content {
     max-height: none;
     overflow-y: auto;
   }
