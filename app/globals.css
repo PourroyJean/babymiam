@@ -4299,9 +4299,14 @@ a {
     font-size: 0.98rem;
   }
 
-  .public-share-kpi-grid,
-  .public-share-donut-layout {
+  .public-share-kpi-grid {
     grid-template-columns: 1fr;
+  }
+
+  .public-share-donut-layout {
+    grid-template-columns: minmax(0, 156px) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
   }
 
   .public-share-kpi-main strong {
@@ -4337,13 +4342,6 @@ a {
     letter-spacing: -0.015em;
   }
 
-  .public-share-donut-legend-button {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "label value"
-      "label percent";
-  }
-
   .public-share-donut-legend-label {
     grid-area: label;
   }
@@ -4357,53 +4355,81 @@ a {
     justify-self: end;
   }
 
+  .public-share-donut {
+    width: min(100%, 156px);
+  }
+
+  .public-share-donut-center {
+    gap: 2px;
+  }
+
+  .public-share-donut-center strong {
+    font-size: 2.2rem;
+  }
+
   .public-share-donut-legend {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 8px;
+    align-self: center;
   }
 
   .public-share-donut-legend-button {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "label label"
-      "value percent";
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: "label value percent";
     min-height: 0;
-    gap: 4px 6px;
-    padding: 11px 9px 12px;
+    gap: 8px;
+    padding: 10px 12px;
     border-radius: 16px;
-    align-items: end;
+    align-items: center;
   }
 
   .public-share-donut-legend-label {
-    gap: 5px;
-    font-size: 0.88rem;
+    gap: 6px;
+    font-size: 0.84rem;
     letter-spacing: -0.01em;
-    white-space: nowrap;
+    white-space: normal;
+    line-height: 1.1;
   }
 
   .public-share-donut-legend-button strong {
-    font-size: 1.35rem;
+    font-size: 1.12rem;
     line-height: 1;
   }
 
   .public-share-donut-legend-button > span:last-child {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     line-height: 1;
+    justify-self: end;
   }
 
   .public-share-donut-legend-dot {
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.72);
   }
 
   .public-share-category-bars {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .public-share-category-bar {
+    padding: 12px;
+    gap: 10px;
   }
 
   .public-share-category-bar-head {
     align-items: flex-start;
     grid-template-columns: 1fr;
+  }
+
+  .public-share-category-bar-head p {
+    gap: 8px;
+    font-size: 0.96rem;
+  }
+
+  .public-share-category-bar-head strong {
+    font-size: 0.88rem;
   }
 
   .public-share-line-x-label,
