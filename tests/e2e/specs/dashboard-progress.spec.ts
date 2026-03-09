@@ -21,6 +21,14 @@ function getIsoDateDaysAgo(daysAgo: number) {
   return localDate.toISOString().slice(0, 10);
 }
 
+function getIsoDateMonthsAgoOnFirstDay(monthsAgo: number) {
+  const normalizedMonthsAgo = Math.max(0, Math.trunc(monthsAgo));
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth() - normalizedMonthsAgo, 1);
+  const localDate = new Date(target.getTime() - target.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
 function formatDateToFr(value: string) {
   const [year, month, day] = value.split("-");
   if (!year || !month || !day) return value;
@@ -200,6 +208,72 @@ test.describe("dashboard progression", () => {
     const editor = getTastingEditor(appPage, "Épinard", 1);
     await expect(editor).toBeVisible();
     await expect(editor.getByText("Louise a aimé ?")).toBeVisible();
+  });
+
+  test("shows a clickable age guide frieze with direct actions when the child profile is known", async ({
+    appPage,
+    db
+  }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany(
+      `
+        INSERT INTO child_profiles (owner_id, first_name, birth_date, updated_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (owner_id)
+        DO UPDATE SET
+          first_name = EXCLUDED.first_name,
+          birth_date = EXCLUDED.birth_date,
+          updated_at = NOW();
+      `,
+      [ownerId, "Louise", getIsoDateMonthsAgoOnFirstDay(7)]
+    );
+
+    await appPage.reload();
+
+    const guidancePanel = appPage.getByRole("region", { name: "Le Guide" });
+    await expect(guidancePanel.getByRole("button", { name: /6-8 mois/i })).toHaveAttribute("aria-pressed", "true");
+    await expect(guidancePanel.getByRole("button", { name: /Avant 5 m/i })).toBeVisible();
+    await expect(guidancePanel.getByRole("button", { name: /12-18 mois/i })).toBeVisible();
+    await expect(guidancePanel.getByRole("button", { name: /18-36 mois/i })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Faire grandir les repas sans brusquer" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Observer avant d'accélérer" })).toBeVisible();
+    await expect(
+      guidancePanel.getByText(
+        "Texture: purées moins lisses, plus épaisses, légèrement granuleuses. Premiers morceaux fondants si bébé tient assis avec maintien."
+      )
+    ).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Préparation" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Élargir les bases du quotidien" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Introduire de très petites portions bien mixées" })).toBeVisible();
+
+    await guidancePanel.getByRole("button", { name: /9-11 mois/i }).click();
+    await expect(guidancePanel.getByRole("button", { name: /9-11 mois/i })).toHaveAttribute("aria-pressed", "true");
+    await expect(guidancePanel.getByRole("heading", { name: "9-11 mois" })).toBeVisible();
+    await expect(guidancePanel.getByText("Cette colonne accueillera les points de vigilance et les repères transverses.")).toBeVisible();
+
+    await expect(guidancePanel.getByRole("button", { name: "Rechercher un aliment" })).toHaveCount(0);
+    await expect(guidancePanel.getByRole("button", { name: "Ajouter une dégustation" })).toHaveCount(0);
+  });
+
+  test("shows the guide even without birth date and lets the parent browse the blocks", async ({ appPage, db }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany("DELETE FROM child_profiles WHERE owner_id = $1;", [ownerId]);
+
+    await appPage.reload();
+
+    const guidancePanel = appPage.getByRole("region", { name: "Le Guide" });
+    await expect(guidancePanel.getByRole("button", { name: /5 mois/i })).toHaveAttribute("aria-pressed", "true");
+    await expect(guidancePanel.getByRole("heading", { name: "Signes que bébé pourrait être prêt" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Rester souple et progressif" })).toBeVisible();
+    await expect(guidancePanel.getByText("Texture conseillée: purée lisse")).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Préparation" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Préparer une première purée très simple" })).toBeVisible();
+    await expect(guidancePanel.getByRole("heading", { name: "Introduire les fruits après quinze jours environ" })).toBeVisible();
+
+    await guidancePanel.getByRole("button", { name: /18-36 mois/i }).click();
+    await expect(guidancePanel.getByRole("button", { name: /18-36 mois/i })).toHaveAttribute("aria-pressed", "true");
+    await expect(guidancePanel.getByRole("heading", { name: "18-36 mois" })).toBeVisible();
+    await expect(guidancePanel.getByText("Les repères détaillés de cette tranche d'âge seront ajoutés ici.")).toBeVisible();
   });
 
   test("toolbox toggle filters the app to already-tested foods", async ({ appPage, db }) => {

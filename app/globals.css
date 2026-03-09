@@ -1377,7 +1377,7 @@ a {
 
 .blog-toc-links {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
 }
 
@@ -1451,7 +1451,7 @@ a {
   gap: 6px;
 }
 
-.allergenes-split {
+.blog-split {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
   gap: 14px;
@@ -1986,6 +1986,287 @@ a {
 .categories-section {
   display: grid;
   gap: 12px;
+}
+
+.age-guidance-panel {
+  border: 1px solid #e5d4bc;
+  border-radius: 26px;
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(245, 214, 156, 0.4), transparent 34%),
+    radial-gradient(circle at 100% 12%, rgba(182, 220, 192, 0.38), transparent 30%),
+    linear-gradient(135deg, #fff7ec 0%, #fffdf9 48%, #f5fbf3 100%);
+  box-shadow: 0 18px 32px rgba(72, 54, 30, 0.08);
+}
+
+.age-guidance-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.age-guidance-title-block {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.age-guidance-column-kicker {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7a6649;
+}
+
+.age-guidance-title-block h2 {
+  margin: 0;
+  font-size: clamp(1.45rem, 2.6vw, 2.2rem);
+  line-height: 1.02;
+  color: #4e3b28;
+}
+
+.age-guidance-summary {
+  margin: 0;
+  max-width: 68ch;
+  color: #514436;
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.age-guidance-stage-switcher {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.age-guidance-stage-tabs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  min-width: max-content;
+}
+
+.age-guidance-stage-tab {
+  min-height: 48px;
+  border: 1px solid rgba(138, 112, 79, 0.18);
+  border-radius: 18px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #4a3b2d;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.age-guidance-stage-tab:hover {
+  transform: translateY(-1px);
+  background: #fff8ef;
+}
+
+.age-guidance-stage-tab:focus-visible {
+  outline: 2px solid #9b7a3d;
+  outline-offset: 2px;
+}
+
+.age-guidance-stage-tab.is-selected {
+  border-color: #8b6b2d;
+  background: linear-gradient(180deg, #fff2d8 0%, #fff9ef 100%);
+  box-shadow: 0 0 0 1px rgba(139, 107, 45, 0.12);
+}
+
+.age-guidance-stage-tab.is-current {
+  border-width: 2px;
+  border-color: #6a9d74;
+}
+
+.age-guidance-stage-tab-label {
+  white-space: nowrap;
+}
+
+.age-guidance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.age-guidance-column {
+  border: 1px solid rgba(128, 103, 73, 0.12);
+  border-radius: 22px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(4px);
+  display: grid;
+  gap: 14px;
+}
+
+.age-guidance-column-head {
+  display: grid;
+  gap: 4px;
+}
+
+.age-guidance-column-head-row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(220px, max-content);
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.age-guidance-column-head h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #4d3e2f;
+}
+
+.age-guidance-stage-meta {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.age-guidance-stage-meta-pill {
+  border: 1px solid rgba(107, 149, 115, 0.2);
+  border-radius: 18px;
+  padding: 14px 16px;
+  min-width: 220px;
+  background: linear-gradient(180deg, rgba(242, 250, 243, 0.98) 0%, rgba(255, 255, 255, 0.94) 100%);
+  color: #46674f;
+  font-size: 0.96rem;
+  line-height: 1.35;
+  font-weight: 800;
+}
+
+.age-guidance-priority-list,
+.age-guidance-side-list,
+.age-guidance-reminder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.age-guidance-priority-list,
+.age-guidance-side-list {
+  display: grid;
+  gap: 10px;
+}
+
+.age-guidance-priority {
+  border-radius: 18px;
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+}
+
+.age-guidance-priority-action {
+  border: 1px solid rgba(183, 129, 66, 0.24);
+  background: linear-gradient(180deg, rgba(255, 246, 228, 0.98) 0%, rgba(255, 252, 247, 0.92) 100%);
+}
+
+.age-guidance-priority-progress {
+  border: 1px solid rgba(108, 159, 118, 0.2);
+  background: linear-gradient(180deg, rgba(242, 250, 243, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.age-guidance-priority-attention {
+  border: 1px solid rgba(107, 132, 165, 0.18);
+  background: linear-gradient(180deg, rgba(242, 247, 253, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+}
+
+.age-guidance-priority-badge {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7b6648;
+}
+
+.age-guidance-priority h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #493828;
+}
+
+.age-guidance-priority p:last-child {
+  margin: 0;
+  color: #56493b;
+  line-height: 1.45;
+}
+
+.age-guidance-card-bullets {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  color: #56493b;
+  display: grid;
+  gap: 6px;
+}
+
+.age-guidance-card-bullets li {
+  line-height: 1.4;
+}
+
+.age-guidance-reminder-list {
+  display: grid;
+  gap: 10px;
+}
+
+.age-guidance-reminder-list li {
+  position: relative;
+  padding-left: 18px;
+  color: #56493b;
+  line-height: 1.45;
+}
+
+.age-guidance-reminder-list li::before {
+  content: "";
+  position: absolute;
+  top: 0.58em;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #8ab486 0%, #6ca76d 100%);
+}
+
+.age-guidance-empty-state {
+  border: 1px dashed rgba(146, 130, 108, 0.34);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(255, 252, 247, 0.72);
+  display: grid;
+  gap: 6px;
+}
+
+.age-guidance-empty-state h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #4d3e2f;
+}
+
+.age-guidance-empty-state p {
+  margin: 0;
+  color: #746352;
+  line-height: 1.5;
+}
+
+.age-guidance-empty-state-muted {
+  background: rgba(250, 248, 244, 0.82);
+}
+
+.age-guidance-footer {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #746352;
 }
 
 .categories-toolbar {
@@ -4261,7 +4542,7 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .allergenes-split {
+  .blog-split {
     grid-template-columns: 1fr;
   }
 
@@ -4301,6 +4582,31 @@ a {
   .categories-toolbar-actions {
     width: 100%;
     flex-direction: column;
+  }
+
+  .age-guidance-hero {
+    flex-direction: column;
+  }
+
+  .age-guidance-stage-tab {
+    min-height: 44px;
+  }
+
+  .age-guidance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .age-guidance-stage-meta {
+    justify-content: flex-start;
+  }
+
+  .age-guidance-stage-meta-pill {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .age-guidance-column-head-row {
+    grid-template-columns: 1fr;
   }
 
   .toolbox-toggle {

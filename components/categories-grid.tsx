@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setFinalPreferenceAction } from "@/app/actions";
+import { AgeGuidancePanel } from "@/components/age-guidance-panel";
 import { AddFoodPanel } from "@/components/add-food-panel";
 import { FoodSummaryModal } from "@/components/food-summary-modal";
 import { QuickAddPanel } from "@/components/quick-add-panel";
@@ -12,11 +13,13 @@ import { getCategoryUi } from "@/lib/category-ui";
 import { buildCategoryKpi, buildTimelineEntries } from "@/lib/dashboard-read-model";
 import { getClientTimezoneOffsetMinutes } from "@/lib/date-utils";
 import { buildWeeklyDiscoveryPlan } from "@/lib/weekly-discovery-plan";
+import type { AgeGuidanceSnapshot } from "@/lib/age-guidance";
 import type { DashboardCategory, DashboardFood, FinalPreferenceValue, FoodTimelineEntry } from "@/lib/types";
 import { getNextFinalPreference, getRedirectUrlFromError, normalizeSearchValue } from "@/lib/ui-utils";
 import { WeeklyPlanPanel } from "@/components/weekly-plan-panel";
 
 type CategoriesGridProps = {
+  ageGuidance: AgeGuidanceSnapshot;
   categories: DashboardCategory[];
   toneByCategory: Record<string, string>;
   childFirstName?: string | null;
@@ -88,6 +91,7 @@ function triggerFileDownload(blob: Blob, filename: string) {
 }
 
 export function CategoriesGrid({
+  ageGuidance,
   categories,
   toneByCategory,
   childFirstName = null,
@@ -661,6 +665,8 @@ export function CategoriesGrid({
 
   return (
     <section className="categories-section">
+      <AgeGuidancePanel guidance={ageGuidance} />
+
       <div className="categories-toolbar">
         <section className="toolbox-card">
           <div className="categories-toolbar-actions">

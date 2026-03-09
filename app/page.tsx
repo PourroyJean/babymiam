@@ -1,4 +1,5 @@
 import { requireVerifiedAuth } from "@/lib/auth";
+import { buildAgeGuidanceSnapshot } from "@/lib/age-guidance";
 import { CATEGORY_TONE_BY_NAME } from "@/lib/category-ui";
 import { buildProgressSummary } from "@/lib/dashboard-read-model";
 import { getChildProfile, getDashboardData } from "@/lib/data";
@@ -25,6 +26,9 @@ export default async function DashboardPage() {
   }
 
   const progressSummary = buildProgressSummary(categories);
+  const ageGuidance = await buildAgeGuidanceSnapshot({
+    childProfile
+  });
   const dashboardTitle = `Les premiers aliments de ${childProfile?.firstName ?? "bébé"}`;
 
   return (
@@ -44,6 +48,7 @@ export default async function DashboardPage() {
       ) : null}
 
       <CategoriesGrid
+        ageGuidance={ageGuidance}
         categories={categories}
         toneByCategory={CATEGORY_TONE_BY_NAME}
         childFirstName={childProfile?.firstName ?? null}
