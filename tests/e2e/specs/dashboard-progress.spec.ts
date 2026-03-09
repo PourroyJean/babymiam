@@ -63,6 +63,13 @@ async function openWeeklyPlanPanel(page: Page) {
   return { dialog };
 }
 
+async function openGuidePanel(page: Page) {
+  await page.getByRole("button", { name: /^Le Guide/i }).click();
+  const dialog = page.getByRole("dialog", { name: "Le Guide" });
+  await expect(dialog).toBeVisible();
+  return { dialog };
+}
+
 async function openTimelinePanel(page: Page) {
   await page.getByRole("button", { name: /Carnets de bords/i }).click();
   const dialog = page.getByRole("dialog", { name: /Carnets de bords/i });
@@ -230,7 +237,8 @@ test.describe("dashboard progression", () => {
 
     await appPage.reload();
 
-    const guidancePanel = appPage.getByRole("region", { name: "Le Guide" });
+    await expect(appPage.getByRole("region", { name: "Le Guide" })).toHaveCount(0);
+    const { dialog: guidancePanel } = await openGuidePanel(appPage);
     await expect(guidancePanel.getByRole("button", { name: /6-8 mois/i })).toHaveAttribute("aria-pressed", "true");
     await expect(guidancePanel.getByRole("button", { name: /Avant 5 m/i })).toBeVisible();
     await expect(guidancePanel.getByRole("button", { name: /12-18 mois/i })).toBeVisible();
@@ -261,7 +269,8 @@ test.describe("dashboard progression", () => {
 
     await appPage.reload();
 
-    const guidancePanel = appPage.getByRole("region", { name: "Le Guide" });
+    await expect(appPage.getByRole("region", { name: "Le Guide" })).toHaveCount(0);
+    const { dialog: guidancePanel } = await openGuidePanel(appPage);
     await expect(guidancePanel.getByRole("button", { name: /5 mois/i })).toHaveAttribute("aria-pressed", "true");
     await expect(guidancePanel.getByRole("heading", { name: "Signes que bébé pourrait être prêt" })).toBeVisible();
     await expect(guidancePanel.getByRole("heading", { name: "Rester souple et progressif" })).toBeVisible();
@@ -724,7 +733,22 @@ test.describe("dashboard progression", () => {
     }
   });
 
-  test("keeps overlays exclusive between Search, Timeline, Weekly Plan and Quick Add", async ({ appPage }) => {
+  test("guide shows the premium lock state when user has no access", async ({ appPage, db }) => {
+    const ownerId = await db.getDefaultOwnerId();
+    await db.queryMany("UPDATE users SET email = $2 WHERE id = $1;", [ownerId, "guide-free@example.test"]);
+
+    try {
+      await appPage.reload();
+      const { dialog } = await openGuidePanel(appPage);
+      await expect(dialog.getByRole("heading", { name: "Fonction Premium" })).toBeVisible();
+      await expect(dialog.getByRole("link", { name: /Voir mon espace premium/i })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: /5 mois/i })).toHaveCount(0);
+    } finally {
+      await db.queryMany("UPDATE users SET email = $2 WHERE id = $1;", [ownerId, DEFAULT_E2E_AUTH_EMAIL]);
+    }
+  });
+
+  test("keeps overlays exclusive between Search, Timeline, Guide, Weekly Plan and Quick Add", async ({ appPage }) => {
     await appPage.getByRole("button", { name: /Carnets de bords/i }).click();
     await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toBeVisible();
 
@@ -732,6 +756,13 @@ test.describe("dashboard progression", () => {
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
     await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toHaveCount(0);
 
+    await appPage.keyboard.press("Escape");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
+
+    await openGuidePanel(appPage);
+    await appPage.keyboard.press("Control+k");
+    await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toBeVisible();
+    await expect(appPage.getByRole("dialog", { name: "Le Guide" })).toHaveCount(0);
     await appPage.keyboard.press("Escape");
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
 
@@ -751,6 +782,13 @@ test.describe("dashboard progression", () => {
 
     await appPage.keyboard.press("Escape");
     await expect(appPage.getByRole("dialog", { name: "Recherche globale" })).toHaveCount(0);
+
+    await openGuidePanel(appPage);
+    await appPage.keyboard.press("Escape");
+    await expect(appPage.getByRole("dialog", { name: "Le Guide" })).toHaveCount(0);
+
+    await openWeeklyPlanPanel(appPage);
+    await expect(appPage.getByRole("dialog", { name: "Le Guide" })).toHaveCount(0);
   });
 
   test("opens quick add panel and filters foods with accent-insensitive search", async ({ appPage }) => {

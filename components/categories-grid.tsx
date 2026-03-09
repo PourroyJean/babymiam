@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setFinalPreferenceAction } from "@/app/actions";
-import { AgeGuidancePanel } from "@/components/age-guidance-panel";
 import { AddFoodPanel } from "@/components/add-food-panel";
 import { FoodSummaryModal } from "@/components/food-summary-modal";
+import { GuidePanel } from "@/components/guide-panel";
 import { QuickAddPanel } from "@/components/quick-add-panel";
 import { SearchPanel } from "@/components/search-panel";
 import { TimelinePanel } from "@/components/timeline-panel";
@@ -23,7 +23,7 @@ type CategoriesGridProps = {
   categories: DashboardCategory[];
   toneByCategory: Record<string, string>;
   childFirstName?: string | null;
-  hasWeeklyPlanPremiumAccess: boolean;
+  hasPremiumAccess: boolean;
 };
 
 type SearchFood = DashboardFood & {
@@ -95,11 +95,12 @@ export function CategoriesGrid({
   categories,
   toneByCategory,
   childFirstName = null,
-  hasWeeklyPlanPremiumAccess
+  hasPremiumAccess
 }: CategoriesGridProps) {
   const [openByCategoryId, setOpenByCategoryId] = useState<Record<number, boolean>>({});
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isWeeklyPlanOpen, setIsWeeklyPlanOpen] = useState(false);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [quickAddPrefill, setQuickAddPrefill] = useState<QuickAddPrefill | null>(null);
@@ -113,6 +114,7 @@ export function CategoriesGrid({
   >({});
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const timelineTriggerRef = useRef<HTMLButtonElement>(null);
+  const guideTriggerRef = useRef<HTMLButtonElement>(null);
   const weeklyPlanTriggerRef = useRef<HTMLButtonElement>(null);
   const quickAddTriggerRef = useRef<HTMLButtonElement>(null);
   const addFoodTriggerRef = useRef<HTMLButtonElement>(null);
@@ -123,6 +125,7 @@ export function CategoriesGrid({
   const finalPreferenceOverridesRef = useRef<Record<number, FinalPreferenceValue>>({});
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const wasTimelineOpenRef = useRef(false);
+  const wasGuideOpenRef = useRef(false);
   const wasWeeklyPlanOpenRef = useRef(false);
   const wasQuickAddOpenRef = useRef(false);
   const wasAddFoodOpenRef = useRef(false);
@@ -147,6 +150,7 @@ export function CategoriesGrid({
 
   function openSearch() {
     setIsTimelineOpen(false);
+    setIsGuideOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
@@ -159,10 +163,24 @@ export function CategoriesGrid({
 
   function openTimeline() {
     setIsSearchOpen(false);
+    setIsGuideOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
     setIsTimelineOpen(true);
+  }
+
+  function closeGuide() {
+    setIsGuideOpen(false);
+  }
+
+  function openGuide() {
+    setIsSearchOpen(false);
+    setIsTimelineOpen(false);
+    setIsWeeklyPlanOpen(false);
+    setIsQuickAddOpen(false);
+    setIsAddFoodOpen(false);
+    setIsGuideOpen(true);
   }
 
   function closeWeeklyPlan() {
@@ -172,6 +190,7 @@ export function CategoriesGrid({
   function openWeeklyPlan() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
+    setIsGuideOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(false);
     setIsWeeklyPlanOpen(true);
@@ -185,6 +204,7 @@ export function CategoriesGrid({
   function openQuickAdd() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
+    setIsGuideOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsAddFoodOpen(false);
     setQuickAddPrefill(null);
@@ -194,6 +214,7 @@ export function CategoriesGrid({
   function openQuickAddForFood(foodId: number, foodName: string) {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
+    setIsGuideOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsAddFoodOpen(false);
     setQuickAddPrefill({ foodId, foodName });
@@ -207,6 +228,7 @@ export function CategoriesGrid({
   function openAddFood() {
     setIsSearchOpen(false);
     setIsTimelineOpen(false);
+    setIsGuideOpen(false);
     setIsWeeklyPlanOpen(false);
     setIsQuickAddOpen(false);
     setIsAddFoodOpen(true);
@@ -431,6 +453,7 @@ export function CategoriesGrid({
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setIsTimelineOpen(false);
+        setIsGuideOpen(false);
         setIsWeeklyPlanOpen(false);
         setIsQuickAddOpen(false);
         setIsAddFoodOpen(false);
@@ -447,6 +470,7 @@ export function CategoriesGrid({
 
         setIsSearchOpen(false);
         setIsTimelineOpen(false);
+        setIsGuideOpen(false);
         setIsWeeklyPlanOpen(false);
         setIsQuickAddOpen(false);
         setIsAddFoodOpen(false);
@@ -500,6 +524,18 @@ export function CategoriesGrid({
   }, [isTimelineOpen]);
 
   useEffect(() => {
+    if (isGuideOpen) {
+      wasGuideOpenRef.current = true;
+      return;
+    }
+
+    if (wasGuideOpenRef.current) {
+      guideTriggerRef.current?.focus();
+      wasGuideOpenRef.current = false;
+    }
+  }, [isGuideOpen]);
+
+  useEffect(() => {
     if (isWeeklyPlanOpen) {
       wasWeeklyPlanOpenRef.current = true;
       return;
@@ -539,6 +575,7 @@ export function CategoriesGrid({
     const hasOverlayOpen =
       isSearchOpen ||
       isTimelineOpen ||
+      isGuideOpen ||
       isWeeklyPlanOpen ||
       isQuickAddOpen ||
       isAddFoodOpen ||
@@ -551,7 +588,7 @@ export function CategoriesGrid({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isSearchOpen, isTimelineOpen, isWeeklyPlanOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
+  }, [isSearchOpen, isTimelineOpen, isGuideOpen, isWeeklyPlanOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -665,8 +702,6 @@ export function CategoriesGrid({
 
   return (
     <section className="categories-section">
-      <AgeGuidancePanel guidance={ageGuidance} />
-
       <div className="categories-toolbar">
         <section className="toolbox-card">
           <div className="categories-toolbar-actions">
@@ -708,6 +743,11 @@ export function CategoriesGrid({
                 </span>
               </span>
               <span className="weekly-plan-badge">Premium</span>
+            </button>
+
+            <button ref={guideTriggerRef} type="button" className="guide-trigger-btn" onClick={openGuide}>
+              <span>Le Guide</span>
+              <span className="guide-badge">Premium</span>
             </button>
 
             <button ref={quickAddTriggerRef} type="button" className="quick-add-trigger-btn" onClick={openQuickAdd}>
@@ -886,11 +926,18 @@ export function CategoriesGrid({
         childFirstName={childFirstName}
       />
 
+      <GuidePanel
+        guidance={ageGuidance}
+        isOpen={isGuideOpen}
+        hasPremiumAccess={hasPremiumAccess}
+        onClose={closeGuide}
+      />
+
       <WeeklyPlanPanel
         isOpen={isWeeklyPlanOpen}
         isSummaryOpen={isSummaryOpen}
         onClose={closeWeeklyPlan}
-        hasPremiumAccess={hasWeeklyPlanPremiumAccess}
+        hasPremiumAccess={hasPremiumAccess}
         plan={weeklyPlan}
         openFoodSummary={openFoodSummary}
         openQuickAddForFood={openQuickAddForFood}

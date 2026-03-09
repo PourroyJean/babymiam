@@ -157,8 +157,6 @@ Nous utilisons `node-pg-migrate` pour versionner le schéma.
 - `PREMIUM_GATE_MODE` (`auto|on|off`)
 - `PREMIUM_FEATURE_USER_IDS`
 - `PREMIUM_FEATURE_USER_EMAILS`
-- `PEDIATRIC_REPORT_PREMIUM_USER_IDS`
-- `PEDIATRIC_REPORT_PREMIUM_USER_EMAILS`
 - `ALLOW_MIGRATE_SKIP` (`1` pour autoriser explicitement un skip manuel de migration en local)
 - `E2E_ALLOW_REMOTE_DB_RESET` (`1` pour autoriser un reset destructif E2E sur host non local)
 

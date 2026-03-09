@@ -2,7 +2,7 @@ import { requireVerifiedAuth } from "@/lib/auth";
 import { getChildProfile, getDashboardData, getFoodTimeline } from "@/lib/data";
 import { normalizeTimezoneOffsetMinutes } from "@/lib/date-utils";
 import { buildPediatricReportFileName, buildPediatricReportLines } from "@/lib/pediatric-report";
-import { hasPremiumFeatureAccess } from "@/lib/premium-features";
+import { hasPremiumAccess } from "@/lib/premium-features";
 import { createTextPdfDocument } from "@/lib/simple-pdf";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ function getTimezoneOffsetFromRequest(request: Request) {
 
 export async function GET(request: Request) {
   const user = await requireVerifiedAuth();
-  if (!hasPremiumFeatureAccess(user, "pediatric_report_pdf")) {
+  if (!hasPremiumAccess(user)) {
     return new Response("Rapport pédiatre réservé à l'offre Premium.", {
       status: 402,
       headers: {

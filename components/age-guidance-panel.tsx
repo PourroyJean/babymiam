@@ -45,12 +45,11 @@ export function AgeGuidancePanel({ guidance }: AgeGuidancePanelProps) {
   }
 
   return (
-    <section className="age-guidance-panel" aria-labelledby="age-guidance-title">
-      <div className="age-guidance-hero">
-        <div className="age-guidance-title-block">
-          <h2 id="age-guidance-title">Le Guide</h2>
-        </div>
-      </div>
+    <div className="age-guidance-content">
+      <section className="age-guidance-overview" aria-label="Repère d'âge">
+        <p className="age-guidance-overview-title">{guidance.title}</p>
+        <p className="age-guidance-overview-subtitle">{guidance.subtitle}</p>
+      </section>
 
       <section className="age-guidance-stage-switcher" aria-label="Navigation entre les blocs d'âge">
         <ul className="age-guidance-stage-tabs">
@@ -145,6 +144,6 @@ export function AgeGuidancePanel({ guidance }: AgeGuidancePanelProps) {
           <p className="age-guidance-footer">{guidance.footer}</p>
         </section>
       </div>
-    </section>
+    </div>
   );
 }

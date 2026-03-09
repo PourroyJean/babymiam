@@ -78,7 +78,7 @@
 - Lessons learned:
   - Pour aligner des colonnes dans un PDF texte, il faut une police monospaced (ex: `Courier`); des largeurs fixes ne suffisent pas avec `Helvetica`.
   - Le rendu monospaced base sur la presence de `|` cree des faux positifs (ex: ligne symptomes); utiliser un marqueur explicite (ex: `[[MONO]]`) pour les seules lignes tabulaires.
-  - Le gate premium du rapport PDF doit etre force en E2E (`PREMIUM_GATE_MODE=on`) avec allowlist explicite (`PEDIATRIC_REPORT_PREMIUM_USER_EMAILS`) pour garder des tests deterministes.
+  - Le gate premium doit etre force en E2E (`PREMIUM_GATE_MODE=on`) avec allowlist explicite (`PREMIUM_FEATURE_USER_EMAILS`) pour garder des tests deterministes.
   - Le endpoint `/api/pediatric-report` doit etre couvert aussi sur les chemins negatifs: user authentifie non premium -> `402`, non-auth -> redirection `307` vers `/login`.
 - Reliable commands:
   - `npm run lint -- --max-warnings=0`

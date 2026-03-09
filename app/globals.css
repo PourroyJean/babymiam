@@ -1988,30 +1988,29 @@ a {
   gap: 12px;
 }
 
-.age-guidance-panel {
-  border: 1px solid #e5d4bc;
-  border-radius: 26px;
-  padding: 18px;
+.age-guidance-content {
   display: grid;
   gap: 16px;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(245, 214, 156, 0.4), transparent 34%),
-    radial-gradient(circle at 100% 12%, rgba(182, 220, 192, 0.38), transparent 30%),
-    linear-gradient(135deg, #fff7ec 0%, #fffdf9 48%, #f5fbf3 100%);
-  box-shadow: 0 18px 32px rgba(72, 54, 30, 0.08);
 }
 
-.age-guidance-hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 18px;
-}
-
-.age-guidance-title-block {
-  min-width: 0;
+.age-guidance-overview {
   display: grid;
-  gap: 6px;
+  gap: 4px;
+}
+
+.age-guidance-overview-title {
+  margin: 0;
+  font-size: clamp(1.12rem, 2vw, 1.42rem);
+  line-height: 1.12;
+  font-weight: 800;
+  color: #4e3b28;
+}
+
+.age-guidance-overview-subtitle {
+  margin: 0;
+  color: #6f5d4a;
+  font-size: 0.94rem;
+  line-height: 1.45;
 }
 
 .age-guidance-column-kicker {
@@ -2021,13 +2020,6 @@ a {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #7a6649;
-}
-
-.age-guidance-title-block h2 {
-  margin: 0;
-  font-size: clamp(1.45rem, 2.6vw, 2.2rem);
-  line-height: 1.02;
-  color: #4e3b28;
 }
 
 .age-guidance-summary {
@@ -2267,6 +2259,41 @@ a {
   font-size: 0.82rem;
   line-height: 1.5;
   color: #746352;
+}
+
+.guide-trigger-btn {
+  border: 1px solid #c8b997;
+  border-radius: 999px;
+  background: linear-gradient(160deg, #f9f0de 0%, #f4fbef 100%);
+  color: #4a3b2d;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-trigger-btn:hover {
+  background: linear-gradient(160deg, #f4e8d0 0%, #ebf6e7 100%);
+}
+
+.guide-trigger-btn:focus-visible {
+  outline: 2px solid #8f7646;
+  outline-offset: 2px;
+}
+
+.guide-badge {
+  border: 1px solid #9c8b62;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.71rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #fff;
+  color: #6d5732;
+  font-weight: 900;
 }
 
 .categories-toolbar {
@@ -2811,6 +2838,89 @@ a {
 
 .weekly-plan-upgrade-link:hover {
   background: #edf8fb;
+}
+
+.guide-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1210;
+  background: rgba(47, 36, 24, 0.36);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.guide-panel-modal {
+  width: min(100%, 1680px);
+  max-height: min(88vh, 980px);
+  border-radius: 24px;
+  border: 1px solid #dcc9ae;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(245, 214, 156, 0.3), transparent 34%),
+    radial-gradient(circle at 100% 12%, rgba(182, 220, 192, 0.28), transparent 30%),
+    linear-gradient(180deg, #fff9ef 0%, #fffdf9 42%, #f5fbf3 100%);
+  box-shadow: 0 22px 42px rgba(54, 41, 21, 0.2);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.guide-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-panel-header h2 {
+  margin: 0;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  color: #4e3b28;
+}
+
+.guide-panel-content {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.guide-panel-lock-state {
+  border: 1px solid #d7c6a7;
+  border-radius: 18px;
+  background: linear-gradient(165deg, rgba(255, 246, 228, 0.98) 0%, rgba(255, 255, 255, 0.96) 100%);
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.guide-panel-lock-state h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #4d3e2f;
+}
+
+.guide-panel-lock-state p {
+  margin: 0;
+  color: #5e503f;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.guide-panel-upgrade-link {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #9b885f;
+  border-radius: 999px;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: #6c5631;
+  background: #fff;
+  font-weight: 800;
+}
+
+.guide-panel-upgrade-link:hover {
+  background: #fff8ee;
 }
 
 .weekly-plan-upgrade-link:focus-visible {
@@ -4610,8 +4720,8 @@ a {
     flex-direction: column;
   }
 
-  .age-guidance-hero {
-    flex-direction: column;
+  .age-guidance-overview {
+    gap: 6px;
   }
 
   .age-guidance-stage-tab {
@@ -4665,6 +4775,11 @@ a {
 
   .weekly-plan-badge {
     align-self: flex-end;
+  }
+
+  .guide-trigger-btn {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .quick-add-trigger-btn {
@@ -4721,6 +4836,34 @@ a {
   }
 
   .weekly-plan-content {
+    max-height: none;
+    overflow-y: auto;
+  }
+
+  .guide-panel-overlay {
+    padding: 0;
+    place-items: end stretch;
+  }
+
+  .guide-panel-modal {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    padding: 10px;
+    box-shadow: none;
+  }
+
+  .guide-panel-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: linear-gradient(180deg, #fff9ef 0%, #fcfdf9 56%, #f5fbf3 100%);
+    padding-bottom: 2px;
+  }
+
+  .guide-panel-content {
     max-height: none;
     overflow-y: auto;
   }

@@ -2,10 +2,7 @@
 
 const { Pool } = require("pg");
 const { resolveDatabaseUrl } = require("../db/_db-url");
-const {
-  hasPremiumFeatureAccess,
-  PEDIATRIC_REPORT_FEATURE
-} = require("../../lib/premium-entitlement-core");
+const { hasPremiumAccess } = require("../../lib/premium-entitlement-core");
 const {
   DEFAULT_PERSONAL_ACCESS_EMAIL
 } = require("./ensure-personal-access");
@@ -58,11 +55,7 @@ async function run() {
       throw new Error(`Expected email_verified_at to be non-null for ${personalAccessEmail}.`);
     }
 
-    const premium = hasPremiumFeatureAccess(
-      { id: Number(row.id), email: row.email },
-      PEDIATRIC_REPORT_FEATURE,
-      process.env
-    );
+    const premium = hasPremiumAccess({ id: Number(row.id), email: row.email }, process.env);
     if (!premium) {
       throw new Error(
         `Expected premium access for ${personalAccessEmail}, but entitlement check returned false.`
