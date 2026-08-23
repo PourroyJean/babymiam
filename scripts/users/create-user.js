@@ -10,7 +10,8 @@ function parseArgs(argv) {
     password: "",
     passwordStdin: false,
     status: "active",
-    verifyEmail: false
+    verifyEmail: false,
+    failIfExists: false
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -43,6 +44,10 @@ function parseArgs(argv) {
     if (arg === "--verify-email") {
       parsed.verifyEmail = true;
       continue;
+    }
+
+    if (arg === "--fail-if-exists") {
+      parsed.failIfExists = true;
     }
   }
 
@@ -81,8 +86,15 @@ async function readPasswordFromStdin() {
   return normalizePasswordFromStdin(Buffer.concat(chunks).toString("utf8"));
 }
 
-async function run() {
-  const args = parseArgs(process.argv.slice(2));
+async function run(options = {}) {
+  const {
+    argv = process.argv.slice(2),
+    createPool = (config) => new Pool(config),
+    hashPassword = (value, config) => argon2.hash(value, config),
+    resolveDb = resolveDatabaseUrl
+  } = options;
+
+  const args = parseArgs(argv);
   if (!args.email) {
     throw new Error("Argument manquant: --email");
   }
@@ -98,17 +110,28 @@ async function run() {
   const password = args.passwordStdin ? await readPasswordFromStdin() : args.password;
   assertPasswordPolicy(password);
 
-  const passwordHash = await argon2.hash(password, {
-    type: argon2.argon2id,
-    memoryCost: 19_456,
-    timeCost: 2,
-    parallelism: 1
-  });
-
-  const { databaseUrl } = resolveDatabaseUrl({ scriptName: "users:create" });
-  const pool = new Pool({ connectionString: databaseUrl });
+  const { databaseUrl } = resolveDb({ scriptName: "users:create" });
+  const pool = createPool({ connectionString: databaseUrl });
 
   try {
+    if (args.failIfExists) {
+      const existingUserResult = await pool.query(
+        "SELECT id FROM users WHERE lower(email) = lower($1) LIMIT 1;",
+        [args.email]
+      );
+
+      if (existingUserResult.rowCount > 0) {
+        throw new Error(`User already exists: ${args.email}`);
+      }
+    }
+
+    const passwordHash = await hashPassword(password, {
+      type: argon2.argon2id,
+      memoryCost: 19_456,
+      timeCost: 2,
+      parallelism: 1
+    });
+
     const queryText = args.verifyEmail
       ? `
         INSERT INTO users (email, password_hash, status, email_verified_at)
@@ -143,7 +166,17 @@ async function run() {
   }
 }
 
-run().catch((error) => {
-  console.error("[users:create] Failed:", error);
-  process.exit(1);
-});
+if (require.main === module) {
+  run().catch((error) => {
+    console.error("[users:create] Failed:", error);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  parseArgs,
+  assertPasswordPolicy,
+  normalizePasswordFromStdin,
+  readPasswordFromStdin,
+  run
+};
