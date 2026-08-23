@@ -27,6 +27,52 @@
   - `scripts/db/`, `scripts/e2e/`, `scripts/users/`: scripts operatifs
   - `tests/e2e/`: couverture Playwright
 
+## 2.1) Carte du code et navigation
+- Stack: Next.js 16 (App Router, `next build --webpack`), React 18, PostgreSQL (`pg`), node-pg-migrate, Argon2id, Resend, Playwright. Deploy Vercel. Nom package: `grrrignote`.
+- Sous-`AGENTS.md` dedies (details par domaine, ne pas dupliquer ici):
+  - `app/AGENTS.md` - routes App Router, route handlers, server actions
+  - `components/AGENTS.md` - inventaire UI (flat), split client/server, conventions modal/portal
+  - `lib/AGENTS.md` - auth, DB, data access, gating premium, tokens, contenu derive
+  - `migrations/AGENTS.md` - schema SQL et migrations sensibles
+  - `scripts/AGENTS.md` - operatifs db/users/e2e/dev/deploy
+  - `tests/e2e/AGENTS.md` - specs Playwright, reset DB, fixtures
+- Ou chercher (fichiers chauds):
+
+| Tache | Emplacement |
+|-------|-------------|
+| Auth session, secrets, reset password, verif email | `lib/auth.ts` (1034L) |
+| Resolution connexion DB (`LOCAL_POSTGRES_URL` > `POSTGRES_URL` > `DATABASE_URL`) | `lib/db.ts` |
+| Data access (tastings, progress, foods, profil, public share) | `lib/data.ts` (1234L) |
+| Controle d'acces aliment (garde owner-scoped principal, pas unique) | `lib/data.ts` -> `getAccessibleFoodById()` |
+| Gating premium (modes, allowlists, fallback perso) | `lib/premium-entitlement-core.js` |
+| Actions dashboard globales | `app/actions.ts` (429L) |
+| Actions compte (password, verif, public share) | `app/account/actions.ts` |
+| Orchestrateur UI (etat open/close panneaux) | `components/categories-grid.tsx` (970L) |
+| Classes CSS globales (aucun CSS module) | `app/globals.css` (5317L) |
+| Rapport pediatrique PDF | `lib/pediatric-report.ts` + `app/api/pediatric-report/route.ts` |
+| Metadata texture/reaction (enums, defaults, validators) | `lib/tasting-metadata.ts` |
+| Reset tables E2E (2 endroits a synchroniser) | `tests/e2e/helpers/db.ts` (956L) |
+| Middleware securite (CSP, auth, maintenance) | `proxy.ts` (+ `next.config.mjs` API-only) |
+
+## 2.2) Opérations prod ponctuelles
+- URL production : `https://grrrignote.fr`
+- Prérequis : être connecté via `vercel login` (ou avec un token configuré), vérifiable par `vercel whoami`. Le projet est déjà lié via `.vercel/project.json`, donc `vercel link` n'est pas nécessaire.
+- Connexion DB sécurisée (anti-footgun `LOCAL_POSTGRES_URL`) : séquence d'incantation exacte pour cibler la production :
+  1. `vercel env pull <tmp> --environment production --yes`
+  2. `source <tmp>`
+  3. `unset LOCAL_POSTGRES_URL` (évite de viser la base locale par erreur)
+  4. `export NODE_ENV=production`
+  5. `npm run db:preflight` (étape obligatoire pour valider `Env source` et confirmer que l'hôte n'est pas localhost avant toute modification).
+- Recettes d'exécution (via 3 scripts d'aide) :
+  - Inspection de base de données : `node scripts/db/query.js "SELECT ..." '[params]'`
+  - Création utilisateur (avec garde anti-écrasement) : `node scripts/users/create-user.js --email <email> --password-stdin --status active --verify-email --fail-if-exists`
+  - Attribution des droits premium : `node scripts/users/grant-premium.js <email> [--dry-run]`
+    Note : les variables d'environnement Vercel sont mises à jour, mais la modification requiert un nouveau déploiement via `npm run deploy:prod` pour devenir effective.
+- Modèle d'accès premium : géré par union de 5 variables dans `lib/premium-entitlement-core.js:60` et `lib/premium-entitlement-core.js:85` :
+  - Variables globales actives : `PREMIUM_FEATURE_USER_EMAILS`, `PREMIUM_FEATURE_USER_IDS`, `PREMIUM_GATE_MODE`.
+  - Variables de compatibilité legacy : `PEDIATRIC_REPORT_PREMIUM_USER_EMAILS`, `WEEKLY_DISCOVERY_PLAN_PREMIUM_USER_EMAILS`.
+  - Pas d'override, l'accès est accordé dès qu'une de ces listes valide l'utilisateur.
+
 ## 3) Safety rails / do-not-do (db/e2e/deploy)
 - DB:
   - Ne jamais executer de reset destructif sur une DB non locale.
@@ -58,7 +104,7 @@
 
 ## Session Lessons (2026-02-20)
 - Lessons learned:
-  - Pour une texture "aucune", conserver le modele metier `textureLevel = null` et centraliser le chemin d'icone dans une constante partagee (`TEXTURE_NONE_ICON_SRC`) dans `lib/tasting-metadata.ts`.
+  - Pour une texture "aucune", conserver le modele metier `textureLevel = null` (le type `TextureLevel` reste `1|2|3|4`). Correction (2026-08-23): il n'existe pas de constante `TEXTURE_NONE_ICON_SRC` dans `lib/tasting-metadata.ts` (qui ne definit que `TEXTURE_OPTIONS` niveaux 1-4); l'asset `texture-0-aucune.webp` est reference cote UI/CSS/E2E, pas via une constante partagee.
   - Le remplacement du fallback visuel `ø` par une image doit etre applique dans les deux surfaces: timeline (`components/timeline-panel.tsx`) et controle texture partage (`components/texture-segmented-control.tsx`).
   - Lors du retrait de `ø`, supprimer aussi les classes CSS obsoletes desktop + mobile (`.food-timeline-meta-chip-empty`, `.texture-segmented-empty-label`) pour eviter les styles morts.
   - Si une WebP convertie parait incorrecte, verifier d'abord le PNG source: la conversion peut etre correcte mais l'asset d'origine etre deja noir/plat.
