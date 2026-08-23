@@ -38,3 +38,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sisyphus/atlas orchestration state (local-only, never shipped)
+.sisyphus/

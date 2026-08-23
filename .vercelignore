@@ -8,3 +8,4 @@ coverage
 tmp
 .vercel
 node_modules
+.sisyphus
