@@ -4,7 +4,7 @@ Documentation opérationnelle des scripts Node.js du dépôt.
 
 ## db/
 
-- `_db-url.js` : Résout l'URL de connexion et l'environnement. Utilise le même ordre de priorité que `lib/db.ts`. Strict en production et CI. Pas de repli local en preflight.
+- `_db-url.js` : Résout l'URL de connexion et l'environnement. Utilise le même ordre de priorité que `lib/db.ts`. Strict en production et CI. Pas de repli local en preflight. Normalise `sslmode` (`require|prefer|verify-ca` → `verify-full`, sauf `uselibpqcompat=true`) pour tous les consommateurs. Exporte `resolveDatabaseUrl` (alias `resolveConnectionString`), `normalizeConnectionString`, `getEnvValue`, `isStrictRuntime`.
 
 - `preflight.js` : Verrouille l'accès en production ou CI. Exige une URL explicite de base de données. Refuse la variable `SKIP_DB_SETUP=1`. Exécute une requête `SELECT 1`.
 
@@ -14,6 +14,8 @@ Documentation opérationnelle des scripts Node.js du dépôt.
 
 - `seed.test.js` : Valide la sélection des aliments de démo et les comptes exacts. Vérifie les totaux de 45 lignes `food_progress`, 108 lignes `food_tastings` et la répartition stable par slots (45, 36, 27).
 
+- `query.js` : Runner de requête réutilisable pour inspection DB. `node scripts/db/query.js "SELECT ..." '[params]'` (params = tableau JSON optionnel) → lignes en JSON. Réutilise `_db-url.js` (SSL normalisé), ferme le pool proprement, exit ≠ 0 sur erreur. Remplace les one-liners `npx tsx -e` fragiles.
+
 ## users/
 
 - `_shared-test-link.js` : Utilitaire commun de gestion du lien de connexion. Détermine la base d'URL, résout les secrets d'authentification, calcule l'expiration du jeton, cherche le compte cible et gère la session.
@@ -22,13 +24,17 @@ Documentation opérationnelle des scripts Node.js du dépôt.
 
 - `assert-personal-access.js` : Contrôle de sécurité. Vérifie que le profil personnel existe, est actif, validé par e-mail et dispose de l'accès premium.
 
-- `create-user.js` : Commande d'inscription générale en ligne de commande. Lit le mot de passe depuis l'entrée standard ou en argument. Rend la vérification d'adresse optionnelle.
+- `create-user.js` : Commande d'inscription générale en ligne de commande. Lit le mot de passe depuis l'entrée standard ou en argument. Rend la vérification d'adresse optionnelle. Flag `--fail-if-exists` : garde anti-écrasement (SELECT préalable, échoue sans aucune écriture si l'email existe déjà). Sans le flag : upsert inchangé.
 
 - `test-link-generate.js` : Génère ou récupère le lien d'accès automatique. Se base sur `shared_test_link_issued_at` au lieu de `session_version`. Conserve le jeton actif s'il a moins de 31 jours. Crée une nouvelle date sinon. Affiche systématiquement le lien complet.
 
 - `test-link-revoke.js` : Révoque l'accès immédiat. Incrémente `session_version` et réinitialise `shared_test_link_issued_at` à nul. Invalide ainsi les jetons générés et déconnecte les sessions existantes.
 
 - `ensure-personal-access.test.js` : Validation unitaire de l'insertion et des mécanismes de contrôle de l'utilisateur personnel.
+
+- `grant-premium.js` : Accorde le premium via read-merge-write de `PREMIUM_FEATURE_USER_EMAILS` (env Vercel prod). `node scripts/users/grant-premium.js <email> [--dry-run]`. Union lowercase/trim/dédup, assert superset post-write, temp file sécurisé. Nécessite `vercel login` + un `npm run deploy:prod` pour prendre effet.
+
+- `create-user.test.js` : Tests unitaires du flag `--fail-if-exists` (rejet sans écriture si doublon, création si nouvel email, upsert inchangé sans flag). Ajouté à `npm run test:users`.
 
 ## e2e/ dev/ deploy/
 
