@@ -2,6 +2,9 @@
 
 MVP Next.js pour suivre la diversification alimentaire de bébé (mode multi-user).
 
+> Documentation agents/devs : la connaissance du repo vit dans les fichiers `AGENTS.md` (un par domaine : racine + `app/`, `components/`, `lib/`, `migrations/`, `scripts/`, `tests/e2e/`).
+> Lister tous les chemins : `find . -name AGENTS.md -not -path '*/node_modules/*'`.
+
 ## Stack
 - Next.js (App Router)
 - PostgreSQL (`pg` / node-postgres)
