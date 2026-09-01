@@ -1,275 +1,44 @@
 # AGENTS
 
-## 1) Objectif du repo et perimetre
-- Application Next.js (App Router) pour suivi de diversification alimentaire bebe, en mode multi-user.
-- Perimetre principal: front (`app/`, `components/`), logique serveur et data (`lib/`), DB et migrations (`migrations/`, `scripts/db/`), e2e (`tests/e2e/`).
-- Hors perimetre par defaut: refactor infra large, changements non lies a la tache, ajout de secrets/tokens.
+## Projet
 
-## 2) Conventions de travail utiles
-- Commandes quotidiennes:
-  - `npm run dev`
-  - `npm run lint -- --max-warnings=0`
-  - `npm exec tsc -- --noEmit`
-  - `npm run build`
-  - `npm run test:e2e`
-- Commandes DB:
-  - `npm run db:preflight`
-  - `npm run db:migrate`
-  - `npm run db:seed`
-  - `npm run db:setup`
-- Deploiement:
-  - `npm run deploy:prod` (wrapper prod Vercel)
-- Dossiers cles:
-  - `app/`: routes/pages/actions server
-  - `components/`: UI et interactions
-  - `lib/`: auth, DB, data access, utilitaires
-  - `migrations/`: migrations SQL (node-pg-migrate)
-  - `scripts/db/`, `scripts/e2e/`, `scripts/users/`: scripts operatifs
-  - `tests/e2e/`: couverture Playwright
+- Grrrignote est une application Next.js App Router de suivi de diversification alimentaire, multi-utilisateur.
+- Le périmètre courant couvre le front (`app/`, `components/`), le serveur et les données (`lib/`), la base (`migrations/`, `scripts/db/`) et les tests Playwright (`tests/e2e/`).
+- Éviter les refactors d'infrastructure, les changements hors sujet et l'ajout de secrets sans demande explicite.
 
-## 2.1) Carte du code et navigation
-- Stack: Next.js 16 (App Router, `next build --webpack`), React 18, PostgreSQL (`pg`), node-pg-migrate, Argon2id, Resend, Playwright. Deploy Vercel. Nom package: `grrrignote`.
-- Sous-`AGENTS.md` dedies (details par domaine, ne pas dupliquer ici):
-  - `app/AGENTS.md` - routes App Router, route handlers, server actions
-  - `components/AGENTS.md` - inventaire UI (flat), split client/server, conventions modal/portal
-  - `lib/AGENTS.md` - auth, DB, data access, gating premium, tokens, contenu derive
-  - `migrations/AGENTS.md` - schema SQL et migrations sensibles
-  - `scripts/AGENTS.md` - operatifs db/users/e2e/dev/deploy
-  - `tests/e2e/AGENTS.md` - specs Playwright, reset DB, fixtures
-- Ou chercher (fichiers chauds):
+## Navigation
 
-| Tache | Emplacement |
-|-------|-------------|
-| Auth session, secrets, reset password, verif email | `lib/auth.ts` (1034L) |
-| Resolution connexion DB (`LOCAL_POSTGRES_URL` > `POSTGRES_URL` > `DATABASE_URL`) | `lib/db.ts` |
-| Data access (tastings, progress, foods, profil, public share) | `lib/data.ts` (1234L) |
-| Controle d'acces aliment (garde owner-scoped principal, pas unique) | `lib/data.ts` -> `getAccessibleFoodById()` |
-| Gating premium (modes, allowlists, fallback perso) | `lib/premium-entitlement-core.js` |
-| Actions dashboard globales | `app/actions.ts` (429L) |
-| Actions compte (password, verif, public share) | `app/account/actions.ts` |
-| Orchestrateur UI (etat open/close panneaux) | `components/categories-grid.tsx` (970L) |
-| Classes CSS globales (aucun CSS module) | `app/globals.css` (5317L) |
-| Rapport pediatrique PDF | `lib/pediatric-report.ts` + `app/api/pediatric-report/route.ts` |
-| Metadata texture/reaction (enums, defaults, validators) | `lib/tasting-metadata.ts` |
-| Reset tables E2E (2 endroits a synchroniser) | `tests/e2e/helpers/db.ts` (956L) |
-| Middleware securite (CSP, auth, maintenance) | `proxy.ts` (+ `next.config.mjs` API-only) |
+- `app/AGENTS.md` : routes, handlers et server actions.
+- `components/AGENTS.md` : UI, modales et conventions de rendu.
+- `lib/AGENTS.md` : authentification, accès aux données et logique métier.
+- `migrations/AGENTS.md` : évolution du schéma PostgreSQL.
+- `scripts/AGENTS.md` : scripts DB, utilisateurs, développement et déploiement.
+- `tests/e2e/AGENTS.md` : suite Playwright, fixtures et reset de DB.
 
-## 2.2) Opérations prod ponctuelles
-- URL production : `https://grrrignote.fr`
-- Prérequis : être connecté via `vercel login` (ou avec un token configuré), vérifiable par `vercel whoami`. Le projet est déjà lié via `.vercel/project.json`, donc `vercel link` n'est pas nécessaire.
-- Connexion DB sécurisée (anti-footgun `LOCAL_POSTGRES_URL`) : séquence d'incantation exacte pour cibler la production :
-  1. `vercel env pull <tmp> --environment production --yes`
-  2. `source <tmp>`
-  3. `unset LOCAL_POSTGRES_URL` (évite de viser la base locale par erreur)
-  4. `export NODE_ENV=production`
-  5. `npm run db:preflight` (étape obligatoire pour valider `Env source` et confirmer que l'hôte n'est pas localhost avant toute modification).
-- Recettes d'exécution (via 3 scripts d'aide) :
-  - Inspection de base de données : `node scripts/db/query.js "SELECT ..." '[params]'`
-  - Création utilisateur (avec garde anti-écrasement) : `node scripts/users/create-user.js --email <email> --password-stdin --status active --verify-email --fail-if-exists`
-  - Attribution des droits premium : `node scripts/users/grant-premium.js <email> [--dry-run]`
-    Note : les variables d'environnement Vercel sont mises à jour, mais la modification requiert un nouveau déploiement via `npm run deploy:prod` pour devenir effective.
-- Modèle d'accès premium : géré par union de 5 variables dans `lib/premium-entitlement-core.js:60` et `lib/premium-entitlement-core.js:85` :
-  - Variables globales actives : `PREMIUM_FEATURE_USER_EMAILS`, `PREMIUM_FEATURE_USER_IDS`, `PREMIUM_GATE_MODE`.
-  - Variables de compatibilité legacy : `PEDIATRIC_REPORT_PREMIUM_USER_EMAILS`, `WEEKLY_DISCOVERY_PLAN_PREMIUM_USER_EMAILS`.
-  - Pas d'override, l'accès est accordé dès qu'une de ces listes valide l'utilisateur.
+## Vérification
 
-## 3) Safety rails / do-not-do (db/e2e/deploy)
-- DB:
-  - Ne jamais executer de reset destructif sur une DB non locale.
-  - Ne pas utiliser `SKIP_DB_SETUP=1` en prod/CI.
-  - Faire `npm run db:preflight` avant migrations/seed en environnement cible.
-- E2E:
-  - Ne pas pointer les tests e2e vers la DB de prod.
-  - Ne pas committer artefacts de test/build (`playwright-report`, `test-results`, `.next-e2e*`).
-- Deploy:
-  - Deployer prod via `npm run deploy:prod` pour appliquer le contexte Vercel attendu.
-  - Verifier que la branche cible est poussee et que l'etat Git est intentionnel avant prod.
-  - Ne jamais exposer de secrets dans code, commits, logs ou docs.
+Exécuter les contrôles proportionnés au changement :
 
-## Session Lessons (2026-02-19)
-- Lessons learned:
-  - Un test Playwright peut echouer en mode strict si plusieurs champs partagent un label "Note"; pour la note globale, cibler avec `exact: true`.
-  - Lorsqu'une nouvelle table mutable est ajoutee (ex: `auth_password_reset_attempts`), il faut l'ajouter aux deux resets E2E dans `tests/e2e/helpers/db.ts` (`E2E_RESETTABLE_TABLES` et `resetMutableTables`).
-  - La validation de date cote serveur reste stable en envoyant `tzOffsetMinutes` depuis les formulaires clients qui soumettent des dates.
-- Reliable commands:
-  - `npm run lint -- --max-warnings=0`
-  - `npx tsc --noEmit`
-  - `npm run test:e2e`
-  - `npm run build`
-  - `node -e "process.env.NODE_ENV='production'; import('./next.config.mjs')..."`
-- Safety rails / do-not-do:
-  - Ne pas depender d'un bind reseau en sandbox pour verifier la CSP si `npm start` echoue avec `EPERM`; utiliser l'inspection de `next.config.mjs` en fallback.
-  - Ne pas casser la non-enumeration du flux forgot-password: conserver la meme sortie utilisateur pour succes, rate-limit et erreurs internes.
-  - Ne pas oublier de propager les nouvelles tables auth aux routines de reset E2E pour eviter la pollution inter-tests.
+```sh
+npm run lint -- --max-warnings=0
+npm exec tsc -- --noEmit
+npm run test:users
+npm run build
+npm run test:e2e
+```
 
-## Session Lessons (2026-02-20)
-- Lessons learned:
-  - Pour une texture "aucune", conserver le modele metier `textureLevel = null` (le type `TextureLevel` reste `1|2|3|4`). Correction (2026-08-23): il n'existe pas de constante `TEXTURE_NONE_ICON_SRC` dans `lib/tasting-metadata.ts` (qui ne definit que `TEXTURE_OPTIONS` niveaux 1-4); l'asset `texture-0-aucune.webp` est reference cote UI/CSS/E2E, pas via une constante partagee.
-  - Le remplacement du fallback visuel `ø` par une image doit etre applique dans les deux surfaces: timeline (`components/timeline-panel.tsx`) et controle texture partage (`components/texture-segmented-control.tsx`).
-  - Lors du retrait de `ø`, supprimer aussi les classes CSS obsoletes desktop + mobile (`.food-timeline-meta-chip-empty`, `.texture-segmented-empty-label`) pour eviter les styles morts.
-  - Si une WebP convertie parait incorrecte, verifier d'abord le PNG source: la conversion peut etre correcte mais l'asset d'origine etre deja noir/plat.
-  - Le flux de verification email doit consommer le token via action explicite `POST` (et non en `GET`) pour eviter la consommation involontaire par des prefetch/scanners.
-- Reliable commands:
-  - `cwebp -q 80 public/images/legacy/png/texture_0_aucune.png -o public/images/textures/texture-0-aucune.webp`
-  - `sips -g pixelWidth -g pixelHeight public/images/textures/texture-0-aucune.webp`
-  - `npm run test:e2e -- tests/e2e/specs/food-summary.spec.ts`
-  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts`
-  - `npm run test:e2e -- tests/e2e/specs/auth-and-guards.spec.ts tests/e2e/specs/profile-account.spec.ts`
-- Safety rails / do-not-do:
-  - En E2E, eviter les selecteurs dependants d'un etat variable (ex: slot exact sur un aliment potentiellement deja teste); preferer un flow stable (ex: "Premiere bouchee" sur aliment vide) pour ouvrir l'editeur.
-  - En scope "icones seulement", ne pas modifier les libelles textuels de formulaire (ex: "Texture non renseignee" dans le resume aliment).
-  - En E2E local, ne pas laisser un serveur `npm run dev` externe avec un env different: Playwright peut le reutiliser (`reuseExistingServer`) et produire des resultats trompeurs.
+La suite E2E réinitialise une base locale dédiée : ne jamais la lancer avec une URL de production ou une base partagée.
 
-## Session Lessons (2026-02-24)
-- Lessons learned:
-  - Pour aligner des colonnes dans un PDF texte, il faut une police monospaced (ex: `Courier`); des largeurs fixes ne suffisent pas avec `Helvetica`.
-  - Le rendu monospaced base sur la presence de `|` cree des faux positifs (ex: ligne symptomes); utiliser un marqueur explicite (ex: `[[MONO]]`) pour les seules lignes tabulaires.
-  - Le gate premium doit etre force en E2E (`PREMIUM_GATE_MODE=on`) avec allowlist explicite (`PREMIUM_FEATURE_USER_EMAILS`) pour garder des tests deterministes.
-  - Le endpoint `/api/pediatric-report` doit etre couvert aussi sur les chemins negatifs: user authentifie non premium -> `402`, non-auth -> redirection `307` vers `/login`.
-- Reliable commands:
-  - `npm run lint -- --max-warnings=0`
-  - `npm exec tsc -- --noEmit`
-  - `npm run build`
-  - `npm run test:e2e -- tests/e2e/specs/pediatric-report.spec.ts`
-  - `set -a; [ -f .env.local ] && source .env.local; [ -f .env.development.local ] && source .env.development.local; npm run db:preflight`
-- Safety rails / do-not-do:
-  - Ne pas conclure a un probleme DB distant sur un `db:preflight` en sandbox sans verifier d'abord la connectivite reseau du contexte d'execution.
-  - Ne pas laisser des heuristiques implicites de style PDF (ex: detection via `|`) en prod; preferer des marqueurs explicites pour eviter des regressions visuelles silencieuses.
-  - Ne pas valider la feature PDF uniquement sur le rendu `200`: verifier aussi les statuts `402` et `307` pour verrouiller auth/authz.
+## Garde-fous opérationnels
 
-## Session Lessons (2026-02-25)
-- Lessons learned:
-  - Vercel CLI injecte `.env.development.local` qui ecrase `.env.local`. Pour forcer la priorite de la DB locale sans manipuler les fichiers, introduire une variable `LOCAL_POSTGRES_URL` prioritaire dans la resolution de connexion hors contexte de production (`isStrictRuntime`).
-  - Si Resend est configure sur un sous-domaine d'envoi (ex: `noreply.grrrignote.fr`), le DKIM se valide sur `resend._domainkey.noreply.grrrignote.fr` (et non sur l'apex).
-  - `vercel env list` confirme la presence/scope des variables, mais pour verifier leur valeur effective en production il faut `vercel env pull` vers un fichier temporaire puis inspecter localement.
-- Reliable commands:
-  - `dig TXT resend._domainkey.noreply.grrrignote.fr +short` (validation DKIM Resend du sous-domaine d'envoi)
-  - `dig TXT _dmarc.grrrignote.fr +short`
-  - `vercel env list`
-  - `vercel env pull /tmp/babymiam.env.production --environment production --yes`
-  - `npx tsx --env-file=.env.local <script.ts>` (executer un script TS avec env local sans dependre de dotenv)
-- Safety rails / do-not-do:
-  - Ne pas renommer ou supprimer manuellement `.env.development.local` a chaque fois pour utiliser la base locale; implementer une priorite programmatique (via `LOCAL_POSTGRES_URL`).
-  - Ne pas conclure a un DNS/certificat casse sur un `dig`/`curl` echoue en sandbox (`Operation not permitted`, `Could not resolve host`) sans re-test en mode escalade.
-  - Ne pas passer une cle API en argument CLI ou en dur; pour `vercel env add`, preferer un pipe depuis variable/fichier temporaire puis supprimer le fichier temporaire.
+- Avant une migration ou un seed sur l'environnement visé : exécuter `npm run db:preflight`.
+- Ne jamais faire de reset destructif sur une base non locale. `db:setup` est réservé au local ; en production, enchaîner explicitement preflight, migration, seed si nécessaire, puis vérifications.
+- Déployer en production uniquement avec `npm run deploy:prod`, après contrôle de l'état Git et de la branche à publier.
+- Ne jamais exposer de secrets dans le code, les commits, la documentation ou les logs partagés.
+- Toute nouvelle table mutable doit être intégrée au reset E2E décrit dans `tests/e2e/AGENTS.md`.
 
-## Session Lessons (2026-02-26)
-- Lessons learned:
-  - Dans `tests/e2e/specs/custom-foods.spec.ts`, la fermeture de la modale d'ajout ne suffit pas; pour eliminer la flake post-ajout, attendre explicitement la visibilite de `Ouvrir le resume de <aliment>` dans la categorie cible.
-  - Pour `appendQuickEntry`, cacher l'introspection `information_schema.columns` en process-global (cache + promesse in-flight + TTL) evite une requete schema a chaque action rapide.
-  - Pour un cutover Neon "nouvelle DB + bascule", il faut mettre a jour aussi les variables DB secondaires (`POSTGRES_PRISMA_URL`, `POSTGRES_URL_NO_SSL`, `PGDATABASE`, `POSTGRES_DATABASE`, `NEON_AUTH_BASE_URL`, `VITE_NEON_AUTH_URL`) avant de supprimer l'ancienne base.
-  - En runbook prod, ne pas utiliser `db:setup`; executer explicitement `db:preflight`, `db:migrate`, `db:seed`, puis `db:assert-personal-access`.
-  - `vercel logs --since` sur une fenetre large peut melanger des erreurs pre-cutover; valider la regression avec une fenetre courte post-deploiement.
-- Safety rails / do-not-do:
-  - Ne pas supprimer l'ancienne base tant que les checks post-cutover (migrate/seed/assert + logs + smoke) ne sont pas verts.
-  - Ne pas valider la bascule uniquement avec `POSTGRES_URL`/`DATABASE_URL`; verifier toutes les variables DB et auth Neon qui peuvent encore pointer vers l'ancienne base.
-  - En sandbox, si Vercel/Neon echoue en DNS reseau (`ENOTFOUND`), relancer les commandes en mode escalade au lieu de conclure a une panne plateforme.
+## Entretien de ces instructions
 
-## Session Lessons (2026-02-26)
-- Lessons learned:
-  - Activer la generation du test-link en `postbuild` Vercel pour `preview` + `production` marche, mais un preview peut casser si les variables requises ne sont pas presentes dans ce scope.
-  - Pour les previews Vercel, fallback `APP_BASE_URL <- https://$VERCEL_URL` rend le script de generation robuste sans config manuelle supplementaire.
-  - La contrainte "TTL 31 jours + reaffichage a chaque deploy" se gere sans migration en reutilisant le token si valide et en ne tournant `session_version` qu'a expiration.
-- Reliable commands:
-  - `vercel env list`
-  - `printf '%s' \"$PERSONAL_ACCESS_EMAIL\" | vercel env add PERSONAL_ACCESS_EMAIL preview`
-  - `vercel deploy . -y`
-  - `npm run test:e2e -- tests/e2e/specs/auth-and-guards.spec.ts`
-- Safety rails / do-not-do:
-  - Ne pas activer la generation auto en preview/prod sans verifier les envs des deux scopes (`PERSONAL_ACCESS_EMAIL`, `AUTH_SECRET`/`AUTH_SECRETS`, `POSTGRES_URL`/`DATABASE_URL`).
-  - Ne pas supposer qu'un echec `vercel env add` avec `ENOTFOUND` vient de Vercel; en sandbox, retenter en mode escalade.
-  - Le magic link apparait dans les logs de build Vercel; eviter de partager ces logs dans des canaux publics.
+Garder les `AGENTS.md` courts et locaux : documenter des invariants durables, des points d'entrée et des risques concrets.
 
-## Session Lessons (2026-02-27)
-- Lessons learned:
-  - Pour que le lien magic login affiche dans les logs reste valide apres des rotations de session utilisateur, il faut signer le token avec `shared_test_link_issued_at` (epoch) et verifier cette valeur cote serveur, au lieu de `session_version`.
-  - Dans `users:test-link:generate`, si le lien est expire, il faut rafraichir `shared_test_link_issued_at = NOW()` sans rotation de `session_version`; la revocation explicite garde le role d'invalidation forte.
-  - En local, un wrapper `npm run dev` qui genere le lien avant Next doit charger les `.env*` lui-meme; sinon `PERSONAL_ACCESS_EMAIL` peut etre absent meme si Next le charge ensuite.
-  - En local avec port/host custom (`--hostname/--port`), il faut calculer `APP_BASE_URL` depuis les args runtime pour que le lien logge pointe vers la bonne URL.
-- Safety rails / do-not-do:
-  - Ne pas conclure qu'un preview magic-link est casse si `curl` retourne `401` avec `_vercel_sso_nonce`: la protection Vercel peut bloquer avant d'atteindre la route applicative.
-  - Ne pas valider le flux localhost sans avoir applique la migration `1772800000000_add-shared-test-link-issued-at`; sinon la generation du lien echoue (colonne absente).
-  - Ne pas reutiliser un `APP_BASE_URL` statique en local quand le serveur tourne sur un port different; sinon le lien logge peut viser le mauvais port.
-
-## Session Lessons (2026-02-27)
-- Lessons learned:
-  - La validation texture doit etre strictement identique entre `FormData` et payload JSON de resume (`tastings`): sans parseur commun, des valeurs type `true` peuvent etre coercées au lieu d'etre rejetees.
-  - Dans les specs Playwright qui patchent `FormData.prototype.set`, encapsuler patch + restauration dans `try/finally` elimine la pollution inter-tests si une assertion echoue.
-  - Avant un deploy, verifier que le commit attendu est bien dans `main` (ex: `git merge-base --is-ancestor <sha> main`) pour eviter un faux positif apres des commandes git lancees en parallele.
-- Reliable commands:
-  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts -g "quick add rejects non-integer texture level payload"`
-  - `npm run test:e2e -- tests/e2e/specs/food-summary.spec.ts -g "rejects invalid texture payload in summary save"`
-  - `vercel deploy . --prod -y`
-- Safety rails / do-not-do:
-  - Ne pas lancer `git checkout`, `git merge` et `git push` en parallele sur la meme branche: executer ces etapes en sequence puis verifier l'ancestry avant de deployer.
-
-## Session Lessons (2026-02-27)
-- Lessons learned:
-  - Les actions compte sensibles (changement mot de passe, logout des autres appareils) doivent verifier `email_verified_at` cote serveur (`requireVerifiedAuth`), meme si la UI masque deja ces actions.
-  - Quand `proxy.ts` porte deja les headers securite des pages, limiter `next.config.mjs` a `/api/:path*` reduit la duplication et le risque de drift entre politiques.
-  - Le scenario E2E "user non verifie peut se deconnecter depuis Mon compte" est un garde-fou utile apres refonte du modal profil.
-- Reliable commands:
-  - `npm run test:users`
-  - `npm run test:e2e -- tests/e2e/specs/auth-and-guards.spec.ts tests/e2e/specs/profile-account.spec.ts`
-  - `npm run test:e2e -- tests/e2e/specs/auth-and-guards.spec.ts tests/e2e/specs/pediatric-report.spec.ts`
-- Safety rails / do-not-do:
-  - Ne pas remettre en question l'affichage du magic link de test dans les logs de build: decision produit explicite.
-  - Ne pas remettre en question le fallback premium par defaut: decision produit explicite.
-  - Ne pas conditionner la deconnexion de la session courante a `email_verified_at`; garder ce chemin disponible.
-
-## Session Lessons (2026-02-28)
-- Lessons learned:
-  - Pour eviter le drift de rendu timeline, conserver un seul tri d'affichage dans `components/timeline-panel.tsx` et laisser `buildTimelineEntries` (dans `components/categories-grid.tsx`) faire uniquement le flatten brut.
-  - Le tri timeline attendu en UI est: date desc, puis slot desc, puis nom aliment asc (`fr`); verrouiller cet ordre avec un test E2E dedie.
-  - Le filtre `-g` de Playwright est une regex: un pattern trop litteral (ex avec parenthese non echappee) peut retourner `No tests found`.
-- Reliable commands:
-  - `npm run lint -- --max-warnings=0`
-  - `npm exec tsc -- --noEmit`
-  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts -g "timeline"`
-- Safety rails / do-not-do:
-  - Ne pas laisser deux endroits trier la timeline (producer + consumer): definir une source unique pour l'ordre final.
-  - Ne pas valider un `-g` Playwright sans verifier le nombre de tests executes (un motif large comme `timeline` peut matcher plusieurs specs).
-
-## Session Lessons (2026-03-01)
-- Lessons learned:
-  - Dans les assertions E2E sur texte PDF (flux latin1), les parentheses peuvent etre echappees dans le stream; preferer des regex echappees plutot qu'un `toContain` literal pour ces lignes.
-  - La semantique tri-etat doit rester stricte dans les helpers DB E2E: supprimer les coercions `Boolean(...)` et valider `boolean | null` uniquement.
-  - Pour une nouvelle reaction imagee, aligner la taille de l'asset sur les icones existantes evite les regressions de layout (ici `539x457`).
-- Reliable commands:
-  - `cwebp -q 80 -resize 539 457 public/images/legacy/indecisive.png -o public/images/reactions/smiley-indecis.webp`
-  - `sips -g pixelWidth -g pixelHeight public/images/reactions/smiley-indecis.webp`
-  - `npm run test:e2e -- tests/e2e/specs/pediatric-report.spec.ts`
-  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts tests/e2e/specs/food-summary.spec.ts tests/e2e/specs/pediatric-report.spec.ts`
-  - `npm run lint -- --max-warnings=0 && npm exec tsc -- --noEmit && npm run build`
-- Safety rails / do-not-do:
-  - Ne pas committer un `next-env.d.ts` modifie uniquement par les runs outillage/e2e s'il est hors scope fonctionnel du changement.
-
-## Session Lessons (2026-03-02)
-- Lessons learned:
-  - Pour rendre `scripts/db/seed.js` testable en unitaire via `require`, charger les dependances runtime lourdes (`pg`, `ensurePersonalAccess`) en lazy dans `runSeed` et garder `if (require.main === module)` pour eviter les effets de bord a l'import.
-  - Le script `db:preflight` est strict (`allowLocalFallback=false`): sans `POSTGRES_URL` ou `DATABASE_URL` explicite, il echoue meme en local.
-  - Le seed demo rejouable est stable apres rerun: `45` lignes `food_progress`, `108` lignes `food_tastings`, avec repartition des slots `45/36/27`.
-- Reliable commands:
-  - `docker compose up -d`
-  - `POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam npm run db:preflight`
-  - `POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam npm run db:migrate`
-  - `POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam PERSONAL_ACCESS_PASSWORD=<local-password> npm run db:seed`
-  - `POSTGRES_URL=postgres://postgres:postgres@localhost:5432/babymiam npm run db:assert-personal-access`
-- Safety rails / do-not-do:
-  - Ne pas diagnostiquer une panne DB locale sur un echec `db:preflight` tant que `POSTGRES_URL`/`DATABASE_URL` n'est pas defini explicitement dans le shell.
-  - Pour un seed demo deterministic/rejouable par user, supprimer d'abord `food_tastings`, `food_progress` et `foods` owner-scoped du user cible avant reinjection.
-
-## Session Lessons (2026-03-07)
-- Lessons learned:
-  - Pour les flows d'ajout rapide ouverts depuis `Plan 7 jours` via `Tester maintenant`, fermer la modale apres succes garde la continuite du parcours; laisser la modale ouverte avec reset est une regression UX.
-  - Si des doublons `Œufs` / `Œuf (bien cuit)` apparaissent en UI alors que `aliments_categories.json` est deja canonique (`Oeufs`, `Oeuf (bien cuit)`), la vraie correction est une migration de fusion des lignes `foods` avec repointage de `food_progress` et `food_tastings`; les fixtures E2E doivent rester alignees sur ce catalogue (`Oeuf (bien cuit)` dans `tests/e2e/helpers/db.ts`) pour eviter les faux negatifs.
-  - Les assertions E2E sur les KPI du `Plan 7 jours` doivent tolerer singulier/pluriel (`relance`, `consolidation`) au lieu d'imposer `relances` / `consolidations`.
-  - Quand `tsconfig.json` inclut `.next/types/**/*.ts`, un `npm exec tsc -- --noEmit` peut echouer si les types Next n'ont pas encore ete regeneres; lancer le typecheck apres `npm run build` (ou une etape qui regenere `.next/types`) evite ces faux rouges.
-  - Sur la page de partage public mobile, `content-visibility: auto` sur de gros panneaux n'a pas ameliore le scroll et peut creer un spike au premier passage; le levier utile est d'aplatir les traitements visuels couteux (`backdrop-filter`, grosses ombres, overlays).
-- Reliable commands:
-  - `npm run test:e2e -- tests/e2e/specs/dashboard-progress.spec.ts tests/e2e/specs/custom-foods.spec.ts`
-  - `E2E_BASE_URL=http://127.0.0.1:3105 npm run test:e2e -- tests/e2e/specs/public-share.spec.ts`
-- Safety rails / do-not-do:
-  - Ne pas corriger un doublon alimentaire historique en modifiant seulement `aliments_categories.json` ni laisser diverger les fixtures E2E du catalogue produit (`Oeuf` vs `Oeuf (bien cuit)`); traiter aussi la normalisation (`œ -> oe`), la fusion des donnees existantes et le realignement de `tests/e2e/helpers/db.ts`.
-  - Ne pas figer les assertions Playwright sur la forme plurielle exacte des compteurs quand le produit affiche correctement `1 relance` ou `1 consolidation`.
-  - `npm run deploy:prod` publie l'etat du worktree local courant, y compris les changements non committes; verifier `git status --short` avant un deploiement prod.
+Les retours d'expérience qui demandent du contexte sont centralisés dans [`docs/engineering/lessons-learned.md`](docs/engineering/lessons-learned.md). Ne pas y verser un journal de session, des compteurs de lignes ou des recettes ponctuelles ; remonter dans l'`AGENTS.md` local concerné les invariants devenus actifs.

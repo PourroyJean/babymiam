@@ -1,46 +1,23 @@
 # app/
 
-Cartographie du repertoire app/ de l'application Next.js (App Router).
+Routes App Router, pages et server actions de Grrrignote.
 
-## Routes
-- `/` : page.tsx (dashboard principal, 59 lignes).
-- `/login` : page.tsx (authentification des utilisateurs).
-- `/signup` : page.tsx (creation de compte).
-- `/forgot-password` : page.tsx (demande de reinitialisation).
-- `/reset-password` : page.tsx (saisie du nouveau mot de passe).
-- `/verify-email` : page.tsx (validation de l'adresse mail).
-- `/account` : page.tsx (gestion du profil, 198 lignes).
-- `/blog` : page.tsx (articles d'accompagnement, 273 lignes).
-- `/share` : page.tsx (ancien lien, desormais indisponible).
-- `/share/[token]` : page.tsx (dashboard public signe, 139 lignes).
-- `/maintenance` : page.tsx (ecran de coupure technique).
+## Organisation
 
-## Route handlers / API
-- `/api/pediatric-report` -> route.ts : generation du PDF du rapport pediatrique.
-- `/magic-login` -> route.ts : connexion immediate de test pour le partage.
-- `/favicon.ico` -> route.ts : livraison dynamique de la favicône.
+- Dashboard : `/`.
+- Authentification : `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/verify-email` et `/magic-login`.
+- Compte : `/account`; partage public : `/share` et `/share/[token]`.
+- Contenu et états système : `/blog`, `/maintenance`, favicon et `layout.tsx`.
+- Handler API : `/api/pediatric-report` génère le rapport PDF.
+- Les actions transverses sont dans `app/actions.ts`; les actions de compte sont dans `app/account/actions.ts`; les flux d'authentification gardent leurs actions près de leur route.
 
-## Server actions
-- `app/actions.ts` (429 lignes) : actions globales (tastings, quick entries, création/suppression aliments, profil bebe, sauvegarde résumé, logout).
-- Actions specifiques par route :
-  - `login/actions.ts` : gestion de la soumission de connexion.
-  - `signup/actions.ts` : enregistrement initial.
-  - `forgot-password/actions.ts` : declenchement du mail de reinitialisation.
-  - `reset-password/actions.ts` : application du nouveau mot de passe.
-  - `verify-email/actions.ts` : validation du jeton utilisateur.
-  - `account/actions.ts` (290 lignes) : securite, verification, configuration du partage public.
-- Note : `account/page.tsx` embarque des wrappers serveur inline vers `account/actions.ts`.
+## Invariants
 
-## Conventions
-- Aucun groupe de routes dans la structure (pas de segment specifique type `(auth)` ou `(marketing)`).
-- Seul parametre dynamique autorise au sein de l'arborescence : `/share/[token]`.
-- Securite des pages : verification d'acces via `lib/auth` (fonctions requireAuth et requireVerifiedAuth).
-- Securite des actions : les actions de modification sensibles requierent requireVerifiedAuth.
-- Exception de securite : la deconnexion de la session courante reste autorisee sans email valide.
-- Fichiers speciaux : `layout.tsx` (police Fredoka locale), `error.tsx` (app-wide error boundary), `loading.tsx`.
-- Assets stockes dans `app/` : `blog/deep-research-report.md` (227 lignes), icones, polices woff2.
+- Les pages et mutations protégées s'appuient sur `requireAuth()` ou `requireVerifiedAuth()` de `lib/auth`. Les actions sensibles exigent un e-mail vérifié ; la déconnexion de la session courante reste disponible sans cette vérification.
+- La vérification d'e-mail consomme son jeton par `POST` explicite, jamais via un `GET`.
+- Le flux « mot de passe oublié » ne doit pas révéler si une adresse existe, y compris en cas de rate-limit ou d'erreur interne.
+- `/api/pediatric-report` doit conserver ses protections d'authentification et de premium.
 
-## Pieges
-- Verification email : le token doit etre valide via requete POST explicite, jamais en GET (evite les prefetchers).
-- Styles globaux : le fichier `app/globals.css` fait 5317 lignes. Les composants n'utilisent aucun module CSS.
-- Acces rapport : endpoint `/api/pediatric-report` protege (code 402 si non premium, redirection 307 vers login si non auth).
+## Styles
+
+Les styles sont globaux dans `app/globals.css`; il n'y a pas de CSS modules. Lors d'une suppression de surface UI, supprimer aussi les classes devenues inutilisées après vérification des usages.
