@@ -51,6 +51,18 @@ test.describe("food summary modal", () => {
     await expect(dialog.getByText(/Légumes/i)).toBeVisible();
   });
 
+  test("returns focus to the summary trigger after Escape", async ({ appPage }) => {
+    await ensureCategoryExpanded(appPage, "Légumes");
+
+    const trigger = getFoodSummaryTrigger(appPage, "Brocoli");
+    await trigger.click();
+    await expect(getFoodSummaryDialog(appPage, "Brocoli")).toBeVisible();
+
+    await appPage.keyboard.press("Escape");
+    await expect(getFoodSummaryDialog(appPage, "Brocoli")).toBeHidden();
+    await expect(trigger).toBeFocused();
+  });
+
   test("shows 0-3 tasting history lines with correct tiger icons", async ({ appPage, db }) => {
     const foodName = "Brocoli";
     await db.setFoodTastingsByName(foodName, [

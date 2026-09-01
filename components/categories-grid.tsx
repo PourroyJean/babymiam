@@ -45,6 +45,8 @@ type QuickAddPrefill = {
   foodName: string;
 };
 
+type DashboardOverlay = "search" | "timeline" | "guide" | "weeklyPlan" | "quickAdd" | "addFood";
+
 type FoodIndexEntry = {
   food: DashboardFood;
   categoryName: string;
@@ -98,13 +100,8 @@ export function CategoriesGrid({
   hasPremiumAccess
 }: CategoriesGridProps) {
   const [openByCategoryId, setOpenByCategoryId] = useState<Record<number, boolean>>({});
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isTimelineOpen, setIsTimelineOpen] = useState(false);
-  const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const [isWeeklyPlanOpen, setIsWeeklyPlanOpen] = useState(false);
-  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [activeOverlay, setActiveOverlay] = useState<DashboardOverlay | null>(null);
   const [quickAddPrefill, setQuickAddPrefill] = useState<QuickAddPrefill | null>(null);
-  const [isAddFoodOpen, setIsAddFoodOpen] = useState(false);
   const [summaryFoodId, setSummaryFoodId] = useState<number | null>(null);
   const [showTestedOnly, setShowTestedOnly] = useState(false);
   const [isPediatricReportPending, setIsPediatricReportPending] = useState(false);
@@ -119,16 +116,11 @@ export function CategoriesGrid({
   const quickAddTriggerRef = useRef<HTMLButtonElement>(null);
   const addFoodTriggerRef = useRef<HTMLButtonElement>(null);
   const summaryTriggerRef = useRef<HTMLElement | null>(null);
-  const wasSearchOpenRef = useRef(false);
   const wasSummaryOpenRef = useRef(false);
   const summaryFoodIdRef = useRef<number | null>(null);
   const finalPreferenceOverridesRef = useRef<Record<number, FinalPreferenceValue>>({});
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
-  const wasTimelineOpenRef = useRef(false);
-  const wasGuideOpenRef = useRef(false);
-  const wasWeeklyPlanOpenRef = useRef(false);
-  const wasQuickAddOpenRef = useRef(false);
-  const wasAddFoodOpenRef = useRef(false);
+  const previousOverlayRef = useRef<DashboardOverlay | null>(null);
   const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const pendingFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const inFlightFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
@@ -144,94 +136,25 @@ export function CategoriesGrid({
     return Boolean(openByCategoryId[categoryId]);
   }
 
-  function closeSearch() {
-    setIsSearchOpen(false);
+  function openOverlay(overlay: DashboardOverlay) {
+    setActiveOverlay(overlay);
   }
 
-  function openSearch() {
-    setIsTimelineOpen(false);
-    setIsGuideOpen(false);
-    setIsWeeklyPlanOpen(false);
-    setIsQuickAddOpen(false);
-    setIsAddFoodOpen(false);
-    setIsSearchOpen(true);
-  }
-
-  function closeTimeline() {
-    setIsTimelineOpen(false);
-  }
-
-  function openTimeline() {
-    setIsSearchOpen(false);
-    setIsGuideOpen(false);
-    setIsWeeklyPlanOpen(false);
-    setIsQuickAddOpen(false);
-    setIsAddFoodOpen(false);
-    setIsTimelineOpen(true);
-  }
-
-  function closeGuide() {
-    setIsGuideOpen(false);
-  }
-
-  function openGuide() {
-    setIsSearchOpen(false);
-    setIsTimelineOpen(false);
-    setIsWeeklyPlanOpen(false);
-    setIsQuickAddOpen(false);
-    setIsAddFoodOpen(false);
-    setIsGuideOpen(true);
-  }
-
-  function closeWeeklyPlan() {
-    setIsWeeklyPlanOpen(false);
-  }
-
-  function openWeeklyPlan() {
-    setIsSearchOpen(false);
-    setIsTimelineOpen(false);
-    setIsGuideOpen(false);
-    setIsQuickAddOpen(false);
-    setIsAddFoodOpen(false);
-    setIsWeeklyPlanOpen(true);
-  }
-
-  function closeQuickAdd() {
-    setIsQuickAddOpen(false);
-    setQuickAddPrefill(null);
+  function closeActiveOverlay() {
+    if (activeOverlay === "quickAdd") {
+      setQuickAddPrefill(null);
+    }
+    setActiveOverlay(null);
   }
 
   function openQuickAdd() {
-    setIsSearchOpen(false);
-    setIsTimelineOpen(false);
-    setIsGuideOpen(false);
-    setIsWeeklyPlanOpen(false);
-    setIsAddFoodOpen(false);
     setQuickAddPrefill(null);
-    setIsQuickAddOpen(true);
+    openOverlay("quickAdd");
   }
 
   function openQuickAddForFood(foodId: number, foodName: string) {
-    setIsSearchOpen(false);
-    setIsTimelineOpen(false);
-    setIsGuideOpen(false);
-    setIsWeeklyPlanOpen(false);
-    setIsAddFoodOpen(false);
     setQuickAddPrefill({ foodId, foodName });
-    setIsQuickAddOpen(true);
-  }
-
-  function closeAddFood() {
-    setIsAddFoodOpen(false);
-  }
-
-  function openAddFood() {
-    setIsSearchOpen(false);
-    setIsTimelineOpen(false);
-    setIsGuideOpen(false);
-    setIsWeeklyPlanOpen(false);
-    setIsQuickAddOpen(false);
-    setIsAddFoodOpen(true);
+    openOverlay("quickAdd");
   }
 
   async function downloadPediatricReport() {
@@ -452,12 +375,7 @@ export function CategoriesGrid({
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setIsTimelineOpen(false);
-        setIsGuideOpen(false);
-        setIsWeeklyPlanOpen(false);
-        setIsQuickAddOpen(false);
-        setIsAddFoodOpen(false);
-        setIsSearchOpen(true);
+        setActiveOverlay("search");
         return;
       }
 
@@ -468,12 +386,7 @@ export function CategoriesGrid({
           return;
         }
 
-        setIsSearchOpen(false);
-        setIsTimelineOpen(false);
-        setIsGuideOpen(false);
-        setIsWeeklyPlanOpen(false);
-        setIsQuickAddOpen(false);
-        setIsAddFoodOpen(false);
+        setActiveOverlay(null);
       }
     }
 
@@ -512,74 +425,35 @@ export function CategoriesGrid({
 
 
   useEffect(() => {
-    if (isTimelineOpen) {
-      wasTimelineOpenRef.current = true;
-      return;
-    }
+    const previousOverlay = previousOverlayRef.current;
+    previousOverlayRef.current = activeOverlay;
 
-    if (wasTimelineOpenRef.current) {
-      timelineTriggerRef.current?.focus();
-      wasTimelineOpenRef.current = false;
-    }
-  }, [isTimelineOpen]);
+    if (previousOverlay === null || previousOverlay === activeOverlay) return;
 
-  useEffect(() => {
-    if (isGuideOpen) {
-      wasGuideOpenRef.current = true;
-      return;
+    switch (previousOverlay) {
+      case "search":
+        searchTriggerRef.current?.focus();
+        break;
+      case "timeline":
+        timelineTriggerRef.current?.focus();
+        break;
+      case "guide":
+        guideTriggerRef.current?.focus();
+        break;
+      case "weeklyPlan":
+        weeklyPlanTriggerRef.current?.focus();
+        break;
+      case "quickAdd":
+        quickAddTriggerRef.current?.focus();
+        break;
+      case "addFood":
+        addFoodTriggerRef.current?.focus();
+        break;
     }
-
-    if (wasGuideOpenRef.current) {
-      guideTriggerRef.current?.focus();
-      wasGuideOpenRef.current = false;
-    }
-  }, [isGuideOpen]);
-
-  useEffect(() => {
-    if (isWeeklyPlanOpen) {
-      wasWeeklyPlanOpenRef.current = true;
-      return;
-    }
-
-    if (wasWeeklyPlanOpenRef.current) {
-      weeklyPlanTriggerRef.current?.focus();
-      wasWeeklyPlanOpenRef.current = false;
-    }
-  }, [isWeeklyPlanOpen]);
+  }, [activeOverlay]);
 
   useEffect(() => {
-    if (isQuickAddOpen) {
-      wasQuickAddOpenRef.current = true;
-      return;
-    }
-
-    if (wasQuickAddOpenRef.current) {
-      quickAddTriggerRef.current?.focus();
-      wasQuickAddOpenRef.current = false;
-    }
-  }, [isQuickAddOpen]);
-
-  useEffect(() => {
-    if (isAddFoodOpen) {
-      wasAddFoodOpenRef.current = true;
-      return;
-    }
-
-    if (wasAddFoodOpenRef.current) {
-      addFoodTriggerRef.current?.focus();
-      wasAddFoodOpenRef.current = false;
-    }
-  }, [isAddFoodOpen]);
-
-  useEffect(() => {
-    const hasOverlayOpen =
-      isSearchOpen ||
-      isTimelineOpen ||
-      isGuideOpen ||
-      isWeeklyPlanOpen ||
-      isQuickAddOpen ||
-      isAddFoodOpen ||
-      isSummaryOpen;
+    const hasOverlayOpen = activeOverlay !== null || isSummaryOpen;
     if (!hasOverlayOpen) return;
 
     const previousOverflow = document.body.style.overflow;
@@ -588,19 +462,7 @@ export function CategoriesGrid({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [isSearchOpen, isTimelineOpen, isGuideOpen, isWeeklyPlanOpen, isQuickAddOpen, isAddFoodOpen, isSummaryOpen]);
-
-  useEffect(() => {
-    if (isSearchOpen) {
-      wasSearchOpenRef.current = true;
-      return;
-    }
-
-    if (wasSearchOpenRef.current) {
-      searchTriggerRef.current?.focus();
-      wasSearchOpenRef.current = false;
-    }
-  }, [isSearchOpen]);
+  }, [activeOverlay, isSummaryOpen]);
 
 
 
@@ -709,7 +571,7 @@ export function CategoriesGrid({
               ref={searchTriggerRef}
               type="button"
               className="search-trigger-btn"
-              onClick={openSearch}
+              onClick={() => openOverlay("search")}
             >
               <span>Rechercher un aliment</span>
               <span className="search-trigger-shortcut" aria-hidden="true">
@@ -717,7 +579,12 @@ export function CategoriesGrid({
               </span>
             </button>
 
-            <button ref={timelineTriggerRef} type="button" className="timeline-trigger-btn" onClick={openTimeline}>
+            <button
+              ref={timelineTriggerRef}
+              type="button"
+              className="timeline-trigger-btn"
+              onClick={() => openOverlay("timeline")}
+            >
               <span>Carnets de bords</span>
             </button>
 
@@ -725,7 +592,7 @@ export function CategoriesGrid({
               ref={weeklyPlanTriggerRef}
               type="button"
               className={`weekly-plan-trigger-btn ${weeklyPlanRelaunchCount > 0 ? "is-alert" : ""}`}
-              onClick={openWeeklyPlan}
+              onClick={() => openOverlay("weeklyPlan")}
             >
               <span>Plan 7 jours</span>
               <span className="weekly-plan-trigger-kpis">
@@ -745,7 +612,12 @@ export function CategoriesGrid({
               <span className="weekly-plan-badge">Premium</span>
             </button>
 
-            <button ref={guideTriggerRef} type="button" className="guide-trigger-btn" onClick={openGuide}>
+            <button
+              ref={guideTriggerRef}
+              type="button"
+              className="guide-trigger-btn"
+              onClick={() => openOverlay("guide")}
+            >
               <span>Le Guide</span>
               <span className="guide-badge">Premium</span>
             </button>
@@ -754,7 +626,12 @@ export function CategoriesGrid({
               <span>Ajout rapide</span>
             </button>
 
-            <button ref={addFoodTriggerRef} type="button" className="add-food-trigger-btn" onClick={openAddFood}>
+            <button
+              ref={addFoodTriggerRef}
+              type="button"
+              className="add-food-trigger-btn"
+              onClick={() => openOverlay("addFood")}
+            >
               <span>Ajouter un aliment</span>
             </button>
 
@@ -906,8 +783,8 @@ export function CategoriesGrid({
       </section>
 
       <SearchPanel
-        isOpen={isSearchOpen}
-        onClose={closeSearch}
+        isOpen={activeOverlay === "search"}
+        onClose={closeActiveOverlay}
         searchableFoods={searchableFoods}
         finalPreferenceOverridesByFoodId={finalPreferenceOverridesByFoodId}
         cycleFinalPreference={cycleFinalPreference}
@@ -916,9 +793,9 @@ export function CategoriesGrid({
       />
 
       <TimelinePanel
-        isOpen={isTimelineOpen}
+        isOpen={activeOverlay === "timeline"}
         isSummaryOpen={isSummaryOpen}
-        onClose={closeTimeline}
+        onClose={closeActiveOverlay}
         timelineEntries={timelineEntries}
         finalPreferenceByFoodId={finalPreferenceByFoodId}
         openFoodSummary={openFoodSummary}
@@ -928,15 +805,15 @@ export function CategoriesGrid({
 
       <GuidePanel
         guidance={ageGuidance}
-        isOpen={isGuideOpen}
+        isOpen={activeOverlay === "guide"}
         hasPremiumAccess={hasPremiumAccess}
-        onClose={closeGuide}
+        onClose={closeActiveOverlay}
       />
 
       <WeeklyPlanPanel
-        isOpen={isWeeklyPlanOpen}
+        isOpen={activeOverlay === "weeklyPlan"}
         isSummaryOpen={isSummaryOpen}
-        onClose={closeWeeklyPlan}
+        onClose={closeActiveOverlay}
         hasPremiumAccess={hasPremiumAccess}
         plan={weeklyPlan}
         openFoodSummary={openFoodSummary}
@@ -945,12 +822,16 @@ export function CategoriesGrid({
       />
 
       <QuickAddPanel
-        isOpen={isQuickAddOpen}
+        isOpen={activeOverlay === "quickAdd"}
         foods={quickAddEligibleFoods}
-        onClose={closeQuickAdd}
+        onClose={closeActiveOverlay}
         prefillFood={quickAddPrefill}
       />
-      <AddFoodPanel isOpen={isAddFoodOpen} categories={addFoodCategories} onClose={closeAddFood} />
+      <AddFoodPanel
+        isOpen={activeOverlay === "addFood"}
+        categories={addFoodCategories}
+        onClose={closeActiveOverlay}
+      />
       <FoodSummaryModal
         isOpen={summaryFoodId !== null && summaryFood !== null}
         onClose={closeFoodSummary}
