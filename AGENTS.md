@@ -11,7 +11,7 @@
 - `app/AGENTS.md` : routes, handlers et server actions.
 - `components/AGENTS.md` : UI, modales et conventions de rendu.
 - `lib/AGENTS.md` : authentification, accès aux données et logique métier.
-- `migrations/AGENTS.md` : évolution du schéma PostgreSQL.
+- `docs/engineering/database-migrations.md` : évolution du schéma PostgreSQL.
 - `scripts/AGENTS.md` : scripts DB, utilisateurs, développement et déploiement.
 - `tests/e2e/AGENTS.md` : suite Playwright, fixtures et reset de DB.
 
