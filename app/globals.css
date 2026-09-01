@@ -38,6 +38,32 @@ a {
   color: #255f8a;
 }
 
+.build-version-badge {
+  position: fixed;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid rgba(108, 91, 72, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.8);
+  box-shadow: 0 2px 8px rgba(70, 54, 26, 0.08);
+  color: #6c5b48;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.66rem;
+  line-height: 1;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
+.build-version-badge code {
+  color: inherit;
+  font: inherit;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;

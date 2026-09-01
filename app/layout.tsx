@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { BuildVersionBadge } from "@/components/build-version-badge";
 import "./globals.css";
 
 const fredoka = localFont({
@@ -24,7 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className={fredoka.variable}>{children}</body>
+      <body className={fredoka.variable}>
+        {children}
+        <BuildVersionBadge />
+      </body>
     </html>
   );
 }
