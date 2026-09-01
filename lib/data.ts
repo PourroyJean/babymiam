@@ -45,7 +45,7 @@ export type SaveFoodSummaryInput = {
 };
 
 export type AppendQuickEntryResult = {
-  status: "ok" | "maxed" | "food_not_found" | "unavailable";
+  status: "ok" | "maxed" | "food_not_found";
 };
 
 export type CreateUserFoodResult =
@@ -53,13 +53,6 @@ export type CreateUserFoodResult =
   | { status: "invalid_name" | "category_not_found" | "duplicate" };
 
 export type DeleteUserFoodResult = { status: "deleted" | "forbidden_or_not_found" };
-
-type FoodProgressColumns = {
-  hasExposureCount: boolean;
-  hasFirstTastedOn: boolean;
-  hasNote: boolean;
-  hasUpdatedAt: boolean;
-};
 
 type AccessibleFoodRow = {
   food_id: number;
@@ -124,22 +117,6 @@ function isUniqueViolation(error: unknown) {
   return (error as { code?: unknown }).code === "23505";
 }
 
-function isUndefinedColumnError(error: unknown) {
-  if (typeof error !== "object" || error === null || !("code" in error)) return false;
-  return (error as { code?: unknown }).code === "42703";
-}
-
-let foodProgressColumnsCache: FoodProgressColumns | null = null;
-let foodProgressColumnsCachedAt = 0;
-let foodProgressColumnsInFlight: Promise<FoodProgressColumns> | null = null;
-const FOOD_PROGRESS_COLUMNS_CACHE_TTL_MS = 5 * 60 * 1000;
-
-function resetFoodProgressColumnsCache() {
-  foodProgressColumnsCache = null;
-  foodProgressColumnsCachedAt = 0;
-  foodProgressColumnsInFlight = null;
-}
-
 async function getAccessibleFoodById(
   client: Pick<PoolClient, "query">,
   ownerId: number,
@@ -163,114 +140,12 @@ async function getAccessibleFoodById(
   return result.rows[0] ?? null;
 }
 
-async function queryFoodProgressColumns(client: PoolClient): Promise<FoodProgressColumns> {
-  const result = await client.query<{ column_name: string }>(
-    `
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND table_name = 'food_progress';
-    `
-  );
-
-  const columnNames = new Set(result.rows.map((row) => row.column_name));
-  return {
-    hasExposureCount: columnNames.has("exposure_count"),
-    hasFirstTastedOn: columnNames.has("first_tasted_on"),
-    hasNote: columnNames.has("note"),
-    hasUpdatedAt: columnNames.has("updated_at")
-  };
-}
-
-async function getCachedFoodProgressColumns(client: PoolClient): Promise<FoodProgressColumns> {
-  const now = Date.now();
-  const isFresh =
-    foodProgressColumnsCache !== null && now - foodProgressColumnsCachedAt < FOOD_PROGRESS_COLUMNS_CACHE_TTL_MS;
-
-  if (isFresh && foodProgressColumnsCache) {
-    return foodProgressColumnsCache;
-  }
-
-  if (!foodProgressColumnsInFlight) {
-    foodProgressColumnsInFlight = queryFoodProgressColumns(client)
-      .then((columns) => {
-        foodProgressColumnsCache = columns;
-        foodProgressColumnsCachedAt = Date.now();
-        return columns;
-      })
-      .finally(() => {
-        foodProgressColumnsInFlight = null;
-      });
-  }
-
-  return foodProgressColumnsInFlight;
-}
-
-async function applyQuickEntryProgressUpdate(
-  client: PoolClient,
-  ownerId: number,
-  foodId: number,
-  tastedOn: string,
-  nextExposureCount: number
-) {
-  const runWithCache = async () => {
-    const progressColumns = await getCachedFoodProgressColumns(client);
-    const updateParams: unknown[] = [ownerId, foodId];
-    const setClauses: string[] = [];
-
-    if (progressColumns.hasExposureCount) {
-      const exposureRef = `$${updateParams.push(nextExposureCount)}`;
-      setClauses.push(`exposure_count = ${exposureRef}`);
-    }
-
-    if (progressColumns.hasFirstTastedOn) {
-      const tastedOnRef = `$${updateParams.push(tastedOn)}`;
-      setClauses.push(`first_tasted_on = COALESCE(food_progress.first_tasted_on, ${tastedOnRef}::date)`);
-    }
-
-    if (progressColumns.hasUpdatedAt) {
-      setClauses.push("updated_at = NOW()");
-    }
-
-    if (setClauses.length === 0) return;
-
-    await client.query(
-      `
-        UPDATE food_progress
-        SET ${setClauses.join(", ")}
-        WHERE owner_id = $1
-          AND food_id = $2;
-      `,
-      updateParams
-    );
-  };
-
-  try {
-    await runWithCache();
-  } catch (error) {
-    if (!isUndefinedColumnError(error)) {
-      throw error;
-    }
-
-    resetFoodProgressColumnsCache();
-    await runWithCache();
-  }
-}
-
 export async function appendQuickEntry(ownerId: number, payload: AppendQuickEntryInput): Promise<AppendQuickEntryResult> {
   const pool = getPool();
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
-
-    const tableCheckResult = await client.query<{ exists: boolean }>(
-      "SELECT to_regclass('public.food_tastings') IS NOT NULL AS exists;"
-    );
-    if (!tableCheckResult.rows[0]?.exists) {
-      await client.query("ROLLBACK");
-      return { status: "unavailable" };
-    }
 
     const food = await getAccessibleFoodById(client, ownerId, payload.foodId);
     if (!food) {
@@ -336,7 +211,18 @@ export async function appendQuickEntry(ownerId: number, payload: AppendQuickEntr
     );
 
     const nextExposureCount = Math.min(3, takenSlots.size + 1);
-    await applyQuickEntryProgressUpdate(client, ownerId, payload.foodId, payload.tastedOn, nextExposureCount);
+    await client.query(
+      `
+        UPDATE food_progress
+        SET
+          exposure_count = $3,
+          first_tasted_on = COALESCE(food_progress.first_tasted_on, $4::date),
+          updated_at = NOW()
+        WHERE owner_id = $1
+          AND food_id = $2;
+      `,
+      [ownerId, payload.foodId, nextExposureCount, payload.tastedOn]
+    );
 
     await client.query("COMMIT");
     return { status: "ok" };

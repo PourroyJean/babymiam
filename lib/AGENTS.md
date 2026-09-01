@@ -21,5 +21,4 @@ Logique serveur, accès PostgreSQL, authentification et fonctions métier partag
 
 ## Prudence
 
-- Les mécanismes de compatibilité de schéma dans `data.ts` existent pour des bases anciennes : ne pas les étendre sans une période de migration explicitement supportée. Toute suppression exige d'abord la confirmation que toutes les bases ciblées ont le schéma courant.
 - Les opérations de partage public utilisent des transactions/verrous pour éviter les rotations et comptages concurrents : conserver ces garanties lors d'une simplification.

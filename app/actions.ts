@@ -242,10 +242,6 @@ export async function addQuickEntryAction(formData: FormData) {
     return { ok: false, error: "Cet aliment est déjà à 3/3." };
   }
 
-  if (result.status === "unavailable") {
-    return { ok: false, error: "Ajout rapide indisponible pour le moment." };
-  }
-
   revalidatePath("/");
   return { ok: true };
 }
