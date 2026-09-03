@@ -3,7 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
-const { resolveDatabaseUrl, getEnvValue, isStrictRuntime } = require("./_db-url");
+const { resolveDatabaseUrl, getEnvValue, isStrictRuntime } = require("../../lib/database-url");
 
 const SUPPORTED_COMMANDS = new Set(["up", "down", "create"]);
 

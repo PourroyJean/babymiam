@@ -432,17 +432,6 @@ export async function getFoodTimeline(ownerId: number): Promise<FoodTimelineEntr
     .filter((entry): entry is FoodTimelineEntry => entry !== null);
 }
 
-async function ensureFoodProgressRow(ownerId: number, foodId: number) {
-  await query(
-    `
-      INSERT INTO food_progress (owner_id, food_id)
-      VALUES ($1, $2)
-      ON CONFLICT (owner_id, food_id) DO NOTHING;
-    `,
-    [ownerId, foodId]
-  );
-}
-
 export async function upsertFoodTastingEntry(
   ownerId: number,
   foodId: number,

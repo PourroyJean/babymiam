@@ -4,7 +4,7 @@ Scripts Node opérationnels du dépôt.
 
 ## Points d'entrée
 
-- `db/preflight.js`, `db/migrate-runner.js`, `db/seed.js` et `db/query.js` servent à valider, migrer, peupler et inspecter PostgreSQL. `_db-url.js` centralise la résolution et la normalisation de l'URL DB : ne pas recopier cette logique.
+- `db/preflight.js`, `db/migrate-runner.js`, `db/seed.js` et `db/query.js` servent à valider, migrer, peupler et inspecter PostgreSQL. `lib/database-url.js` centralise la résolution et la normalisation de l'URL DB : ne pas recopier cette logique.
 - `users/` contient la création d'utilisateur, la vérification du compte personnel, l'attribution premium et les commandes de lien de test. Les mots de passe ne doivent pas être passés dans le code ni journalisés.
 - `e2e/web-server.js` prépare le serveur Playwright et restaure les fichiers de configuration temporairement modifiés.
 - `dev/dev-with-shared-link.js` lance le développement et tente de produire un lien de test ; `deploy/postbuild-production.js` le fait uniquement pour les builds Vercel preview/production.

@@ -1,4 +1,4 @@
-const { isStrictRuntime } = require("../db/_db-url");
+const { isStrictRuntime } = require("../../lib/database-url");
 const {
   getSharedTestLoginTokenExpiresAtEpochSeconds,
   isSharedTestLoginTokenExpired

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { Pool } = require("pg");
-const { resolveDatabaseUrl } = require("./_db-url");
+const { resolveDatabaseUrl } = require("../../lib/database-url");
 
 function parseParamsArg(rawParams) {
   if (typeof rawParams === "undefined") return [];

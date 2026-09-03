@@ -2,7 +2,7 @@
 
 const { Pool } = require("pg");
 const argon2 = require("argon2");
-const { resolveDatabaseUrl } = require("../db/_db-url");
+const { resolveDatabaseUrl } = require("../../lib/database-url");
 
 function parseArgs(argv) {
   const parsed = {

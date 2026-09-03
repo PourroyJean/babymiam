@@ -151,7 +151,6 @@ Nous utilisons `node-pg-migrate` pour versionner le schéma.
 - `PASSWORD_RESET_RATE_LIMIT_WINDOW_MINUTES` (défaut `30`)
 - `PASSWORD_RESET_RATE_LIMIT_MAX_ATTEMPTS` (défaut `5`)
 - `PUBLIC_SHARE_LINK_TTL_DAYS` (défaut `180`, durée de validité des nouveaux liens publics live)
-- `SHARE_SNAPSHOT_TTL_DAYS` (fallback legacy lu uniquement si `PUBLIC_SHARE_LINK_TTL_DAYS` est absent)
 - `MAINTENANCE_MODE` (`true|false`)
 - `TRUST_PROXY_IP_HEADERS` (`0` par défaut, `1` uniquement derrière un proxy de confiance)
 - `TRUST_PROXY_IP_HEADER_HOPS` (défaut `1`, nombre de proxys de confiance à ignorer en partant de la droite)

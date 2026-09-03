@@ -2,7 +2,7 @@
 
 const fs = require("fs/promises");
 const path = require("path");
-const { resolveDatabaseUrl, getEnvValue, isStrictRuntime } = require("./_db-url");
+const { resolveDatabaseUrl, getEnvValue, isStrictRuntime } = require("../../lib/database-url");
 
 const DEMO_CATEGORY_COUNT = 9;
 const DEMO_FOODS_PER_CATEGORY = 5;

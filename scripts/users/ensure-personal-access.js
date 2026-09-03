@@ -2,7 +2,7 @@
 
 const argon2 = require("argon2");
 const { Pool } = require("pg");
-const { isStrictRuntime, resolveDatabaseUrl } = require("../db/_db-url");
+const { isStrictRuntime, resolveDatabaseUrl } = require("../../lib/database-url");
 
 const DEFAULT_PERSONAL_ACCESS_EMAIL = "ljcls@gmail.com";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

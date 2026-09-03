@@ -2,7 +2,7 @@
 
 const { Pool } = require("pg");
 const { createSharedTestLoginToken } = require("../../lib/shared-test-login-token");
-const { resolveDatabaseUrl } = require("../db/_db-url");
+const { resolveDatabaseUrl } = require("../../lib/database-url");
 const {
   buildSharedTestMagicLoginUrl,
   ensureSharedTestLinkIssuedAtNow,

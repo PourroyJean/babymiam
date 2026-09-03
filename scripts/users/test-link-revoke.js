@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { Pool } = require("pg");
-const { resolveDatabaseUrl } = require("../db/_db-url");
+const { resolveDatabaseUrl } = require("../../lib/database-url");
 const {
   loadSharedTestAccessUser,
   resolveSharedTestAccessEmail,

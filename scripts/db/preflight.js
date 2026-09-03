@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { Pool } = require("pg");
-const { resolveDatabaseUrl, getEnvValue } = require("./_db-url");
+const { resolveDatabaseUrl, getEnvValue } = require("../../lib/database-url");
 
 function describeDatabaseTarget(connectionString) {
   try {
