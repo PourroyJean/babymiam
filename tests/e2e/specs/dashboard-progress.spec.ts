@@ -132,6 +132,36 @@ test.describe("dashboard progression", () => {
     expect(weeklyPlanBox!.y).toBeGreaterThan(titleBox!.y);
   });
 
+  test("uses the page scroll instead of a nested category scroller on mobile", async ({ appPage }) => {
+    await appPage.setViewportSize({ width: 390, height: 844 });
+    await appPage.reload();
+
+    const vegetables = appPage.getByRole("button", { name: "Légumes", exact: true });
+    await vegetables.click();
+
+    const categoryList = vegetables.locator("xpath=ancestor::article[1]").locator(".category-list.open");
+    await expect(categoryList).toBeVisible();
+
+    const layout = await categoryList.evaluate((list) => {
+      const firstRow = list.querySelector<HTMLElement>("li");
+      const listStyle = getComputedStyle(list);
+      const rowStyle = firstRow ? getComputedStyle(firstRow) : null;
+
+      return {
+        overflowY: listStyle.overflowY,
+        maxHeight: listStyle.maxHeight,
+        scrollHeight: list.scrollHeight,
+        clientHeight: list.clientHeight,
+        rowBoxShadow: rowStyle?.boxShadow ?? null
+      };
+    });
+
+    expect(layout.overflowY).toBe("visible");
+    expect(layout.maxHeight).toBe("none");
+    expect(layout.scrollHeight).toBe(layout.clientHeight);
+    expect(layout.rowBoxShadow).toBe("none");
+  });
+
   test("creates a tasting entry on an empty food via Première bouchée", async ({ appPage, db }) => {
     const foodName = "Banane";
     const todayIsoDate = getTodayLocalIsoDate();

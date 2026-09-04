@@ -4704,6 +4704,18 @@ a {
     --collapsed-row-height: 87px;
   }
 
+  /* Keep one vertical scroller on touch devices: nested category lists interrupt swipes. */
+  .category-list.open {
+    max-height: none;
+    overflow: visible;
+    overscroll-behavior: auto;
+    padding-right: 0;
+  }
+
+  .category-list.open > li {
+    box-shadow: none;
+  }
+
   .food-row-summary-btn {
     display: none;
   }
