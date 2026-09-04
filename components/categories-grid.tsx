@@ -75,10 +75,6 @@ function getAttachmentFilename(contentDisposition: string | null) {
   return fallbackMatch?.[1]?.trim() || null;
 }
 
-function formatPlanFocusCount(count: number, singular: string, plural = `${singular}s`) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
 function triggerFileDownload(blob: Blob, filename: string) {
   const objectUrl = window.URL.createObjectURL(blob);
   const downloadLink = document.createElement("a");
@@ -533,13 +529,6 @@ export function CategoriesGrid({
     [categories]
   );
   const weeklyPlan = useMemo(() => buildWeeklyDiscoveryPlan(categories), [categories]);
-  const weeklyPlanRelaunchCount = weeklyPlan.items.filter(
-    (item) => item.focus === "relaunch" && item.isAbandonedAtGeneration
-  ).length;
-  const weeklyPlanDiscoveryCount = weeklyPlan.items.filter((item) => item.focus === "new_discovery").length;
-  const weeklyPlanAllergenCount = weeklyPlan.items.filter((item) => item.focus === "allergen_routine").length;
-  const weeklyPlanConsolidationCount = weeklyPlan.items.filter((item) => item.focus === "consolidation").length;
-
 
   const finalPreferenceByFoodId = useMemo(() => {
     const preferenceMap = new Map<number, -1 | 0 | 1>();
@@ -552,9 +541,6 @@ export function CategoriesGrid({
 
     return preferenceMap;
   }, [categories, finalPreferenceOverridesByFoodId]);
-
-
-
   const summaryEntry = summaryFoodId !== null ? foodIndexById.get(summaryFoodId) ?? null : null;
   const summaryFood = summaryEntry?.food ?? null;
   const summaryCategoryName = summaryEntry?.categoryName ?? "";
@@ -588,40 +574,6 @@ export function CategoriesGrid({
               <span>Carnets de bords</span>
             </button>
 
-            <button
-              ref={weeklyPlanTriggerRef}
-              type="button"
-              className={`weekly-plan-trigger-btn ${weeklyPlanRelaunchCount > 0 ? "is-alert" : ""}`}
-              onClick={() => openOverlay("weeklyPlan")}
-            >
-              <span>Plan 7 jours</span>
-              <span className="weekly-plan-trigger-kpis">
-                <span className="weekly-plan-trigger-chip is-abandon">
-                  {formatPlanFocusCount(weeklyPlanRelaunchCount, "relance")}
-                </span>
-                <span className="weekly-plan-trigger-chip is-discovery">
-                  {formatPlanFocusCount(weeklyPlanDiscoveryCount, "découverte")}
-                </span>
-                <span className="weekly-plan-trigger-chip is-allergen">
-                  {formatPlanFocusCount(weeklyPlanAllergenCount, "allergène")}
-                </span>
-                <span className="weekly-plan-trigger-chip is-consolidation">
-                  {formatPlanFocusCount(weeklyPlanConsolidationCount, "consolidation")}
-                </span>
-              </span>
-              <span className="weekly-plan-badge">Premium</span>
-            </button>
-
-            <button
-              ref={guideTriggerRef}
-              type="button"
-              className="guide-trigger-btn"
-              onClick={() => openOverlay("guide")}
-            >
-              <span>Le Guide</span>
-              <span className="guide-badge">Premium</span>
-            </button>
-
             <button ref={quickAddTriggerRef} type="button" className="quick-add-trigger-btn" onClick={openQuickAdd}>
               <span>Ajout rapide</span>
             </button>
@@ -634,31 +586,6 @@ export function CategoriesGrid({
             >
               <span>Ajouter un aliment</span>
             </button>
-
-            <button
-              type="button"
-              className="pediatric-report-trigger-btn"
-              onClick={downloadPediatricReport}
-              disabled={isPediatricReportPending}
-              aria-label="Télécharger le rapport pédiatre en PDF"
-            >
-              {isPediatricReportPending ? (
-                <span className="pediatric-report-loading-indicator">
-                  <span className="pediatric-report-spinner" aria-hidden="true" />
-                  <span>Génération...</span>
-                </span>
-              ) : (
-                <>
-                  <span>Rapport pédiatre PDF</span>
-                  <span className="pediatric-report-badge">Premium</span>
-                </>
-              )}
-            </button>
-            {pediatricReportError ? (
-              <p className="pediatric-report-error" role="status" aria-live="polite">
-                {pediatricReportError}
-              </p>
-            ) : null}
 
             <label className="toolbox-toggle">
               <input
@@ -676,6 +603,60 @@ export function CategoriesGrid({
               </span>
               <span className="toolbox-toggle-text">Afficher seulement les aliments déjà testés</span>
             </label>
+
+            <section className="premium-toolbar-group" aria-labelledby="premium-toolbar-title">
+              <h3 id="premium-toolbar-title" className="premium-toolbar-title">
+                Fonctions Premium
+              </h3>
+              <div className="premium-toolbar-actions">
+                <button
+                  ref={weeklyPlanTriggerRef}
+                  type="button"
+                  className="weekly-plan-trigger-btn"
+                  onClick={() => openOverlay("weeklyPlan")}
+                >
+                  <span>Plan 7 jours</span>
+                  <span className="weekly-plan-badge">Premium</span>
+                </button>
+
+                <button
+                  ref={guideTriggerRef}
+                  type="button"
+                  className="guide-trigger-btn"
+                  onClick={() => openOverlay("guide")}
+                >
+                  <span>Le Guide</span>
+                  <span className="guide-badge">Premium</span>
+                </button>
+
+                <div className="pediatric-report-action">
+                  <button
+                    type="button"
+                    className="pediatric-report-trigger-btn"
+                    onClick={downloadPediatricReport}
+                    disabled={isPediatricReportPending}
+                    aria-label="Télécharger le rapport pédiatre en PDF"
+                  >
+                    {isPediatricReportPending ? (
+                      <span className="pediatric-report-loading-indicator">
+                        <span className="pediatric-report-spinner" aria-hidden="true" />
+                        <span>Génération...</span>
+                      </span>
+                    ) : (
+                      <>
+                        <span>Rapport pédiatre PDF</span>
+                        <span className="pediatric-report-badge">Premium</span>
+                      </>
+                    )}
+                  </button>
+                  {pediatricReportError ? (
+                    <p className="pediatric-report-error" role="status" aria-live="polite">
+                      {pediatricReportError}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </section>
           </div>
         </section>
       </div>

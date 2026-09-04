@@ -575,11 +575,13 @@ test.describe("dashboard progression", () => {
 
     await appPage.reload();
 
-    const weeklyPlanTrigger = appPage.getByRole("button", { name: /Plan 7 jours/i });
-    await expect(weeklyPlanTrigger).toContainText(/relance/i);
-    await expect(weeklyPlanTrigger).toContainText(/découverte/i);
-    await expect(weeklyPlanTrigger).toContainText(/allergène/i);
-    await expect(weeklyPlanTrigger).toContainText(/consolidation/i);
+    const premiumTools = appPage.locator(".premium-toolbar-group");
+    await expect(premiumTools.getByRole("heading", { name: "Fonctions Premium" })).toBeVisible();
+    await expect(premiumTools.getByRole("button", { name: /Plan 7 jours/i })).toHaveText(
+      /^\s*Plan 7 jours\s*Premium\s*$/i
+    );
+    await expect(premiumTools.getByRole("button", { name: /^Le Guide/i })).toBeVisible();
+    await expect(premiumTools.getByRole("button", { name: /Télécharger le rapport pédiatre en PDF/i })).toBeVisible();
 
     const { dialog } = await openWeeklyPlanPanel(appPage);
     await expect(dialog.getByRole("button", { name: /Relances/i })).toBeVisible();

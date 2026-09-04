@@ -20,6 +20,8 @@ Pour créer un compte local supplémentaire :
 printf "change-me-now" | npm run users:create -- --email "dev@example.com" --password-stdin --status active --verify-email
 ```
 
+Pour une vérification manuelle dans le navigateur, un compte local vérifié peut rester dans la base de développement. Utiliser une adresse réservée au local (par exemple `local-admin@grrrignote.test`) et un mot de passe saisi ou lu depuis l'environnement local ; ne jamais versionner ni documenter un couple identifiant/mot de passe réutilisable.
+
 ## Commandes utiles
 
 ```sh

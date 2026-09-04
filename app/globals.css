@@ -2365,6 +2365,31 @@ a {
   gap: 8px;
 }
 
+.premium-toolbar-group {
+  flex-basis: 100%;
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #e5d8c4;
+}
+
+.premium-toolbar-title {
+  margin: 0;
+  color: #6b5b44;
+  font-family: var(--font-fredoka), "Avenir Next", "Trebuchet MS", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.premium-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .toolbox-toggle {
   position: relative;
   display: inline-flex;
@@ -2491,11 +2516,6 @@ a {
   gap: 8px;
 }
 
-.weekly-plan-trigger-btn.is-alert {
-  border-color: #4d8796;
-  box-shadow: 0 0 0 1px rgba(77, 135, 150, 0.22);
-}
-
 .weekly-plan-trigger-btn:hover {
   background: linear-gradient(160deg, #dcf1f7 0%, #ecf7fc 100%);
 }
@@ -2503,44 +2523,6 @@ a {
 .weekly-plan-trigger-btn:focus-visible {
   outline: 2px solid #2e7f94;
   outline-offset: 2px;
-}
-
-.weekly-plan-trigger-kpis {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.weekly-plan-trigger-chip {
-  border: 1px solid #bfd3da;
-  border-radius: 999px;
-  padding: 2px 7px;
-  background: #fff;
-  color: #2f5d68;
-  font-size: 0.71rem;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.weekly-plan-trigger-chip.is-abandon {
-  border-color: #9db8c2;
-  color: #2f5d68;
-}
-
-.weekly-plan-trigger-chip.is-discovery {
-  border-color: #b7d1ad;
-  color: #3d6038;
-}
-
-.weekly-plan-trigger-chip.is-allergen {
-  border-color: #c7b189;
-  color: #6a4d1f;
-}
-
-.weekly-plan-trigger-chip.is-consolidation {
-  border-color: #b8a8ca;
-  color: #5a4775;
 }
 
 .weekly-plan-badge {
@@ -2670,6 +2652,11 @@ a {
   font-size: 0.84rem;
   font-weight: 600;
   color: #9e3728;
+}
+
+.pediatric-report-action {
+  display: grid;
+  gap: 6px;
 }
 
 .share-feedback {
@@ -4734,6 +4721,10 @@ a {
     flex-direction: column;
   }
 
+  .premium-toolbar-actions {
+    flex-direction: column;
+  }
+
   .age-guidance-overview {
     gap: 6px;
   }
@@ -4782,17 +4773,6 @@ a {
   .weekly-plan-trigger-btn {
     width: 100%;
     justify-content: space-between;
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .weekly-plan-trigger-kpis {
-    width: 100%;
-  }
-
-  .weekly-plan-badge {
-    align-self: flex-end;
   }
 
   .guide-trigger-btn {
@@ -4813,6 +4793,10 @@ a {
   .pediatric-report-trigger-btn {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .pediatric-report-action {
+    width: 100%;
   }
 
   .food-search-overlay {
