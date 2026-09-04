@@ -4329,6 +4329,16 @@ a {
     overflow-x: clip;
   }
 
+  body {
+    background: var(--bg);
+  }
+
+  .build-version-badge {
+    background: #fffdf8;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
   .dashboard-page,
   .blog-page {
     padding: 10px;
