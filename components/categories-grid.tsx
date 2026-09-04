@@ -56,12 +56,21 @@ const FINAL_PREFERENCE_DEBOUNCE_MS = 2000;
 const SHOW_TESTED_ONLY_TOGGLE_ID = "show-tested-only-toggle";
 const DASHBOARD_OVERLAY_HISTORY_KEY = "__grrrignoteDashboardOverlay";
 
-function isTimelineHistoryState(state: unknown) {
-  return (
-    typeof state === "object" &&
-    state !== null &&
-    (state as Record<string, unknown>)[DASHBOARD_OVERLAY_HISTORY_KEY] === "timeline"
-  );
+function getOverlayFromHistoryState(state: unknown): DashboardOverlay | null {
+  if (typeof state !== "object" || state === null) return null;
+
+  const overlay = (state as Record<string, unknown>)[DASHBOARD_OVERLAY_HISTORY_KEY];
+  switch (overlay) {
+    case "search":
+    case "timeline":
+    case "guide":
+    case "weeklyPlan":
+    case "quickAdd":
+    case "addFood":
+      return overlay;
+    default:
+      return null;
+  }
 }
 
 function getCategoryPictogram(categoryName: string) {
@@ -127,7 +136,7 @@ export function CategoriesGrid({
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const previousOverlayRef = useRef<DashboardOverlay | null>(null);
   const activeOverlayRef = useRef<DashboardOverlay | null>(null);
-  const pendingOverlayAfterTimelineCloseRef = useRef<DashboardOverlay | null>(null);
+  const pendingOverlayAfterCloseRef = useRef<DashboardOverlay | null>(null);
   const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const pendingFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const inFlightFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
@@ -144,32 +153,29 @@ export function CategoriesGrid({
   }
 
   function openOverlay(overlay: DashboardOverlay) {
-    if (activeOverlay === "timeline" && overlay !== "timeline" && isTimelineHistoryState(window.history.state)) {
-      pendingOverlayAfterTimelineCloseRef.current = overlay;
+    if (activeOverlay === overlay) return;
+
+    if (activeOverlay !== null && getOverlayFromHistoryState(window.history.state) === activeOverlay) {
+      pendingOverlayAfterCloseRef.current = overlay;
       window.history.back();
       return;
     }
 
-    if (overlay === "timeline" && activeOverlay !== "timeline") {
-      window.history.pushState(
-        { ...window.history.state, [DASHBOARD_OVERLAY_HISTORY_KEY]: "timeline" },
-        "",
-        window.location.href
-      );
-    }
-
+    window.history.pushState(
+      { ...window.history.state, [DASHBOARD_OVERLAY_HISTORY_KEY]: overlay },
+      "",
+      window.location.href
+    );
     setActiveOverlay(overlay);
   }
 
   function closeActiveOverlay() {
-    if (activeOverlay === "timeline" && isTimelineHistoryState(window.history.state)) {
+    if (activeOverlay !== null && getOverlayFromHistoryState(window.history.state) === activeOverlay) {
       window.history.back();
       return;
     }
 
-    if (activeOverlay === "quickAdd") {
-      setQuickAddPrefill(null);
-    }
+    if (activeOverlay === "quickAdd") setQuickAddPrefill(null);
     setActiveOverlay(null);
   }
 
@@ -268,16 +274,29 @@ export function CategoriesGrid({
 
   useEffect(() => {
     function onPopState(event: PopStateEvent) {
-      if (isTimelineHistoryState(event.state)) {
-        setActiveOverlay("timeline");
+      const overlay = getOverlayFromHistoryState(event.state);
+      if (overlay !== null) {
+        setActiveOverlay(overlay);
         return;
       }
 
-      if (activeOverlayRef.current === "timeline") {
-        setSummaryFoodId(null);
-        setActiveOverlay(pendingOverlayAfterTimelineCloseRef.current);
-        pendingOverlayAfterTimelineCloseRef.current = null;
+      if (activeOverlayRef.current === null) return;
+
+      const pendingOverlay = pendingOverlayAfterCloseRef.current;
+      pendingOverlayAfterCloseRef.current = null;
+      setSummaryFoodId(null);
+
+      if (pendingOverlay === null) {
+        setActiveOverlay(null);
+        return;
       }
+
+      window.history.pushState(
+        { ...window.history.state, [DASHBOARD_OVERLAY_HISTORY_KEY]: pendingOverlay },
+        "",
+        window.location.href
+      );
+      setActiveOverlay(pendingOverlay);
     }
 
     window.addEventListener("popstate", onPopState);
@@ -423,11 +442,16 @@ export function CategoriesGrid({
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        if (activeOverlayRef.current === "timeline" && isTimelineHistoryState(window.history.state)) {
-          pendingOverlayAfterTimelineCloseRef.current = "search";
+        if (activeOverlayRef.current !== null && getOverlayFromHistoryState(window.history.state) === activeOverlayRef.current) {
+          pendingOverlayAfterCloseRef.current = "search";
           window.history.back();
           return;
         }
+        window.history.pushState(
+          { ...window.history.state, [DASHBOARD_OVERLAY_HISTORY_KEY]: "search" },
+          "",
+          window.location.href
+        );
         setActiveOverlay("search");
         return;
       }
@@ -439,7 +463,10 @@ export function CategoriesGrid({
           return;
         }
 
-        if (activeOverlayRef.current === "timeline" && isTimelineHistoryState(window.history.state)) {
+        if (
+          activeOverlayRef.current !== null &&
+          getOverlayFromHistoryState(window.history.state) === activeOverlayRef.current
+        ) {
           event.preventDefault();
           window.history.back();
           return;

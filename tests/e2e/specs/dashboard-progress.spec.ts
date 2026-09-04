@@ -132,18 +132,33 @@ test.describe("dashboard progression", () => {
     expect(weeklyPlanBox!.y).toBeGreaterThan(titleBox!.y);
   });
 
-  test("uses browser history to close and restore the timeline on mobile", async ({ appPage }) => {
+  test("uses browser history to close and restore dashboard panels on mobile", async ({ appPage }) => {
     await appPage.setViewportSize({ width: 390, height: 844 });
     await appPage.reload();
 
-    await openTimelinePanel(appPage);
+    const panels = [
+      { buttonName: /Rechercher un aliment/i, dialogName: "Recherche globale" },
+      { buttonName: /Carnets de bords/i, dialogName: /Carnets de bords/i },
+      { buttonName: /Ajout rapide/i, dialogName: "Ajout rapide" },
+      { buttonName: /Ajouter un aliment/i, dialogName: "Ajouter un aliment" },
+      { buttonName: /Plan 7 jours/i, dialogName: /Plan 7 jours/i },
+      { buttonName: /^Le Guide/i, dialogName: "Le Guide" }
+    ];
 
-    await appPage.goBack();
-    await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toHaveCount(0);
-    await expect(appPage.getByRole("button", { name: /Carnets de bords/i })).toBeVisible();
+    for (const panel of panels) {
+      await appPage.getByRole("button", { name: panel.buttonName }).click();
+      const dialog = appPage.getByRole("dialog", { name: panel.dialogName });
+      await expect(dialog).toBeVisible();
 
-    await appPage.goForward();
-    await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toBeVisible();
+      await appPage.goBack();
+      await expect(dialog).toHaveCount(0);
+      await expect(appPage.getByRole("button", { name: panel.buttonName })).toBeVisible();
+
+      await appPage.goForward();
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole("button", { name: /Fermer/i }).click();
+      await expect(dialog).toHaveCount(0);
+    }
   });
 
   test("uses the page scroll instead of a nested category scroller on mobile", async ({ appPage }) => {
