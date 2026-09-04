@@ -492,6 +492,11 @@ test.describe("food summary modal", () => {
 
     await expect(mobileNonFinalEntry).toBeVisible();
 
+    const mobileCardShadow = await mobileNonFinalEntry.locator(".food-timeline-card").evaluate((element) =>
+      getComputedStyle(element).boxShadow
+    );
+    expect(mobileCardShadow).toBe("none");
+
     const mobileLineBreak = await mobileNonFinalEntry.evaluate((entryNode) => {
       const note = entryNode.querySelector<HTMLElement>(".food-timeline-cell--note");
       const rowOneSelectors = [

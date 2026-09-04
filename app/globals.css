@@ -4951,6 +4951,7 @@ a {
 
   .food-timeline-card {
     padding: 4px 8px;
+    box-shadow: none;
   }
 
   .public-share-timeline-panel {
