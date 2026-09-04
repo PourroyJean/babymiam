@@ -132,6 +132,20 @@ test.describe("dashboard progression", () => {
     expect(weeklyPlanBox!.y).toBeGreaterThan(titleBox!.y);
   });
 
+  test("uses browser history to close and restore the timeline on mobile", async ({ appPage }) => {
+    await appPage.setViewportSize({ width: 390, height: 844 });
+    await appPage.reload();
+
+    await openTimelinePanel(appPage);
+
+    await appPage.goBack();
+    await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toHaveCount(0);
+    await expect(appPage.getByRole("button", { name: /Carnets de bords/i })).toBeVisible();
+
+    await appPage.goForward();
+    await expect(appPage.getByRole("dialog", { name: /Carnets de bords/i })).toBeVisible();
+  });
+
   test("uses the page scroll instead of a nested category scroller on mobile", async ({ appPage }) => {
     await appPage.setViewportSize({ width: 390, height: 844 });
     await appPage.reload();

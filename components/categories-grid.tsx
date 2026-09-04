@@ -54,6 +54,15 @@ type FoodIndexEntry = {
 
 const FINAL_PREFERENCE_DEBOUNCE_MS = 2000;
 const SHOW_TESTED_ONLY_TOGGLE_ID = "show-tested-only-toggle";
+const DASHBOARD_OVERLAY_HISTORY_KEY = "__grrrignoteDashboardOverlay";
+
+function isTimelineHistoryState(state: unknown) {
+  return (
+    typeof state === "object" &&
+    state !== null &&
+    (state as Record<string, unknown>)[DASHBOARD_OVERLAY_HISTORY_KEY] === "timeline"
+  );
+}
 
 function getCategoryPictogram(categoryName: string) {
   return getCategoryUi(categoryName).pictogram;
@@ -117,6 +126,8 @@ export function CategoriesGrid({
   const finalPreferenceOverridesRef = useRef<Record<number, FinalPreferenceValue>>({});
   const serverFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const previousOverlayRef = useRef<DashboardOverlay | null>(null);
+  const activeOverlayRef = useRef<DashboardOverlay | null>(null);
+  const pendingOverlayAfterTimelineCloseRef = useRef<DashboardOverlay | null>(null);
   const debounceTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   const pendingFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
   const inFlightFinalPreferenceByFoodIdRef = useRef<Map<number, FinalPreferenceValue>>(new Map());
@@ -133,10 +144,29 @@ export function CategoriesGrid({
   }
 
   function openOverlay(overlay: DashboardOverlay) {
+    if (activeOverlay === "timeline" && overlay !== "timeline" && isTimelineHistoryState(window.history.state)) {
+      pendingOverlayAfterTimelineCloseRef.current = overlay;
+      window.history.back();
+      return;
+    }
+
+    if (overlay === "timeline" && activeOverlay !== "timeline") {
+      window.history.pushState(
+        { ...window.history.state, [DASHBOARD_OVERLAY_HISTORY_KEY]: "timeline" },
+        "",
+        window.location.href
+      );
+    }
+
     setActiveOverlay(overlay);
   }
 
   function closeActiveOverlay() {
+    if (activeOverlay === "timeline" && isTimelineHistoryState(window.history.state)) {
+      window.history.back();
+      return;
+    }
+
     if (activeOverlay === "quickAdd") {
       setQuickAddPrefill(null);
     }
@@ -231,6 +261,28 @@ export function CategoriesGrid({
   useEffect(() => {
     summaryFoodIdRef.current = summaryFoodId;
   }, [summaryFoodId]);
+
+  useEffect(() => {
+    activeOverlayRef.current = activeOverlay;
+  }, [activeOverlay]);
+
+  useEffect(() => {
+    function onPopState(event: PopStateEvent) {
+      if (isTimelineHistoryState(event.state)) {
+        setActiveOverlay("timeline");
+        return;
+      }
+
+      if (activeOverlayRef.current === "timeline") {
+        setSummaryFoodId(null);
+        setActiveOverlay(pendingOverlayAfterTimelineCloseRef.current);
+        pendingOverlayAfterTimelineCloseRef.current = null;
+      }
+    }
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   useEffect(() => {
     if (isSummaryOpen) {
@@ -371,6 +423,11 @@ export function CategoriesGrid({
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        if (activeOverlayRef.current === "timeline" && isTimelineHistoryState(window.history.state)) {
+          pendingOverlayAfterTimelineCloseRef.current = "search";
+          window.history.back();
+          return;
+        }
         setActiveOverlay("search");
         return;
       }
@@ -379,6 +436,12 @@ export function CategoriesGrid({
         if (summaryFoodIdRef.current !== null) {
           event.preventDefault();
           setSummaryFoodId(null);
+          return;
+        }
+
+        if (activeOverlayRef.current === "timeline" && isTimelineHistoryState(window.history.state)) {
+          event.preventDefault();
+          window.history.back();
           return;
         }
 
