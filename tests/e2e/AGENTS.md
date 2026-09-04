@@ -19,5 +19,6 @@ Suite Playwright couvrant l'authentification, le dashboard, les dégustations, l
 
 - Le premium est forcé et allowlisté explicitement dans l'environnement E2E pour des résultats reproductibles.
 - Préférer des sélecteurs accessibles et non ambigus ; avec un libellé partagé, utiliser une cible précise (`exact: true`, rôle ou conteneur).
+- Toute modification responsive du dashboard doit être vérifiée en desktop et avec un viewport mobile de 390 × 844 ; couvrir l'absence de contenu masqué, tronqué ou séparé par un espace anormal.
 - Le filtre Playwright `-g` est une expression régulière : vérifier le nombre de tests réellement exécutés.
 - Couvrir les chemins négatifs d'authentification/autorisation en plus du chemin de succès, notamment pour les actions sensibles et le rapport premium.

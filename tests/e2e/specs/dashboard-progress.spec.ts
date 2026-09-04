@@ -105,6 +105,33 @@ function getTastingEditor(page: Page, foodName: string, slot: 1 | 2 | 3) {
 }
 
 test.describe("dashboard progression", () => {
+  test("keeps premium actions directly below the main toolbar on mobile", async ({ appPage }) => {
+    await appPage.setViewportSize({ width: 390, height: 844 });
+    await appPage.reload();
+
+    const testedOnlyToggle = appPage.getByRole("switch", {
+      name: "Afficher seulement les aliments déjà testés"
+    });
+    const premiumTools = appPage.locator(".premium-toolbar-group");
+    const premiumTitle = premiumTools.getByRole("heading", { name: "Fonctions Premium" });
+    const weeklyPlan = premiumTools.getByRole("button", { name: /Plan 7 jours/i });
+
+    await expect(premiumTitle).toBeVisible();
+    await expect(weeklyPlan).toBeVisible();
+
+    const [toggleBox, titleBox, weeklyPlanBox] = await Promise.all([
+      testedOnlyToggle.boundingBox(),
+      premiumTitle.boundingBox(),
+      weeklyPlan.boundingBox()
+    ]);
+
+    expect(toggleBox).not.toBeNull();
+    expect(titleBox).not.toBeNull();
+    expect(weeklyPlanBox).not.toBeNull();
+    expect(titleBox!.y).toBeLessThan(toggleBox!.y + toggleBox!.height + 48);
+    expect(weeklyPlanBox!.y).toBeGreaterThan(titleBox!.y);
+  });
+
   test("creates a tasting entry on an empty food via Première bouchée", async ({ appPage, db }) => {
     const foodName = "Banane";
     const todayIsoDate = getTodayLocalIsoDate();

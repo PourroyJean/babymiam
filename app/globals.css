@@ -4725,6 +4725,11 @@ a {
     flex-direction: column;
   }
 
+  .premium-toolbar-group {
+    flex-basis: auto;
+    width: 100%;
+  }
+
   .age-guidance-overview {
     gap: 6px;
   }
