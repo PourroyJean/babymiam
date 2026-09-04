@@ -63,6 +63,7 @@ type AccessibleFoodRow = {
 
 const SHARE_OPEN_DEDUPE_MINUTES = 5;
 const SHARE_OPEN_DEDUPE_LOCK_NAMESPACE = 18427;
+const SHARE_LINK_ROTATION_LOCK_NAMESPACE = 18428;
 const PUBLIC_SHARE_ID_BYTE_LENGTH = 24;
 const PUBLIC_SHARE_ID_GENERATION_RETRIES = 5;
 
@@ -1027,24 +1028,57 @@ export async function createOrRotatePublicShareLink(
   ownerId: number,
   options: { forceRotate?: boolean } = {}
 ): Promise<PublicShareLinkState> {
-  const existingLink = await getActivePublicShareLinkForOwner(ownerId);
-  if (existingLink && !options.forceRotate) {
-    return existingLink;
-  }
-
   for (let attempt = 0; attempt < PUBLIC_SHARE_ID_GENERATION_RETRIES; attempt += 1) {
-    const publicId = createPublicShareId();
-    const issuedAtEpochSeconds = Math.floor(Date.now() / 1000);
-    const issuedAt = new Date(issuedAtEpochSeconds * 1000).toISOString();
-    const expiresAtEpochSeconds = getPublicShareLinkExpiresAtEpochSeconds(issuedAtEpochSeconds);
-    if (!expiresAtEpochSeconds) {
-      throw new Error("Failed to resolve public share link expiry.");
-    }
-
-    const expiresAt = new Date(expiresAtEpochSeconds * 1000).toISOString();
+    const client = await getPool().connect();
 
     try {
-      const result = await query<{
+      await client.query("BEGIN");
+      await client.query(
+        `
+          SELECT pg_advisory_xact_lock($1::int, hashtext($2));
+        `,
+        [SHARE_LINK_ROTATION_LOCK_NAMESPACE, String(ownerId)]
+      );
+
+      const existingResult = await client.query<{
+        owner_id: number;
+        public_id: string;
+        issued_at: string;
+        expires_at: string;
+      }>(
+        `
+          SELECT
+            public_share_links.owner_id,
+            public_share_links.public_id,
+            public_share_links.issued_at::text AS issued_at,
+            public_share_links.expires_at::text AS expires_at
+          FROM public_share_links
+          INNER JOIN users ON users.id = public_share_links.owner_id
+          WHERE public_share_links.owner_id = $1
+            AND public_share_links.expires_at > NOW()
+            AND users.status = 'active'
+            AND users.email_verified_at IS NOT NULL
+          LIMIT 1;
+        `,
+        [ownerId]
+      );
+
+      const existingLink = existingResult.rows[0];
+      if (existingLink && !options.forceRotate) {
+        await client.query("COMMIT");
+        return mapPublicShareLinkRow(existingLink);
+      }
+
+      const publicId = createPublicShareId();
+      const issuedAtEpochSeconds = Math.floor(Date.now() / 1000);
+      const issuedAt = new Date(issuedAtEpochSeconds * 1000).toISOString();
+      const expiresAtEpochSeconds = getPublicShareLinkExpiresAtEpochSeconds(issuedAtEpochSeconds);
+      if (!expiresAtEpochSeconds) {
+        throw new Error("Failed to resolve public share link expiry.");
+      }
+
+      const expiresAt = new Date(expiresAtEpochSeconds * 1000).toISOString();
+      const result = await client.query<{
         owner_id: number;
         public_id: string;
         issued_at: string;
@@ -1073,10 +1107,19 @@ export async function createOrRotatePublicShareLink(
         throw new Error("Failed to persist public share link.");
       }
 
+      await client.query("COMMIT");
       return mapPublicShareLinkRow(row);
     } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // Ignore rollback errors and surface the original failure.
+      }
+
       if (isUniqueViolation(error)) continue;
       throw error;
+    } finally {
+      client.release();
     }
   }
 

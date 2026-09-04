@@ -36,7 +36,6 @@ Contexte historique pour les choix non évidents. Les invariants actifs restent 
 
 - `npm run deploy:prod` publie l’état du worktree, y compris les changements non commités : contrôler `git status --short` et l’ancestry de la branche avant de déployer. Les opérations Git qui modifient la même branche se font en séquence.
 - Le lien de test partagé utilise une date d’émission dédiée pour son expiration ; sa révocation passe par la rotation de session. Les logs qui l’affichent sont sensibles.
-- En preview, le fallback depuis `VERCEL_URL` évite de dépendre d’une URL applicative configurée manuellement. Vérifier malgré tout les variables requises dans chaque scope Vercel.
 - Après un ajout rapide déclenché depuis le plan 7 jours, fermer la modale à la réussite : réinitialiser son contenu sans la fermer casse la continuité du parcours.
 - Pour améliorer le défilement mobile d’une page riche, réduire d’abord les effets visuels coûteux (`backdrop-filter`, grandes ombres, overlays) ; `content-visibility` seul peut déplacer le coût au premier affichage.
 

@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node scripts/dev/dev-with-shared-link.js",
-    "dev:raw": "next dev",
+    "dev": "next dev",
     "db:migrate": "node scripts/db/migrate-runner.js up",
     "db:migrate:down": "node scripts/db/migrate-runner.js down 1",
     "db:migrate:new": "node scripts/db/migrate-runner.js create",
@@ -14,7 +13,6 @@
     "db:assert-personal-access": "node scripts/users/assert-personal-access.js",
     "db:setup": "npm run db:migrate && npm run db:seed",
     "build": "next build --webpack",
-    "postbuild": "node scripts/deploy/postbuild-production.js",
     "start": "next start",
     "users:create": "node scripts/users/create-user.js",
     "users:test-link:generate": "node scripts/users/test-link-generate.js",
@@ -51,7 +49,6 @@
     "eslint-config-next": "^16.1.6",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "tsx": "^4",
     "typescript": "^5.4.0"
   }
 }

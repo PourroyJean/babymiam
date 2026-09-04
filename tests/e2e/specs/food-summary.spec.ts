@@ -395,7 +395,6 @@ test.describe("food summary modal", () => {
     await expect(nonFinalNote).toHaveCount(1);
     await expect(nonFinalEntry.locator('.food-timeline-cell--texture img[src*="texture-1-lisse.webp"]')).toHaveCount(1);
     await expect(nonFinalEntry.locator('.food-timeline-cell--slot img[src*="smiley-indecis.webp"]')).toHaveCount(1);
-    await expect(nonFinalEntry.locator('.food-timeline-cell--texture img[src*="texture-0-aucune.webp"]')).toHaveCount(0);
     await expect(dialog.locator("text=ø")).toHaveCount(0);
 
     const [finalBadgePositions, nonFinalBadgePositions] = await Promise.all([

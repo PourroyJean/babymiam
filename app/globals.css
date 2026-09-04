@@ -4305,14 +4305,6 @@ a {
   --tone-dot-border: #d59462;
 }
 
-.tone-spices {
-  --tone-surface: #f4df9d;
-  --tone-pill: #f1d991;
-  --tone-border: #ebd89f;
-  --tone-dot: #e4bf59;
-  --tone-dot-border: #c9a645;
-}
-
 .tone-oils {
   --tone-surface: #e9e4a8;
   --tone-pill: #e5df9d;
@@ -4327,22 +4319,6 @@ a {
   --tone-border: #d4e2b0;
   --tone-dot: #a9c672;
   --tone-dot-border: #90ac60;
-}
-
-.tone-sweets {
-  --tone-surface: #f7deea;
-  --tone-pill: #f4d8e5;
-  --tone-border: #efd3e0;
-  --tone-dot: #e8abc9;
-  --tone-dot-border: #d08eaf;
-}
-
-.tone-condiments {
-  --tone-surface: #dfe9c2;
-  --tone-pill: #dae4bb;
-  --tone-border: #d4e0b3;
-  --tone-dot: #bad17d;
-  --tone-dot-border: #a1b868;
 }
 
 .tone-other {

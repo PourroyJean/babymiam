@@ -7,21 +7,12 @@ export const CATEGORY_UI_BY_NAME: Record<string, CategoryUiConfig> = {
   "Légumes": { pictogram: "🥕", toneClass: "tone-vegetables" },
   "Fruits": { pictogram: "🍓", toneClass: "tone-fruits" },
   "Féculents & céréales": { pictogram: "🍞", toneClass: "tone-starch" },
+  "Légumineuses": { pictogram: "🫘", toneClass: "tone-legumes" },
   "Protéines animales": { pictogram: "🍖", toneClass: "tone-proteins" },
+  "Produits laitiers": { pictogram: "🥛", toneClass: "tone-dairy" },
   "Fruits à coque & graines": { pictogram: "🌰", toneClass: "tone-oils" },
   "Herbes & épices": { pictogram: "🌿", toneClass: "tone-herbs" },
-  // Legacy labels kept for backward compatibility during transition.
-  "Féculents": { pictogram: "🍞", toneClass: "tone-starch" },
-  "Protéines": { pictogram: "🍖", toneClass: "tone-proteins" },
-  "Légumineuses": { pictogram: "🫘", toneClass: "tone-legumes" },
-  "Produits laitiers": { pictogram: "🥛", toneClass: "tone-dairy" },
-  "Allergènes majeurs": { pictogram: "✨", toneClass: "tone-allergens" },
-  "Épices": { pictogram: "🌶️", toneClass: "tone-spices" },
-  "Oléagineux et huiles": { pictogram: "🫒", toneClass: "tone-oils" },
-  "Herbes et aromates": { pictogram: "🌿", toneClass: "tone-herbs" },
-  "Sucreries": { pictogram: "🍬", toneClass: "tone-sweets" },
-  "Condiments": { pictogram: "🧂", toneClass: "tone-condiments" },
-  "Autres": { pictogram: "🍽️", toneClass: "tone-other" }
+  "Allergènes majeurs": { pictogram: "✨", toneClass: "tone-allergens" }
 };
 
 const DEFAULT_CATEGORY_UI: CategoryUiConfig = {

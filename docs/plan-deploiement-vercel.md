@@ -1,54 +1,45 @@
-# Plan de déploiement Grrrignote sur Vercel + Neon
+# Déployer Grrrignote sur Vercel
 
-## 1. Objectif
-Déployer l'application Next.js multi-user sur Vercel avec Neon/Postgres, avec un runbook explicite pour les migrations et un mode maintenance pendant la bascule.
+## Avant la release
 
-## 2. État actuel
-- App hébergée sur Vercel.
-- Base Neon liée au projet Vercel.
-- Variables DB (`POSTGRES_URL`, `DATABASE_URL`, etc.) configurées.
-- Auth multi-user (table `users`, mot de passe hashé, session signée).
-- Build applicatif découplé des migrations DB.
+1. Vérifier la branche et `git status --short` : `npm run deploy:prod` publie le worktree courant.
+2. Exécuter les contrôles adaptés :
 
-## 3. Décisions techniques retenues
-- Hébergement: Vercel.
-- Base de données: Neon (Postgres).
-- Connexion DB: `pg` avec pool borné.
-- Migrations: `node-pg-migrate` en SQL pur (dossier `migrations/`).
-- Runner migration: `scripts/db/migrate-runner.js`.
-- Préflight DB: `scripts/db/preflight.js` (`npm run db:preflight`).
-- Chargement env migration: `POSTGRES_URL` puis `DATABASE_URL`.
-- En prod/CI: URL DB obligatoire (pas de fallback local).
-- Mode maintenance: variable `MAINTENANCE_MODE=true` pilotée via Vercel env.
+   ```sh
+   npm run lint -- --max-warnings=0
+   npm exec tsc -- --noEmit
+   npm run test:users
+   npm run build
+   ```
 
-## 4. Runbook migration prod (downtime accepté)
-1. Activer `MAINTENANCE_MODE=true`.
-2. Exécuter `npm run db:preflight` sur la base Neon cible.
-3. Exécuter `npm run db:migrate` sur la base Neon cible.
-4. Exécuter `npm run db:seed` sur la base Neon cible.
-5. Vérifier l'upsert automatique du compte perso (`npm run db:assert-personal-access`).
-6. Déployer le code applicatif.
-7. Désactiver `MAINTENANCE_MODE`.
+3. Vérifier dans le scope Vercel concerné les variables d'authentification, de base, d'e-mail et `APP_BASE_URL`. Ne pas copier leurs valeurs dans les logs ou la documentation.
 
-## 5. Checklist release
-- Vérifier `AUTH_SECRET` (ou `AUTH_SECRETS`) dans Vercel.
-- Vérifier `RESEND_API_KEY`, `MAIL_FROM`, `APP_BASE_URL`.
-- Vérifier `POSTGRES_URL` / `DATABASE_URL`.
-- Vérifier `PERSONAL_ACCESS_EMAIL` et `PERSONAL_ACCESS_PASSWORD`.
-- Vérifier `SKIP_DB_SETUP` absent (ou différent de `1`).
-- Exécuter `npm run build` en local.
-- Valider preview (login, write path, partage public, reset password).
-- Déployer production.
-- Contrôler les logs Vercel et Neon après mise en ligne.
+## Migration de base
 
-## 6. Risques principaux et mitigations
-- Échec migration DB:
-  - mitigation: maintenance mode + backup Neon avant exécution.
-- Erreur sur secrets mail/auth:
-  - mitigation: checklist release systématique.
+Si la release contient une migration, prévoir une sauvegarde et activer `MAINTENANCE_MODE=true` si elle n'est pas compatible sans interruption.
 
-## 7. Definition of Done
-- Production active sur Vercel.
-- Schéma multi-user en place (`owner_id` partout où requis).
-- Sessions/signatures et reset password opérationnels.
-- Runbook maintenance documenté et testable.
+Sur l'environnement cible :
+
+```sh
+npm run db:preflight
+npm run db:migrate
+```
+
+Lancer `npm run db:seed` uniquement si nécessaire. Après un seed qui doit préparer le compte personnel, vérifier :
+
+```sh
+npm run db:assert-personal-access
+```
+
+## Publication et vérification
+
+1. Publier :
+
+   ```sh
+   npm run deploy:prod
+   ```
+
+2. Vérifier en production : connexion, écriture d'une dégustation, lien grands-parents et réinitialisation de mot de passe.
+3. Vérifier les logs Vercel et la base. Désactiver `MAINTENANCE_MODE` si elle a été activée.
+
+Les builds ne lancent ni migration, ni seed, ni génération de lien de connexion.

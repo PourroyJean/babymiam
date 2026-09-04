@@ -11,8 +11,7 @@ import {
   resetMutableTables,
   setFinalPreferenceByName,
   setFoodTastingsByName,
-  setIntroducedFoods,
-  upsertFoodProgressByName
+  setIntroducedFoods
 } from "../helpers/db";
 
 const AUTH_EMAIL = process.env.E2E_AUTH_EMAIL || "e2e-parent@example.test";
@@ -24,7 +23,6 @@ type DbFixture = {
   queryOne: typeof queryOne;
   getDefaultOwnerId: typeof getDefaultOwnerId;
   getFoodProgressByName: typeof getFoodProgressByName;
-  upsertFoodProgressByName: typeof upsertFoodProgressByName;
   setFoodTastingsByName: typeof setFoodTastingsByName;
   setFinalPreferenceByName: typeof setFinalPreferenceByName;
   replaceFoodTastingsByName: typeof replaceFoodTastingsByName;
@@ -51,7 +49,6 @@ export const test = base.extend<E2EFixtures & AutoFixtures>({
       queryOne,
       getDefaultOwnerId,
       getFoodProgressByName,
-      upsertFoodProgressByName,
       setFoodTastingsByName,
       setFinalPreferenceByName,
       replaceFoodTastingsByName,

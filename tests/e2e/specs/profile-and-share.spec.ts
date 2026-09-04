@@ -160,6 +160,54 @@ test.describe("profile and share", () => {
       .toBe(`1|${copiedPublicId}|1`);
   });
 
+  test("returns the same link when two sessions generate it at once", async ({ appPage }) => {
+    const secondPage = await appPage.context().newPage();
+
+    try {
+      await setupClipboardMock(appPage);
+      await setupClipboardMock(secondPage);
+      await Promise.all([appPage.reload(), secondPage.goto("/account")]);
+
+      await Promise.all([
+        appPage.getByRole("button", { name: "Mon compte" }).click(),
+        secondPage.getByRole("button", { name: "Mon compte" }).click()
+      ]);
+
+      const firstDialog = appPage.getByRole("dialog", { name: "Mon compte" });
+      const secondDialog = secondPage.getByRole("dialog", { name: "Mon compte" });
+
+      await Promise.all([
+        firstDialog.getByRole("button", { name: "Générer un lien" }).click(),
+        secondDialog.getByRole("button", { name: "Générer un lien" }).click()
+      ]);
+
+      await Promise.all([
+        expect(firstDialog.getByText("Lien public généré.")).toBeVisible(),
+        expect(secondDialog.getByText("Lien public généré.")).toBeVisible()
+      ]);
+
+      await Promise.all([
+        firstDialog.getByRole("button", { name: "Copier le lien" }).click(),
+        secondDialog.getByRole("button", { name: "Copier le lien" }).click()
+      ]);
+
+      const [firstCopiedTexts, secondCopiedTexts] = await Promise.all([
+        appPage.evaluate(() => {
+          const windowWithClipboard = window as Window & { __e2eCopiedTexts?: string[] };
+          return windowWithClipboard.__e2eCopiedTexts || [];
+        }),
+        secondPage.evaluate(() => {
+          const windowWithClipboard = window as Window & { __e2eCopiedTexts?: string[] };
+          return windowWithClipboard.__e2eCopiedTexts || [];
+        })
+      ]);
+
+      expect(firstCopiedTexts.at(-1)).toBe(secondCopiedTexts.at(-1));
+    } finally {
+      await secondPage.close();
+    }
+  });
+
   test("regenerates the public share link and invalidates the previous one immediately", async ({
     appPage,
     browser

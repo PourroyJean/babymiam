@@ -30,10 +30,6 @@ const E2E_RESETTABLE_TABLES = [
 ];
 const DEFAULT_TEXTURE_LEVEL = 1 as const;
 
-function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function normalizeFoodName(value: string) {
   return value
     .replace(/[œŒ]/g, "oe")
@@ -387,10 +383,6 @@ export type FoodProgressState = {
   }>;
   tastingCount: number;
   finalPreference: -1 | 0 | 1;
-  // Compatibility aliases used by legacy tests.
-  exposureCount: number;
-  preference: -1 | 0 | 1;
-  firstTastedOn: string | null;
   note: string;
   updatedAt: string | null;
 };
@@ -511,7 +503,6 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
     : [];
 
   const tastingCount = Number(row.tasting_count ?? tastings.length);
-  const firstTastedOn = tastings.find((entry) => entry.slot === 1)?.tastedOn ?? null;
   const finalPreference = Number(row.final_preference ?? 0) as -1 | 0 | 1;
 
   return {
@@ -521,120 +512,9 @@ export async function getFoodProgressByName(foodName: string, ownerId?: number):
     tastings,
     tastingCount,
     finalPreference,
-    exposureCount: tastingCount,
-    preference: finalPreference,
-    firstTastedOn,
     note: row.note ?? "",
     updatedAt: row.updated_at
   };
-}
-
-export async function upsertFoodProgressByName(
-  foodName: string,
-  data: {
-    exposureCount?: number;
-    preference?: -1 | 0 | 1;
-    firstTastedOn?: string | null;
-    note?: string;
-    ownerId?: number;
-  }
-) {
-  const resolvedOwnerId = data.ownerId ?? (await getDefaultOwnerId());
-  const existing = await getFoodProgressByName(foodName, resolvedOwnerId);
-  if (!existing) {
-    throw new Error(`Aliment introuvable dans la fixture: ${foodName}`);
-  }
-
-  const normalizeCount = (value: number) => Math.max(0, Math.min(3, Math.trunc(value)));
-  const existingBySlot = new Map(existing.tastings.map((entry) => [entry.slot, entry]));
-  const targetCount = normalizeCount(data.exposureCount ?? existing.tastingCount);
-
-  const targetTastings: Array<{
-    slot: 1 | 2 | 3;
-    liked: boolean | null;
-    tastedOn: string;
-    note: string;
-    textureLevel: 1 | 2 | 3 | 4;
-    reactionType: 0 | 1 | 2 | 3 | 4 | null;
-  }> = [];
-  for (let slot = 1; slot <= targetCount; slot += 1) {
-    const normalizedSlot = slot as 1 | 2 | 3;
-    const current = existingBySlot.get(normalizedSlot);
-    targetTastings.push(
-      current || {
-        slot: normalizedSlot,
-        liked: false,
-        tastedOn: getTodayIsoDate(),
-        note: "",
-        textureLevel: DEFAULT_TEXTURE_LEVEL,
-        reactionType: 0
-      }
-    );
-  }
-
-  if (data.firstTastedOn && targetTastings.length > 0) {
-    targetTastings[0] = {
-      ...targetTastings[0],
-      tastedOn: data.firstTastedOn
-    };
-  }
-
-  const preferredFinalPreference = data.preference ?? existing.finalPreference;
-  const finalPreference = targetTastings.length === 3 ? preferredFinalPreference : 0;
-  const note = data.note ?? existing.note;
-
-  const client = await getPool().connect();
-  try {
-    await client.query("BEGIN");
-
-    await client.query(
-      `
-        INSERT INTO food_progress (owner_id, food_id, final_preference, note, updated_at)
-        VALUES ($1, $2, $3, $4, NOW())
-        ON CONFLICT (owner_id, food_id)
-        DO UPDATE SET
-          final_preference = EXCLUDED.final_preference,
-          note = EXCLUDED.note,
-          updated_at = NOW();
-      `,
-      [resolvedOwnerId, existing.foodId, finalPreference, note]
-    );
-
-    await client.query(
-      `
-        DELETE FROM food_tastings
-        WHERE owner_id = $1
-          AND food_id = $2;
-      `,
-      [resolvedOwnerId, existing.foodId]
-    );
-
-    for (const entry of targetTastings) {
-      await client.query(
-        `
-          INSERT INTO food_tastings (owner_id, food_id, slot, liked, tasted_on, note, texture_level, reaction_type, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW());
-        `,
-        [
-          resolvedOwnerId,
-          existing.foodId,
-          entry.slot,
-          entry.liked,
-          entry.tastedOn,
-          entry.note,
-          entry.textureLevel,
-          entry.reactionType
-        ]
-      );
-    }
-
-    await client.query("COMMIT");
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
-  }
 }
 
 export async function setFoodTastingsByName(

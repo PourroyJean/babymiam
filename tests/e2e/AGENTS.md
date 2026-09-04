@@ -6,7 +6,7 @@ Suite Playwright couvrant l'authentification, le dashboard, les dégustations, l
 
 - La configuration est dans `playwright.config.ts`; `global.setup.ts` crée/réinitialise la DB, applique les migrations, prépare l'utilisateur et charge le catalogue de fixtures.
 - `fixtures/test-fixtures.ts` fournit l'auto-login, la page applicative et un reset avant chaque test.
-- `helpers/db.ts` centralise le cycle de vie de DB, les fixtures et les assertions/mutations directes. Garder les données de test déterministes et alignées sur `aliments_categories.json`.
+- `helpers/db.ts` centralise le cycle de vie de DB, les fixtures et les assertions/mutations directes. Garder les données de test déterministes et s'appuyer sur les libellés canoniques de `aliments_categories.json`.
 - Les tests s'exécutent en série : ne pas introduire de dépendance à l'ordre ou à un état laissé par une autre spec.
 
 ## Sécurité du reset
